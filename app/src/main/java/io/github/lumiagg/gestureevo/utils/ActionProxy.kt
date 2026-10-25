@@ -584,13 +584,13 @@ class ActionProxy(private val context: Context, linkString: String) {
             }
 
             try {
-                options.launchBounds = FreeFormUtils.getRect(context, context.settingsStore)
+              // 不设置 launchBounds。
+              // 让荣耀 MagicOS 自己计算自由窗口的默认边界。
             } finally {
                 if (side != null) {
                     TriggerSide.take()
                 }
-            }
-
+           }
             return options
         }
 
