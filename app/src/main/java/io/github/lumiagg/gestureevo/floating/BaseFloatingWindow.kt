@@ -1,5 +1,4 @@
 package io.github.lumiagg.gestureevo.floating
-
 import io.github.lumiagg.gestureevo.diagnostics.AppLogger
 import io.github.lumiagg.gestureevo.diagnostics.LogLevel
 import io.github.lumiagg.gestureevo.diagnostics.LogModule
@@ -25,10 +24,9 @@ abstract class BaseFloatingWindow(
     protected val windowManager: WindowManager by lazy {
         context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     }
-
     private val attachRequests = Collections.newSetFromMap(IdentityHashMap<View, Boolean>())
     private val attachRetryJobs = IdentityHashMap<View, Job>()
-
+    private val attachingViews = Collections.newSetFromMap(IdentityHashMap<View, Boolean>())
     protected fun WindowManager.LayoutParams.configureAccessibilityOverlay(
         flags: Int,
         width: Int = WindowManager.LayoutParams.MATCH_PARENT,
@@ -54,7 +52,6 @@ abstract class BaseFloatingWindow(
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }
     }
-
     protected fun attachViewSafely(
         view: View,
         layoutParams: WindowManager.LayoutParams,
@@ -69,11 +66,16 @@ abstract class BaseFloatingWindow(
             onAttached()
             return true
         }
-
+        if (!attachingViews.add(view)) {
+            onAttached()
+            return true
+        }
         return runCatching {
             windowManager.addView(view, layoutParams)
+            attachingViews.remove(view)
             onAttached()
         }.onFailure { err ->
+            attachingViews.remove(view)
             AppLogger.event(
                 LogModule.OVERLAY, "overlay_attach_failed",
                 LogLevel.WARN, fields = mapOf("source" to logTag), error = err)
@@ -86,13 +88,11 @@ abstract class BaseFloatingWindow(
             }
         }.isSuccess
     }
-
     protected fun addViewSafely(
         view: View,
         layoutParams: WindowManager.LayoutParams,
         onAttached: () -> Unit = {},
     ): Boolean = attachViewSafely(view, layoutParams, onAttached = onAttached)
-
     protected fun detachViewSafely(
         view: View,
         immediate: Boolean = true,
@@ -100,11 +100,11 @@ abstract class BaseFloatingWindow(
     ): Boolean {
         attachRequests.remove(view)
         attachRetryJobs.remove(view)?.cancel()
+        attachingViews.remove(view)
         if (!view.isAttachedToWindow) {
             onDetached()
             return true
         }
-
         return runCatching {
             if (immediate) {
                 windowManager.removeViewImmediate(view)
@@ -116,13 +116,11 @@ abstract class BaseFloatingWindow(
             Log.d(logTag, "removeView failed: $err")
         }.isSuccess
     }
-
     protected fun safeRemoveView(
         view: View,
         immediate: Boolean = true,
         onDetached: () -> Unit = {},
     ): Boolean = detachViewSafely(view, immediate, onDetached)
-
     protected fun updateViewLayoutSafely(
         view: View,
         layoutParams: WindowManager.LayoutParams,
@@ -134,14 +132,12 @@ abstract class BaseFloatingWindow(
             Log.d(logTag, "updateViewLayout failed: $err")
         }.isSuccess
     }
-
     protected fun isAttachRequested(view: View): Boolean = attachRequests.contains(view)
-
     protected fun clearAttachRequest(view: View) {
         attachRequests.remove(view)
         attachRetryJobs.remove(view)?.cancel()
+        attachingViews.remove(view)
     }
-
     private fun retryAttachView(
         view: View,
         layoutParams: WindowManager.LayoutParams,
@@ -153,15 +149,15 @@ abstract class BaseFloatingWindow(
             return
         }
         if (!shouldRetry()) return
-
         runCatching {
             windowManager.addView(view, layoutParams)
+            attachingViews.remove(view)
             onAttached()
         }.onFailure { retryErr ->
+            attachingViews.remove(view)
             Log.d(logTag, "addView retry failed: $retryErr")
         }
     }
-
     private companion object {
         const val DEFAULT_RETRY_DELAY_MILLIS = 200L
     }
