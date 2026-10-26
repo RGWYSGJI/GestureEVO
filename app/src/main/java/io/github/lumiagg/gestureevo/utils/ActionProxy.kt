@@ -564,33 +564,10 @@ class ActionProxy(private val context: Context, linkString: String) {
                 TriggerSide.record(side)
             }
             val options = ActivityOptions.makeBasic()
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    allowReflectionActivityOptions(options)
-                }
-                val method = ActivityOptions::class.java.getMethod(
-                    "setLaunchWindowingMode",
-                    Int::class.javaPrimitiveType
-                )
-                method.invoke(options, getFreeFormCode(context))
-                if (isHuawei(context)) {
-                    val setLaunchStackIdtMethod = ActivityOptions::class.java.getMethod(
-                        "setLaunchStackId",
-                        Int::class.javaPrimitiveType
-                    )
-                    setLaunchStackIdtMethod.invoke(options, 2)
-                }
-            } catch (ignored: Exception) {
+            options.launchBounds = android.graphics.Rect(133, 580, 1406, 2655)
+            if (side != null) {
+                TriggerSide.take()
             }
-
-            try {
-              // 不设置 launchBounds。
-              // 让荣耀 MagicOS 自己计算自由窗口的默认边界。
-            } finally {
-                if (side != null) {
-                    TriggerSide.take()
-                }
-           }
             return options
         }
 
