@@ -1,5 +1,4 @@
 package io.github.lumiagg.gestureevo.utils
-
 import FreeFormUtils
 import io.github.lumiagg.gestureevo.diagnostics.AppLogger
 import io.github.lumiagg.gestureevo.diagnostics.LogLevel
@@ -70,7 +69,6 @@ import java.util.UUID
 class ActionProxy(private val context: Context, linkString: String) {
     private val trace = UUID.randomUUID().toString()
     private val link = linkString.toUri()
-
     val event: GestureActionType = link.toGestureActionType()
     var freeform: Boolean = link.getBooleanQueryParameter("freeform", false)
     var newWindow: Boolean = link.getBooleanQueryParameter("newWindow", false)
@@ -82,7 +80,6 @@ class ActionProxy(private val context: Context, linkString: String) {
     val timeout: Boolean = link.getBooleanQueryParameter("timeout", false)
     val useCustomTabs: Boolean = link.getBooleanQueryParameter("useCustomTabs", false)
     val triggerSideParam: String? = link.getQueryParameter("triggerSide")
-
     suspend fun execute(anchor: TriggerSide.Point? = null, side: String? = null) {
         val startedAt = android.os.SystemClock.elapsedRealtime()
         SystemLogCapture.rememberTarget(pkg)
@@ -110,7 +107,6 @@ class ActionProxy(private val context: Context, linkString: String) {
             TriggerSide.take()
         }
     }
-
     private suspend fun executeAction() {
         when (event) {
             GestureActionType.OPEN_APP -> {
@@ -118,11 +114,9 @@ class ActionProxy(private val context: Context, linkString: String) {
                     launcherAPP(it)
                 }
             }
-
             GestureActionType.FREEZE_APP -> {
                 AShizuku.operate(pkg ?: return, false, context)
             }
-
             GestureActionType.RECENT_APP -> {
                 if (isNotification) {
                     produceNotificationEvent(NotificationEvent(pkg ?: return, freeform))
@@ -130,11 +124,9 @@ class ActionProxy(private val context: Context, linkString: String) {
                     launcherAPP(pkg ?: return)
                 }
             }
-
             GestureActionType.SCREEN_CONTENT -> {
                 produceInspireEvent(InspireEvent(side = TriggerSide.peek()))
             }
-
             GestureActionType.SCREEN_CONTENT_FULLSCREEN -> {
                 produceInspireEvent(
                     InspireEvent(
@@ -144,15 +136,12 @@ class ActionProxy(private val context: Context, linkString: String) {
                     )
                 )
             }
-
             GestureActionType.SCREEN_SEARCH -> {
                 produceScreenSearchEvent(ScreenSearchEvent(show = true, side = TriggerSide.peek()))
             }
-
             GestureActionType.OTHER_LINK, GestureActionType.OTHER_SHORTCUT -> {
                 launchUri(otherLink ?: return, pkg ?: "")
             }
-
             GestureActionType.OPEN_ACTIVITY -> {
                 val isExported: Boolean = link.getBooleanQueryParameter("isExported", false)
                 val activityName: String? = link.getQueryParameter("activityName")
@@ -173,15 +162,12 @@ class ActionProxy(private val context: Context, linkString: String) {
                     launchUri(otherLink ?: return, pkg ?: "")
                 }
             }
-
             GestureActionType.OPEN_SHELL -> {
                 launchShell(shell ?: return)
             }
-
             GestureActionType.KEYBOARD -> {
                 produceKeyboardEvent(event = KeyboardEvent(show = true, side = TriggerSide.peek()))
             }
-
             GestureActionType.SEARCH -> {
                 QuickSearchActivity.start(
                     context,
@@ -189,7 +175,6 @@ class ActionProxy(private val context: Context, linkString: String) {
                     side = TriggerSide.peek()
                 )
             }
-
             GestureActionType.ACC_ACTION -> {
                 val action = link.getQueryParameter("accAction")?.toInt() ?: return
                 if (action == AccessibilityService.GLOBAL_ACTION_TAKE_SCREENSHOT) {
@@ -198,7 +183,6 @@ class ActionProxy(private val context: Context, linkString: String) {
                 }
                 produceAccessibilityActionEvent(AccessibilityActionEvent(action))
             }
-
             GestureActionType.CLIPBOARD_ACTION -> {
                 val action = link.getQueryParameter("clipAction")
                 context.startActivity(
@@ -210,27 +194,22 @@ class ActionProxy(private val context: Context, linkString: String) {
                         putExtra("clipAction", action)
                     })
             }
-
             GestureActionType.FREEFORM_FOREGROUND -> {
                 val currentPkg = CurrentPackageProvider.resolveCurrentPackageName() ?: return
                 if (isLauncherPackage(currentPkg)) return
                 freeform = true
                 launcherAPP(currentPkg)
             }
-
             GestureActionType.POINTER -> {
                 producePointerEvent(PointerEvent(enable = true, needShowTouchView = !timeout, side = TriggerSide.peek()))
             }
-
             GestureActionType.PIN_POOL -> {
                 producePinPoolEvent(PinPoolEvent(show = true, side = TriggerSide.take()))
             }
-
             GestureActionType.TEMP_DND -> {
                 val minutes = link.getQueryParameter("minutes")?.toIntOrNull() ?: 15
                 TempDndManager.enableTempDnd(context, minutes)
             }
-
             GestureActionType.SHOW_ACTION_VIEW -> {
                 val selectedActionItemsTag = link.getQueryParameter("actionItemsTag") ?: return
                 val selectedTriggerTag = link.getQueryParameter("triggerTag")
@@ -252,9 +231,7 @@ class ActionProxy(private val context: Context, linkString: String) {
             GestureActionType.CLICK_THROUGH -> {}
             GestureActionType.NONE -> {}
         }
-
     }
-
     private suspend fun launcherAPP(pkg: String, countOpen: Boolean = true): Boolean =
         withContext(Dispatchers.Default) {
             ensureAppEnabledIfFrozen(pkg, context)
@@ -274,7 +251,6 @@ class ActionProxy(private val context: Context, linkString: String) {
             }
             launched
         }
-
     private suspend fun launchUri(uri: String, pkgName: String): Boolean {
         try {
             if (pkgName.isNotEmpty()) {
@@ -305,12 +281,10 @@ class ActionProxy(private val context: Context, linkString: String) {
         }
         return false
     }
-
     private suspend fun launchCustomTabsIntent(intent: Intent, pkgName: String): Boolean {
         if (intent.action != Intent.ACTION_VIEW) return false
         val uri = intent.data ?: return false
         if (!uri.isWebScheme()) return false
-
         val customTabsPackage = resolveCustomTabsPackage(pkgName) ?: return false
         val customTabsIntent = CustomTabsIntent.Builder()
             .setShowTitle(true)
@@ -322,12 +296,10 @@ class ActionProxy(private val context: Context, linkString: String) {
         }
         return launchIntent(customTabsIntent.intent)
     }
-
     private fun resolveCustomTabsPackage(requestedPackage: String): String? {
         if (requestedPackage.isNotBlank()) {
             return requestedPackage.takeIf(::supportsCustomTabs)
         }
-
         val viewIntent = Intent(Intent.ACTION_VIEW, "https://www.example.com".toUri())
         val activities = packageManagerCompat().queryIntentActivities(
             viewIntent,
@@ -339,7 +311,6 @@ class ActionProxy(private val context: Context, linkString: String) {
             .distinct()
             .firstOrNull(::supportsCustomTabs)
     }
-
     private fun supportsCustomTabs(packageName: String): Boolean {
         val serviceIntent = Intent(CustomTabsService.ACTION_CUSTOM_TABS_CONNECTION).apply {
             `package` = packageName
@@ -348,12 +319,10 @@ class ActionProxy(private val context: Context, linkString: String) {
     }
 
     private fun packageManagerCompat() = context.packageManager
-
     private fun Uri.isWebScheme(): Boolean {
         return scheme.equals("http", ignoreCase = true) ||
                 scheme.equals("https", ignoreCase = true)
     }
-
     private suspend fun launchShell(shell: String) {
         if (!AShell.doCmd(context, shell.removePrefix("adb ").removePrefix("shell ")).first) {
             ToastHelper.showInUIThread(
@@ -362,7 +331,6 @@ class ActionProxy(private val context: Context, linkString: String) {
             )
         }
     }
-
     private suspend fun launchAndroidForWork(componentName: ComponentName?): Boolean =
         withContext(Dispatchers.Default) {
             val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
@@ -385,7 +353,6 @@ class ActionProxy(private val context: Context, linkString: String) {
             }
             return@withContext false
         }
-
     private suspend fun launchIntent(intent: Intent): Boolean =
         withContext(Dispatchers.Default) {
             if (newWindow) {
@@ -420,7 +387,6 @@ class ActionProxy(private val context: Context, linkString: String) {
             }
             return@withContext false
         }
-
     private suspend fun launchIntentMi(intent: Intent): Boolean =
         withContext(Dispatchers.Default) {
             val intentV2 = Intent("com.sunshine.freeform.start_freeform").apply {
@@ -435,7 +401,6 @@ class ActionProxy(private val context: Context, linkString: String) {
                 }
             }
             context.sendBroadcast(intentV2)
-
             val intentV1 = Intent("com.sunshine.freeform.start_by_mi_freeform")
             intentV1.setPackage("com.sunshine.freeform")
             intentV1.putExtra("packageName", intent.`package`)
@@ -445,14 +410,12 @@ class ActionProxy(private val context: Context, linkString: String) {
                 fields = mapOf("method" to "mi_freeform", "package" to intent.`package`))
             true
         }
-
     private fun extractPackageFromUri(uri: String): String? {
         return runCatching {
             val intent = Intent.parseUri(uri, Intent.URI_ALLOW_UNSAFE)
             intent.`package` ?: intent.component?.packageName
         }.getOrNull()
     }
-
     private suspend fun recordOpenCount(pkgName: String?) {
         val targetPkg = pkgName?.takeIf { it.isNotBlank() } ?: return
         val model = getAPPDao().findByPkg(targetPkg) ?: return
@@ -460,17 +423,14 @@ class ActionProxy(private val context: Context, linkString: String) {
         model.lastUsageTime = System.currentTimeMillis()
         updateDB(model)
     }
-
     suspend fun getActivityOptions(): ActivityOptions {
         return buildFreeformActivityOptions(context)
     }
-
     suspend fun shareOpenIntent(
         targetIntent: Intent,
         timeoutMillis: Long = 10_000L  // 10-second timeout
     ): ShareOpenResult {
         val requestId = UUID.randomUUID().toString()
-
         val intent = Intent(Intent.ACTION_SEND).apply {
             component = ComponentName(context, ShareOpenAppProxyActivity::class.java)
             type = "text/plain"
@@ -479,13 +439,10 @@ class ActionProxy(private val context: Context, linkString: String) {
             putExtra(Intent.EXTRA_TEXT, targetIntent.`package`)
             addFlags(FLAG_ACTIVITY_NEW_TASK)
         }
-
         val chooser = Intent.createChooser(intent, null).apply {
             addFlags(FLAG_ACTIVITY_NEW_TASK)
         }
-
         context.startActivity(chooser)
-
         // Await result with timeout
         return withTimeoutOrNull(timeoutMillis) {
             ShareOpenResultManager.awaitResult(requestId)
@@ -495,30 +452,25 @@ class ActionProxy(private val context: Context, linkString: String) {
             data = null
         )
     }
-
     suspend fun launchTemporaryAssistant(context: Context, pkg: String, activity: String): Boolean =
         withContext(Dispatchers.IO) {
             val searchManager =
                 context.getSystemService(Context.SEARCH_SERVICE) as? android.app.SearchManager
             val currentAssistant = Settings.Secure.getString(context.contentResolver, "assistant")
-
             val targetComponent = ComponentName(
                 pkg,
                 activity
             )
             val replacedAssistant = targetComponent.flattenToString()
-
             runCatching {
                 allowReflectionLaunchAssist()
                 // Temporarily replace system assistant
                 Settings.Secure.putString(context.contentResolver, "assistant", replacedAssistant)
-
                 // Launch assistant
                 searchManager?.let {
                     val method =
                         searchManager.javaClass.getMethod("launchAssist", Bundle::class.java)
                     method.invoke(searchManager, Bundle())
-
                     // Brief delay before restoring
                     delay(100)
                     Settings.Secure.putString(
@@ -528,7 +480,6 @@ class ActionProxy(private val context: Context, linkString: String) {
                     )
                     return@withContext true
                 }
-
                 return@withContext false
             }.onFailure { e ->
                 runCatching {
@@ -539,15 +490,12 @@ class ActionProxy(private val context: Context, linkString: String) {
                     )
                 }
             }
-
             return@withContext false
         }
-
     companion object {
         private const val NUBIA_FREEFORM_IDENTIFIER = "_WindowReply"
         private var activityOptionsAPIPass = false
         private var launchAssistAPIPass = false
-
         /**
          * Nubia / RedMagic freeform protocol requires both identifier and Bundle.
          * The Bundle must not be omitted even if it has no parameters.
@@ -558,26 +506,24 @@ class ActionProxy(private val context: Context, linkString: String) {
             }
             context.startActivity(intent, Bundle())
         }
-
         suspend fun buildFreeformActivityOptions(context: Context, side: String? = null): ActivityOptions {
             if (side != null) {
                 TriggerSide.record(side)
             }
             val options = ActivityOptions.makeBasic()
             options.launchBounds = android.graphics.Rect(133, 580, 1406, 2655)
+            allowReflectionActivityOptions(options)
             if (side != null) {
                 TriggerSide.take()
             }
             return options
         }
-
         fun allowReflectionLaunchAssist() {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
             if (launchAssistAPIPass) return
             HiddenApiBypass.addHiddenApiExemptions("Landroid/app/SearchManager")
             launchAssistAPIPass = true
         }
-
         fun allowReflectionActivityOptions(options: ActivityOptions?) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
             if (activityOptionsAPIPass) return
@@ -597,29 +543,24 @@ class ActionProxy(private val context: Context, linkString: String) {
             activityOptionsAPIPass = true
         }
     }
-
     object ShareOpenResultManager {
         private val _resultFlow = MutableSharedFlow<ShareOpenResult>(
             replay = 0,
             extraBufferCapacity = 1
         )
-
         suspend fun awaitResult(requestId: String): ShareOpenResult {
             return _resultFlow.first { it.requestId == requestId }
         }
-
         fun sendResult(result: ShareOpenResult) {
             _resultFlow.tryEmit(result)
         }
     }
-
     data class ShareOpenResult(
         val requestId: String,
         val success: Boolean,
         val data: Intent? = null
     )
 }
-
 fun uriBuilder(type: GestureActionType): Uri.Builder {
     return Uri.Builder().scheme("gesture-evo").authority("action")
         .appendPath(type.toString())
