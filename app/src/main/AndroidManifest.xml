@@ -32,6 +32,11 @@
         android:theme="@style/Theme.GestureEVO"
         tools:targetApi="34">
         <activity
+            android:name=".drop.DropSearchActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:theme="@style/Theme.GestureEVO.transparent" />
+        <activity
             android:name=".utils.NotificationPermissionPromptActivity"
             android:excludeFromRecents="true"
             android:exported="false"
@@ -245,6 +250,10 @@
             android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
         <receiver
             android:name=".utils.TempDndNotificationReceiver"
+            android:enabled="true"
+            android:exported="false" />
+        <receiver
+            android:name=".gesture.PauseGestureNotificationReceiver"
             android:enabled="true"
             android:exported="false" />
     </application>

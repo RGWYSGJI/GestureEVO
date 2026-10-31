@@ -24,6 +24,7 @@ import io.github.lumiagg.gestureevo.pin.PinPoolStore
 import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_DEFAULT_IMAGE_TEXT_OVERLAY
 import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_DEFAULT_SHARE_IMAGE_APP
 import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_INSPIRE_SELECTION_VIBRATE
+import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_INSPIRE_EDGE_BACK
 import io.github.lumiagg.gestureevo.share.ImageShareLauncher
 import io.github.lumiagg.gestureevo.utils.ClipboardUtils
 import io.github.lumiagg.gestureevo.utils.MlKitOcr
@@ -588,11 +589,7 @@ class InspireFloating(private val context: GestureService) :
                 scheduleTransition(startUptimeMs)
 
                 val accessibilityJob = async {
-                    val words = mutableListOf<String>()
-                    for (copyNode in getScreenContent(context, dragSelectRect)) {
-                        copyNode.content?.let { words.add(it) }
-                    }
-                    InspireDataHolder.accessibilityContent = words
+                    getScreenContentText(context, dragSelectRect)
                 }
 
                 val takeScreenshotJob = async {
@@ -610,7 +607,7 @@ class InspireFloating(private val context: GestureService) :
                     }
                 }
 
-                accessibilityJob.await()
+                InspireDataHolder.accessibilityContent = accessibilityJob.await()
                 takeScreenshotJob.await()
                 InspireDataHolder.replaceOcrAllowedTextBoxes(null)
 
@@ -713,6 +710,7 @@ class InspireFloating(private val context: GestureService) :
     }
 
     private suspend fun prepareVisibleInspireView() {
+        inspireView.edgeBackEnabled = context.settingsStore.readKey(KEY_INSPIRE_EDGE_BACK, true)
         context.gestureManager?.setInteractionMode(InteractionMode.INSPIRE_SELECT)
         preloadOcrModel()
         ensureAttached()
