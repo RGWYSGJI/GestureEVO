@@ -611,7 +611,6 @@ class ActionProxy(private val context: Context, linkString: String) {
             }
 
             try {
-                options.launchBounds = FreeFormUtils.getRect(context, context.settingsStore)
             } finally {
                 if (side != null) {
                     TriggerSide.take()
