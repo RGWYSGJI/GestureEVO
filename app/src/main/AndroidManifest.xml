@@ -164,8 +164,10 @@
             android:theme="@style/Theme.GestureEVO" />
         <activity
             android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|density|uiMode|fontScale|locale|layoutDirection"
             android:excludeFromRecents="true"
             android:exported="true"
+            android:launchMode="singleTask"
             android:theme="@style/Theme.GestureEVO.Dispatcher">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
