@@ -474,31 +474,6 @@ object SettingsSearchRegistry {
             keywords = listOf("方向", "横屏", "竖屏", "orientation")
         ),
         entry(
-            id = "freeform_mode",
-            titleResId = R.string.freeform_settings_mode_title,
-            pageTitleResId = R.string.freeform_settings_title,
-            targetActivity = FreeFormSettingsActivity::class.java,
-            targetViewId = R.id.dropdownCard,
-            keywords = listOf("模式", "freeform mode", "sunshine", "米窗", "com.sunshine.freeform")
-        ),
-        entry(
-            id = "freeform_size",
-            titleResId = R.string.freeform_settings_size_title,
-            pageTitleResId = R.string.freeform_settings_title,
-            targetActivity = FreeFormSettingsActivity::class.java,
-            targetViewId = R.id.sizeCard,
-            keywords = listOf("尺寸", "大小", "位置", "size")
-        ),
-        entry(
-            id = "freeform_follow_trigger_side",
-            titleResId = R.string.freeform_settings_follow_trigger_side,
-            pageTitleResId = R.string.freeform_settings_title,
-            targetActivity = FreeFormSettingsActivity::class.java,
-            targetViewId = R.id.followTriggerSideRow,
-            summaryResId = R.string.freeform_settings_follow_trigger_side_desc,
-            keywords = listOf("触发区", "左右", "横向", "触发位置", "follow trigger", "side", "location", "position")
-        ),
-        entry(
             id = "external_create",
             titleResId = R.string.external_action_open_create_button,
             pageTitleResId = R.string.external_action_settings_title,
