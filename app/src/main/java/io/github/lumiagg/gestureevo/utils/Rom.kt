@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.res.Configuration
 import android.os.Build
 import android.util.Log
-import io.github.lumiagg.gestureevo.settings.FreeFormSettingsActivity.Companion.KEY_FREEFORM_CODE
 import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStreamReader
@@ -153,11 +152,13 @@ object Rom {
     suspend fun isMiui13Plus(context: Context): Boolean = checkRom(context).isMiui13Plus()
     suspend fun isHuawei(context: Context): Boolean = checkRom(context).isHuawei()
 
-    suspend fun getFreeFormCode(context: Context): Int {
-        val code = context.settingsStore.readKey(KEY_FREEFORM_CODE, -1)
-        if (code != -1) return code
-        return checkRom(context).defaultFreeFormCode()
-    }
+    /**
+     * All freeform launches are forced to MagicOS/Huawei mode 3 (102).
+     * The settings page no longer exposes a mode selector, so legacy stored
+     * values (including -1) are intentionally ignored.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    suspend fun getFreeFormCode(context: Context): Int = 102
 
     /**
      * Adaptively calculates the system scaling compensation factor for MIUI freeform windows
