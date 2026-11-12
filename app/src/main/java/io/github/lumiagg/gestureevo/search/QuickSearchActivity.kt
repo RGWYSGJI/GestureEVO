@@ -13,6 +13,7 @@ import android.text.InputFilter
 import android.text.Spanned
 import android.text.TextWatcher
 import android.text.style.ForegroundColorSpan
+import android.util.Log
 import android.util.TypedValue
 import android.view.ActionMode
 import android.view.KeyEvent
@@ -71,6 +72,8 @@ import java.io.FileOutputStream
 
 class QuickSearchActivity : AppCompatActivity() {
     companion object {
+        private const val TAG = "QuickSearchActivity"
+        private const val MAX_PICKED_IMAGES = 10
         private const val KEEP_BACKGROUND_BLUR_HANDOFF_TIMEOUT_MS = 1_000L
         private var keepBackgroundBlurHandoffTime = 0L
         private var releaseBackgroundBlurHandoff: (() -> Unit)? = null
@@ -164,22 +167,33 @@ class QuickSearchActivity : AppCompatActivity() {
         if (::engineManager.isInitialized) engineManager.cancelPendingSearch()
     }
 
+    // Use Storage Access Framework instead of the system Photo Picker. On some
+    // OEM builds (e.g. HONOR MagicOS / Android 17) the picker returns a virtual
+    // content://media/picker/... URI whose openInputStream() fails, so every
+    // selected image was silently dropped. SAF returns a normal provider URI.
     private val imagePickerLauncher = registerForActivityResult(
-        ActivityResultContracts.GetMultipleContents()
+        ActivityResultContracts.OpenMultipleDocuments()
     ) { uris: List<Uri> ->
+        Log.d(TAG, "pickImages result: ${uris.size}")
         if (uris.isEmpty()) {
             clearPendingImageSearch()
             return@registerForActivityResult
         }
         lifecycleScope.launch(uiDispatcher) {
-            addAttachedImages(uris)
+            val added = addAttachedImages(uris.take(MAX_PICKED_IMAGES))
+            ToastHelper.showInUIThread(
+                applicationContext,
+                if (added > 0) R.string.quick_search_image_added
+                else R.string.quick_search_image_add_failed
+            )
             executePendingImageSearchIfNeeded()
         }
     }
 
     private val searchImagePickerLauncher = registerForActivityResult(
-        ActivityResultContracts.GetContent()
+        ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
+        Log.d(TAG, "pickImageAndSearch result: ${uri != null}")
         if (uri == null) {
             clearPendingImageSearch()
             return@registerForActivityResult
@@ -709,7 +723,7 @@ class QuickSearchActivity : AppCompatActivity() {
     fun pickImageAndSearch(engine: SearchEngine, freeform: Boolean) {
         pendingImageEngine = engine
         pendingImageSearchFreeform = freeform
-        searchImagePickerLauncher.launch("image/*")
+        searchImagePickerLauncher.launch(arrayOf("image/*"))
     }
 
     fun captureImageAndSearch(engine: SearchEngine, freeform: Boolean) {
@@ -719,7 +733,7 @@ class QuickSearchActivity : AppCompatActivity() {
     }
 
     fun pickImages() {
-        imagePickerLauncher.launch("image/*")
+        imagePickerLauncher.launch(arrayOf("image/*"))
     }
 
     fun getAttachedImageUris(): List<Uri> = attachedImageUris.toList()
@@ -744,19 +758,22 @@ class QuickSearchActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun addAttachedImages(uris: List<Uri>) {
+    private suspend fun addAttachedImages(uris: List<Uri>): Int {
+        // Copy immediately: some OEM photo pickers revoke the read grant as soon
+        // as the activity-result callback returns.
+        val persistedUris = withContext(ioDispatcher) {
+            uris.mapIndexedNotNull { index, uri -> persistImageUri(uri, index) }
+        }
         // Activity results can be delivered in onStart, before async onCreate has finished.
         contentReady.await()
         inputRevision++
         cancelPendingSearch()
-        val persistedUris = withContext(ioDispatcher) {
-            uris.mapNotNull { persistImageUri(it) }
-        }
         val newUris = persistedUris.filterNot { attachedImageUris.contains(it) }
-        if (newUris.isEmpty()) return
+        if (newUris.isEmpty()) return 0
         inputReadyForSave = true
         attachedImageUris.addAll(newUris)
         updateInputActionVisibility(binding.searchInput.text?.toString().orEmpty())
+        return newUris.size
     }
 
     private suspend fun restoreAttachedImages(uris: List<Uri>, revision: Int = inputRevision) {
@@ -910,46 +927,73 @@ class QuickSearchActivity : AppCompatActivity() {
         pendingImageSearchFreeform = false
     }
 
-    private fun persistImageUri(uri: Uri): Uri? {
+    private fun persistImageUri(uri: Uri, index: Int): Uri? {
         if (uri.authority == "${packageName}.fileprovider") {
             return uri
         }
-        return runCatching {
-            val imageDir = File(cacheDir, "images").apply { mkdirs() }
-            val mimeType = try { contentResolver.getType(uri) } catch (_: Exception) { null }
-            val ext = when (mimeType) {
-                "image/png" -> ".png"
-                "image/webp" -> ".webp"
-                "image/gif" -> ".gif"
-                else -> {
-                    val path = uri.path ?: uri.toString()
-                    when {
-                        path.endsWith(".png", true) -> ".png"
-                        path.endsWith(".webp", true) -> ".webp"
-                        path.endsWith(".gif", true) -> ".gif"
-                        else -> ".jpg"
-                    }
-                }
-            }
-            val targetFile =
-                File(imageDir, "picked_${System.currentTimeMillis()}_${attachedImageUris.size}$ext")
-            val inputStream = if (uri.scheme == "file" || uri.scheme == null) {
-                val file = File(uri.path ?: uri.schemeSpecificPart ?: uri.toString())
-                if (file.exists()) file.inputStream() else contentResolver.openInputStream(uri)
-            } else {
-                contentResolver.openInputStream(uri)
-            }
-            inputStream?.use { input ->
-                FileOutputStream(targetFile).use { output ->
-                    input.copyTo(output)
-                }
-            } ?: return null
-            FileProvider.getUriForFile(
-                this,
-                "${packageName}.fileprovider",
-                targetFile
+        // Grab a persistable grant before touching the stream; on some OEM
+        // pickers the grant is only alive during the result callback.
+        runCatching {
+            contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
             )
-        }.getOrNull()
+        }.onFailure { Log.d(TAG, "takePersistableUriPermission failed: $uri", it) }
+
+        val copied = runCatching { copyImageToCache(uri, index) }
+            .onFailure { Log.w(TAG, "copyImageToCache failed: $uri", it) }
+            .getOrNull()
+        if (copied != null) return copied
+
+        // OEM photo pickers occasionally return a content URI that cannot be
+        // copied during the result callback. Fall back to the original URI
+        // instead of silently dropping the image.
+        val readable = runCatching {
+            contentResolver.openInputStream(uri)?.use { true } ?: false
+        }.getOrDefault(false)
+        if (readable) {
+            Log.w(TAG, "using original picked uri because copy failed: $uri")
+            return uri
+        }
+        Log.e(TAG, "cannot read picked uri: $uri")
+        return null
+    }
+
+    private fun copyImageToCache(uri: Uri, index: Int): Uri? {
+        val imageDir = File(cacheDir, "images").apply { mkdirs() }
+        val mimeType = try { contentResolver.getType(uri) } catch (_: Exception) { null }
+        val ext = when (mimeType) {
+            "image/png" -> ".png"
+            "image/webp" -> ".webp"
+            "image/gif" -> ".gif"
+            else -> {
+                val path = uri.path ?: uri.toString()
+                when {
+                    path.endsWith(".png", true) -> ".png"
+                    path.endsWith(".webp", true) -> ".webp"
+                    path.endsWith(".gif", true) -> ".gif"
+                    else -> ".jpg"
+                }
+            }
+        }
+        val targetFile =
+            File(imageDir, "picked_${System.currentTimeMillis()}_${index}$ext")
+        val inputStream = if (uri.scheme == "file" || uri.scheme == null) {
+            val file = File(uri.path ?: uri.schemeSpecificPart ?: uri.toString())
+            if (file.exists()) file.inputStream() else contentResolver.openInputStream(uri)
+        } else {
+            contentResolver.openInputStream(uri)
+        }
+        inputStream?.use { input ->
+            FileOutputStream(targetFile).use { output ->
+                input.copyTo(output)
+            }
+        } ?: return null
+        return FileProvider.getUriForFile(
+            this,
+            "${packageName}.fileprovider",
+            targetFile
+        )
     }
 }
 
