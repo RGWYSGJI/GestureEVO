@@ -17,9 +17,18 @@ interface HiddenSearchResultDao {
     @Query("SELECT * FROM HiddenSearchResultModel ORDER BY hiddenAt DESC, resultKey ASC")
     fun observeAll(): Flow<List<HiddenSearchResultModel>>
 
+    @Query("SELECT * FROM HiddenSearchResultModel ORDER BY hiddenAt DESC, resultKey ASC")
+    suspend fun getAll(): List<HiddenSearchResultModel>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(model: HiddenSearchResultModel)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(models: List<HiddenSearchResultModel>)
+
     @Query("DELETE FROM HiddenSearchResultModel WHERE resultKey = :resultKey")
     suspend fun delete(resultKey: String)
+
+    @Query("DELETE FROM HiddenSearchResultModel")
+    suspend fun deleteAll()
 }
