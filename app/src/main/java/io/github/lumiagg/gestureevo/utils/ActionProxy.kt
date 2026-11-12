@@ -51,7 +51,6 @@ import io.github.lumiagg.gestureevo.gesture.ui.ActionView
 import io.github.lumiagg.gestureevo.notification.NotificationEvent
 import io.github.lumiagg.gestureevo.notification.NotificationService.Companion.produceNotificationEvent
 import io.github.lumiagg.gestureevo.search.QuickSearchActivity
-import io.github.lumiagg.gestureevo.settings.FreeFormSettingsActivity.Companion.KEY_USE_MI_WINDOW
 import io.github.lumiagg.gestureevo.utils.RecentAppsRecorder.isLauncherPackage
 import io.github.lumiagg.gestureevo.utils.Rom.RomFreeFormCode
 import io.github.lumiagg.gestureevo.utils.Rom.getFreeFormCode
@@ -286,9 +285,7 @@ class ActionProxy(private val context: Context, linkString: String) {
                     mapOf("package" to pkg))
                 return@withContext false
             }
-            val useMiFreeForm = context.settingsStore.readKey(KEY_USE_MI_WINDOW, false)
             val launched = when {
-                freeform && useMiFreeForm -> launchIntentMi(intent)
                 userId > 0 -> launchAndroidForWork(intent.component)
                 else -> launchIntent(intent)
             }
@@ -446,31 +443,6 @@ class ActionProxy(private val context: Context, linkString: String) {
                 AppLogger.event(LogModule.ACTION, "launch_permission_denied", LogLevel.ERROR, trace, metadata, ignored)
             }
             return@withContext false
-        }
-
-    private suspend fun launchIntentMi(intent: Intent): Boolean =
-        withContext(Dispatchers.Default) {
-            val intentV2 = Intent("com.sunshine.freeform.start_freeform").apply {
-                setPackage("com.sunshine.freeform")
-                // Package name to launch in freeform mode (e.g. com.sunshine.freeform)
-                putExtra("packageName", intent.`package`)
-                // Activity name to launch in freeform mode; note that it may need to be exported.
-                putExtra("activityName", intent.component?.className)
-                // Optional target userId (default 0). Can specify userId for cloned/dual app environments.
-                if (userId > -1) {
-                    putExtra("userId", userId)
-                }
-            }
-            context.sendBroadcast(intentV2)
-
-            val intentV1 = Intent("com.sunshine.freeform.start_by_mi_freeform")
-            intentV1.setPackage("com.sunshine.freeform")
-            intentV1.putExtra("packageName", intent.`package`)
-            intentV1.putExtra("activityName", intent.component?.flattenToString())
-            context.sendBroadcast(intentV1)
-            AppLogger.event(LogModule.ACTION, "launch_broadcast_submitted", trace = trace,
-                fields = mapOf("method" to "mi_freeform", "package" to intent.`package`))
-            true
         }
 
     private fun extractPackageFromUri(uri: String): String? {
