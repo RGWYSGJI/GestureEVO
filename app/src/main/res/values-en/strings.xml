@@ -587,7 +587,7 @@
     <string name="quick_search_image_cleared">Images cleared</string>
     <string name="quick_search_paste_image">Clipboard image</string>
     <string name="quick_search_image_added">Image added</string>
-    <string name="quick_search_image_add_failed">Couldn't add the image. Try again or pick another one.</string>
+    <string name="quick_search_image_add_failed">Could not add the image. Try again or pick another one.</string>
     <string name="quick_search_position_left">Aligned to left</string>
     <string name="quick_search_position_center">Centered</string>
     <string name="quick_search_position_right">Aligned to right</string>
