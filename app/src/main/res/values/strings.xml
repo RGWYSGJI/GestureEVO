@@ -647,6 +647,7 @@
     <string name="quick_search_image_cleared">已清空图片</string>
     <string name="quick_search_paste_image">剪贴板图片</string>
     <string name="quick_search_image_added">已添加图片</string>
+    <string name="quick_search_image_add_failed">无法添加图片，请重试或换一张</string>
     <string name="quick_search_clear_all_history">清空全部历史记录</string>
     <string name="quick_search_clear_history_confirm_message">确定清空全部搜索历史记录？此操作无法撤销。</string>
     <string name="quick_search_clear_history_confirm_action">清空</string>
