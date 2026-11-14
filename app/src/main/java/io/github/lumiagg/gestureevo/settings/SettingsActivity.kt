@@ -183,18 +183,6 @@ class SettingsActivity : AppCompatActivity() {
                 }
             }
 
-            findPreference<Preference>("preferenceFreeform")?.apply {
-                setOnPreferenceClickListener {
-                    startActivity(
-                        Intent(
-                            requireActivity(),
-                            FreeFormSettingsActivity::class.java
-                        )
-                    )
-                    return@setOnPreferenceClickListener true
-                }
-            }
-
             findPreference<Preference>("preferenceAbout")?.apply {
                 setOnPreferenceClickListener {
                     showAboutBottomSheet(requireActivity() as AppCompatActivity)
