@@ -3,10 +3,14 @@ package io.github.lumiagg.gestureevo.utils.app
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.ApplicationInfo
+import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.content.res.Resources
 import android.os.Build
+import android.os.Process
+import android.os.UserManager
 import androidx.room.withTransaction
+import io.github.lumiagg.gestureevo.db.APPDao
 import io.github.lumiagg.gestureevo.db.APPModel
 import io.github.lumiagg.gestureevo.db.DatabaseManager
 import io.github.lumiagg.gestureevo.db.getAPPDao
@@ -41,7 +45,10 @@ private suspend fun syncAppCatalogUnlocked(context: Context) = withContext(Dispa
     database.withTransaction {
         val dao = database.appDao
         val known = dao.getAll()
-        val plan = planAppCatalogSync(installedApps.keys, known.map { CatalogPackage(it.pkgName, it.isRemove) })
+        // Main-profile rows keep the existing install/uninstall reconciliation. Rows for
+        // secondary profiles are handled separately so they never mark the main app removed.
+        val mainKnown = known.filter { it.userId == 0 }
+        val plan = planAppCatalogSync(installedApps.keys, mainKnown.map { CatalogPackage(it.pkgName, it.isRemove) })
         val changes = plan.added.map { packageName ->
             val info = installedApps.getValue(packageName)
             APPModel(appDisplayName(context, info) ?: packageName, packageName).apply {
@@ -49,7 +56,7 @@ private suspend fun syncAppCatalogUnlocked(context: Context) = withContext(Dispa
             }
         }
         if (changes.isNotEmpty()) dao.insert(*changes.toTypedArray())
-        for (model in known) {
+        for (model in mainKnown) {
             val info = installedApps[model.pkgName]
             if (info != null) {
                 model.refreshCatalogMetadata(context, info)
@@ -59,9 +66,71 @@ private suspend fun syncAppCatalogUnlocked(context: Context) = withContext(Dispa
                 dao.update(model)
             }
         }
+        syncSecondaryProfileApps(context, dao, known)
     }
     // Preserve the persisted key for existing backups; commit it only after database success.
     context.settingsStore.saveKey(KEY_LAST_APP_HASH, installedApps.keys.hashCode())
+}
+
+/**
+ * Mirrors launcher-visible apps that live in a secondary user/profile (e.g. MagicOS App Twin,
+ * Android work profile). These rows carry the profile serial in [APPModel.userId]; the package
+ * manager scan above only sees the current profile, which is why clones used to be invisible.
+ */
+private suspend fun syncSecondaryProfileApps(context: Context, dao: APPDao, known: List<APPModel>) {
+    val userManager = context.getSystemService(Context.USER_SERVICE) as? UserManager ?: return
+    val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as? LauncherApps ?: return
+    val currentUser = Process.myUserHandle()
+    val seen = HashSet<Pair<String, Int>>()
+    val secondarySerials = HashSet<Int>()
+
+    for (profile in userManager.userProfiles) {
+        if (profile == currentUser) continue
+        val serial = runCatching { userManager.getSerialNumberForUser(profile).toInt() }
+            .getOrNull() ?: continue
+        if (serial <= 0) continue
+        secondarySerials.add(serial)
+        val activities = runCatching { launcherApps.getActivityList(null, profile) }
+            .getOrNull().orEmpty()
+        for (activity in activities) {
+            val pkg = activity.componentName.packageName
+            if (!seen.add(pkg to serial)) continue
+            val model = known.firstOrNull { it.pkgName == pkg && it.userId == serial }
+                ?: dao.findByPkgAndUser(pkg, serial)
+            val label = runCatching { activity.label?.toString() }.getOrNull()
+                ?.takeIf { it.isNotBlank() } ?: pkg
+            val displayName = if (label.contains("分身") || label.contains("双开")) {
+                label
+            } else {
+                "$label（分身）"
+            }
+            val target = model ?: APPModel(displayName, pkg)
+            if (target.name != displayName) target.name = displayName
+            target.userId = serial
+            target.isRemove = false
+            target.setState(APPModel.FLAG_LAUNCHER, true)
+            target.setState(APPModel.FLAG_NO_LAUNCHER, false)
+            val info = activity.applicationInfo
+            val system = info.flags and ApplicationInfo.FLAG_SYSTEM != 0
+            target.setState(APPModel.FLAG_SYSTEM, system)
+            target.setState(APPModel.FLAG_USER, !system)
+            if (model == null) {
+                dao.insert(target)
+            } else {
+                dao.update(target)
+            }
+        }
+    }
+
+    // A clone can be removed while its main app remains installed.
+    for (model in known) {
+        if (model.userId != 0 && model.userId in secondarySerials &&
+            (model.pkgName to model.userId) !in seen && !model.isRemove
+        ) {
+            model.isRemove = true
+            dao.update(model)
+        }
+    }
 }
 
 /** Read current package state so queued broadcasts cannot apply stale install/remove events. */
