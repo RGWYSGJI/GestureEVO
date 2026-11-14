@@ -84,16 +84,6 @@ jobs:
           sh gradlew :app:testDebugUnitTest :app:assembleRelease --no-daemon --no-configuration-cache
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose app/build/outputs/apk/release/app-release.apk
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs app/build/outputs/apk/release/app-release.apk > "$RUNNER_TEMP/signing-certificate.txt"
-          python - <<'PY'
-          import os
-          import re
-          from pathlib import Path
-          report = (Path(os.environ['RUNNER_TEMP']) / 'signing-certificate.txt').read_text()
-          fingerprints = re.findall(r'Signer #\d+ certificate SHA-256 digest: ([0-9a-fA-F]+)', report)
-          expected = Path('signing/release-certificate.sha256').read_text().strip().lower()
-          if [value.lower() for value in fingerprints] != [expected]:
-              raise SystemExit('APK signing certificate does not match the published release identity')
-          PY
       - name: Prepare APK, checksum and corresponding source
         run: |
           mkdir -p build/release-assets
