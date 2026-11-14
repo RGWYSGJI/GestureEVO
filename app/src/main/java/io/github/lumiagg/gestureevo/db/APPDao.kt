@@ -36,6 +36,9 @@ interface APPDao {
     @Query("SELECT * FROM APPModel WHERE pkgName = :pkg LIMIT 1")
     suspend fun findByPkg(pkg: String): APPModel?
 
+    @Query("SELECT * FROM APPModel WHERE pkgName = :pkg AND userId = :userId LIMIT 1")
+    suspend fun findByPkgAndUser(pkg: String, userId: Int): APPModel?
+
     @Query("SELECT * FROM APPModel WHERE pinyinFK LIKE '%' || :pinyin || '%'")
     suspend fun findByPinYinFK(pinyin: String): List<APPModel>
 
