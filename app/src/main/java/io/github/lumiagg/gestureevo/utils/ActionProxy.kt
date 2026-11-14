@@ -280,13 +280,35 @@ class ActionProxy(private val context: Context, linkString: String) {
                     mapOf("package" to pkg))
                 return@withContext false
             }
-            val intent = context.packageManager.getLaunchIntentForPackage(pkg) ?: let {
-                AppLogger.event(LogModule.ACTION, "launch_intent_missing", LogLevel.WARN, trace,
-                    mapOf("package" to pkg))
-                return@withContext false
+            val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
+            val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
+            val targetUser = if (userId > 0) {
+                userManager.getUserForSerialNumber(userId) ?: return@withContext false
+            } else {
+                null
+            }
+            // For a secondary profile getLaunchIntentForPackage() only resolves the main
+            // profile. Resolve that profile's own launcher activity explicitly.
+            val profileComponent = targetUser?.let { user ->
+                runCatching { launcherApps.getActivityList(pkg, user).firstOrNull()?.componentName }
+                    .getOrNull()
+            }
+            val intent = if (profileComponent != null) {
+                Intent(Intent.ACTION_MAIN).apply {
+                    addCategory(Intent.CATEGORY_LAUNCHER)
+                    component = profileComponent
+                    addFlags(FLAG_ACTIVITY_NEW_TASK)
+                    if (freeform) addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                }
+            } else {
+                context.packageManager.getLaunchIntentForPackage(pkg) ?: let {
+                    AppLogger.event(LogModule.ACTION, "launch_intent_missing", LogLevel.WARN, trace,
+                        mapOf("package" to pkg, "userId" to userId))
+                    return@withContext false
+                }
             }
             val launched = when {
-                userId > 0 -> launchAndroidForWork(intent.component)
+                targetUser != null -> launchAndroidForWork(intent.component, targetUser)
                 else -> launchIntent(intent)
             }
             if (launched && countOpen) {
@@ -387,22 +409,30 @@ class ActionProxy(private val context: Context, linkString: String) {
         }
     }
 
-    private suspend fun launchAndroidForWork(componentName: ComponentName?): Boolean =
+    private suspend fun launchAndroidForWork(
+        componentName: ComponentName?,
+        targetUser: android.os.UserHandle? = null
+    ): Boolean =
         withContext(Dispatchers.Default) {
             val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
             val launcherApps =
                 context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
+            val user = targetUser ?: userManager.getUserForSerialNumber(userId) ?: return@withContext false
             try {
                 AppLogger.event(LogModule.ACTION, "launch_requested", trace = trace,
-                    fields = mapOf("method" to "work_profile", "component" to componentName?.flattenToShortString()))
+                    fields = mapOf(
+                        "method" to "work_profile",
+                        "component" to componentName?.flattenToShortString(),
+                        "userId" to userId
+                    ))
                 launcherApps.startMainActivity(
                     componentName,
-                    userManager.getUserForSerialNumber(userId),
+                    user,
                     null,
                     if (freeform) getActivityOptions().toBundle() else null
                 )
                 AppLogger.event(LogModule.ACTION, "launch_request_submitted", trace = trace,
-                    fields = mapOf("method" to "work_profile"))
+                    fields = mapOf("method" to "work_profile", "userId" to userId))
                 return@withContext true
             } catch (e: Exception) {
                 AppLogger.event(LogModule.ACTION, "launch_failed", LogLevel.ERROR, trace, error = e)
@@ -418,6 +448,9 @@ class ActionProxy(private val context: Context, linkString: String) {
                 intent.addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
             } else if (freeform) {
                 intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                // Avoid the fullscreen -> freeform transition animation; without this some
+                // OEM window managers paint a black frame before the small window is ready.
+                intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
             }
             val target = intent.component?.packageName ?: intent.`package`
             SystemLogCapture.rememberTarget(target)
@@ -562,7 +595,9 @@ class ActionProxy(private val context: Context, linkString: String) {
             if (side != null) {
                 TriggerSide.record(side)
             }
-            val options = ActivityOptions.makeBasic()
+            // 0/0 suppresses the window transition; MagicOS otherwise flashes black while
+            // resizing the fullscreen task into a freeform window.
+            val options = ActivityOptions.makeCustomAnimation(context, 0, 0)
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                     allowReflectionActivityOptions(options)
@@ -578,6 +613,11 @@ class ActionProxy(private val context: Context, linkString: String) {
                         Int::class.javaPrimitiveType
                     )
                     setLaunchStackIdtMethod.invoke(options, 2)
+                }
+                // Supply the final bounds up front. Letting the window manager pick a default
+                // and resize afterwards is what produces the visible black flash on MagicOS.
+                runCatching {
+                    options.setLaunchBounds(FreeFormUtils.getRect(context, context.settingsStore))
                 }
             } catch (ignored: Exception) {
             }
