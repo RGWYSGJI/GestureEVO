@@ -173,6 +173,12 @@ internal class QuickSearchMotionController(
         }
     }
 
+    /** Re-arm the one-shot keyboard request after an external picker/camera returns. */
+    fun showKeyboard() {
+        pendingShowKeyboard = true
+        showKeyboardIfPossible()
+    }
+
     fun release() {
         pendingShowKeyboard = false
         binding.searchInput.removeCallbacks(keyboardRequestRunnable)
