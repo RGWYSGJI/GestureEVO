@@ -33,6 +33,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.isVisible
 import androidx.core.view.doOnPreDraw
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.datastore.preferences.core.Preferences
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.Lifecycle
@@ -74,6 +75,7 @@ class QuickSearchActivity : AppCompatActivity() {
     companion object {
         private const val TAG = "QuickSearchActivity"
         private const val MAX_PICKED_IMAGES = 10
+        private const val STATE_RESTORE_KEYBOARD = "restore_keyboard_after_picker"
         private const val KEEP_BACKGROUND_BLUR_HANDOFF_TIMEOUT_MS = 1_000L
         private var keepBackgroundBlurHandoffTime = 0L
         private var releaseBackgroundBlurHandoff: (() -> Unit)? = null
@@ -122,6 +124,7 @@ class QuickSearchActivity : AppCompatActivity() {
     private var pendingImageSearchFreeform = false
     private val attachedImageUris = mutableListOf<Uri>()
     private var pendingCameraImageUri: Uri? = null
+    private var restoreKeyboardAfterPicker = false
 
     private var showBlur = false
     private var cardBackgroundBlurEnabled = false
@@ -224,6 +227,7 @@ class QuickSearchActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        restoreKeyboardAfterPicker = savedInstanceState?.getBoolean(STATE_RESTORE_KEYBOARD) ?: false
         triggerSide = intent?.getStringExtra(TriggerSide.EXTRA_TRIGGER_SIDE)
         pendingBlurHandoff = consumeKeepBackgroundBlurOnNextEnter()
         keepBackgroundBlurOnEnter = pendingBlurHandoff != null
@@ -278,6 +282,7 @@ class QuickSearchActivity : AppCompatActivity() {
         }
         val root = layoutInflater.inflate(layoutRes, null, false)
         binding = ActivityQuickSearchBinding.bind(root)
+        if (restoreKeyboardAfterPicker) binding.searchInput.post { restoreKeyboardIfNeeded() }
         val initialBias = QuickSearchPositionManager.resolveBias(
             preferences.readKey(
                 QuickSearchPositionManager.getBiasKeyForSide(triggerSide),
@@ -621,6 +626,26 @@ class QuickSearchActivity : AppCompatActivity() {
         if (::motionController.isInitialized) {
             motionController.onWindowFocusChanged(hasFocus)
         }
+        if (hasFocus && restoreKeyboardAfterPicker) {
+            restoreKeyboardIfNeeded()
+        }
+    }
+
+    private fun restoreKeyboardIfNeeded() {
+        if (!::binding.isInitialized) return
+        restoreKeyboardAfterPicker = false
+        binding.searchInput.post {
+            if (isFinishing || isDestroyed) return@post
+            binding.searchInput.requestFocus()
+            if (::motionController.isInitialized) {
+                motionController.showKeyboard()
+            }
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putBoolean(STATE_RESTORE_KEYBOARD, restoreKeyboardAfterPicker)
+        super.onSaveInstanceState(outState)
     }
 
     internal fun onKeyboardRequestDispatched() {
@@ -723,6 +748,7 @@ class QuickSearchActivity : AppCompatActivity() {
     fun pickImageAndSearch(engine: SearchEngine, freeform: Boolean) {
         pendingImageEngine = engine
         pendingImageSearchFreeform = freeform
+        rememberKeyboardForPicker()
         searchImagePickerLauncher.launch(arrayOf("image/*"))
     }
 
@@ -733,12 +759,20 @@ class QuickSearchActivity : AppCompatActivity() {
     }
 
     fun pickImages() {
+        rememberKeyboardForPicker()
         imagePickerLauncher.launch(arrayOf("image/*"))
     }
 
     fun getAttachedImageUris(): List<Uri> = attachedImageUris.toList()
 
+    private fun rememberKeyboardForPicker() {
+        if (!::binding.isInitialized) return
+        restoreKeyboardAfterPicker = ViewCompat.getRootWindowInsets(binding.root)
+            ?.isVisible(WindowInsetsCompat.Type.ime()) == true
+    }
+
     private fun captureImage() {
+        rememberKeyboardForPicker()
         pendingCameraImageUri = createCameraImageUri()
         val uri = pendingCameraImageUri ?: return
         cameraLauncher.launch(uri)
