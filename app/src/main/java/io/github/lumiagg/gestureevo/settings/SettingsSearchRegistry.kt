@@ -58,13 +58,6 @@ object SettingsSearchRegistry {
             keywords = listOf("搜索", "引擎", "search")
         ),
         entry(
-            id = "root_freeform",
-            titleResId = R.string.freeform_settings_title,
-            pageTitleResId = R.string.settings_title,
-            targetActivity = FreeFormSettingsActivity::class.java,
-            keywords = listOf("小窗", "freeform", "窗口")
-        ),
-        entry(
             id = "root_data",
             titleResId = R.string.data_backup_title,
             pageTitleResId = R.string.settings_title,
@@ -465,14 +458,6 @@ object SettingsSearchRegistry {
             keywords = listOf("搜索引擎", "engine list", "管理")
         ),
 
-        entry(
-            id = "freeform_direction",
-            titleResId = R.string.freeform_settings_direction_title,
-            pageTitleResId = R.string.freeform_settings_title,
-            targetActivity = FreeFormSettingsActivity::class.java,
-            targetViewId = R.id.directionCard,
-            keywords = listOf("方向", "横屏", "竖屏", "orientation")
-        ),
         entry(
             id = "external_create",
             titleResId = R.string.external_action_open_create_button,
