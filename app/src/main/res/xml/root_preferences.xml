@@ -45,12 +45,6 @@
             android:layout="@layout/custom_preference_widget_layout"
             app:title="@string/search_engine_settings_title"
             app:summary="@string/settings_search_summary" />
-        <Preference
-            android:icon="@drawable/ic_little_window"
-            android:key="preferenceFreeform"
-            android:layout="@layout/custom_preference_widget_layout"
-            app:title="@string/freeform_settings_title"
-            app:summary="@string/settings_freeform_summary" />
     </PreferenceCategory>
     <PreferenceCategory android:layout="@layout/settings_home_category" app:title="@string/settings_group_maintenance" app:iconSpaceReserved="false">
         <Preference
