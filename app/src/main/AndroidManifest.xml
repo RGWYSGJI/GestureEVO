@@ -103,17 +103,21 @@
             android:exported="false"
             android:launchMode="singleInstance"
             android:theme="@style/Theme.GestureEVO.transparent" />
+        <!-- Isolated task: a NEW_TASK launch from an overlay must not pull the
+             backgrounded settings task (same app affinity) to the foreground. -->
         <activity
             android:name=".inspire.InspireContentActivity"
             android:clearTaskOnLaunch="true"
             android:excludeFromRecents="true"
             android:exported="false"
             android:launchMode="singleTask"
+            android:taskAffinity="${applicationId}.TASK.Inspire"
             android:theme="@style/Theme.GestureEVO.transparent" />
         <activity
             android:name=".inspire.imageeditor.InspireImageEditorActivity"
             android:excludeFromRecents="true"
-            android:exported="false" />
+            android:exported="false"
+            android:taskAffinity="${applicationId}.TASK.Inspire" />
         <activity
             android:name=".settings.FreeTriggerSettingsActivity"
             android:exported="false" />
@@ -150,10 +154,6 @@
         <activity
             android:name=".settings.DataStatsActivity"
             android:exported="false" />
-        <activity
-            android:name=".settings.FreeFormSettingsActivity"
-            android:exported="false"
-            android:theme="@style/Theme.GestureEVO" />
         <activity
             android:name=".settings.ActionViewSettingsActivity"
             android:exported="false"
