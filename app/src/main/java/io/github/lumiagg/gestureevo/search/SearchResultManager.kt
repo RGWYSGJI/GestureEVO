@@ -1016,6 +1016,7 @@ class SearchResultManager(
         lifecycleScope.launch(uiDispatcher) {
             val link = uriBuilder(GestureActionType.OPEN_APP)
                 .appendQueryParameter("pkg", model.pkgName)
+                .appendQueryParameter("userId", model.userId.toString())
                 .appendQueryParameter("freeform", freeform.toString())
                 .apply {
                     activity.triggerSide?.let { appendQueryParameter("triggerSide", it) }
