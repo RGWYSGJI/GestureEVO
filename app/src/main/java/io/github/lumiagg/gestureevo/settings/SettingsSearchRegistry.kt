@@ -58,13 +58,6 @@ object SettingsSearchRegistry {
             keywords = listOf("搜索", "引擎", "search")
         ),
         entry(
-            id = "root_freeform",
-            titleResId = R.string.freeform_settings_title,
-            pageTitleResId = R.string.settings_title,
-            targetActivity = FreeFormSettingsActivity::class.java,
-            keywords = listOf("小窗", "freeform", "窗口")
-        ),
-        entry(
             id = "root_data",
             titleResId = R.string.data_backup_title,
             pageTitleResId = R.string.settings_title,
@@ -487,40 +480,6 @@ object SettingsSearchRegistry {
             targetActivity = SearchEngineSettingsActivity::class.java,
             targetViewId = R.id.engineListCard,
             keywords = listOf("搜索引擎", "engine list", "管理")
-        ),
-
-        entry(
-            id = "freeform_direction",
-            titleResId = R.string.freeform_settings_direction_title,
-            pageTitleResId = R.string.freeform_settings_title,
-            targetActivity = FreeFormSettingsActivity::class.java,
-            targetViewId = R.id.directionCard,
-            keywords = listOf("方向", "横屏", "竖屏", "orientation")
-        ),
-        entry(
-            id = "freeform_mode",
-            titleResId = R.string.freeform_settings_mode_title,
-            pageTitleResId = R.string.freeform_settings_title,
-            targetActivity = FreeFormSettingsActivity::class.java,
-            targetViewId = R.id.dropdownCard,
-            keywords = listOf("模式", "freeform mode", "sunshine", "米窗", "com.sunshine.freeform")
-        ),
-        entry(
-            id = "freeform_size",
-            titleResId = R.string.freeform_settings_size_title,
-            pageTitleResId = R.string.freeform_settings_title,
-            targetActivity = FreeFormSettingsActivity::class.java,
-            targetViewId = R.id.sizeCard,
-            keywords = listOf("尺寸", "大小", "位置", "size")
-        ),
-        entry(
-            id = "freeform_follow_trigger_side",
-            titleResId = R.string.freeform_settings_follow_trigger_side,
-            pageTitleResId = R.string.freeform_settings_title,
-            targetActivity = FreeFormSettingsActivity::class.java,
-            targetViewId = R.id.followTriggerSideRow,
-            summaryResId = R.string.freeform_settings_follow_trigger_side_desc,
-            keywords = listOf("触发区", "左右", "横向", "触发位置", "follow trigger", "side", "location", "position")
         ),
         entry(
             id = "external_create",

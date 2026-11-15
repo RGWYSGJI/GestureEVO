@@ -151,10 +151,6 @@
             android:name=".settings.DataStatsActivity"
             android:exported="false" />
         <activity
-            android:name=".settings.FreeFormSettingsActivity"
-            android:exported="false"
-            android:theme="@style/Theme.GestureEVO" />
-        <activity
             android:name=".settings.ActionViewSettingsActivity"
             android:exported="false"
             android:theme="@style/Theme.GestureEVO" />

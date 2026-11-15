@@ -5,8 +5,6 @@ import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import io.github.lumiagg.gestureevo.gesture.TriggerSide
-import io.github.lumiagg.gestureevo.settings.FreeFormSettingsActivity
-import io.github.lumiagg.gestureevo.settings.FreeFormSettingsActivity.Companion.KEY_FREEFORM_FOLLOW_TRIGGER_SIDE
 import io.github.lumiagg.gestureevo.utils.Rom
 import io.github.lumiagg.gestureevo.utils.ScreenUtil
 import io.github.lumiagg.gestureevo.utils.dp2px
@@ -16,6 +14,19 @@ import io.github.lumiagg.gestureevo.utils.readKey
 object FreeFormUtils {
     // 20mm safe margin converted to dp (20mm / 25.4mm/in * 160dp/in ≈ 126dp)
     const val MIN_BOTTOM_MARGIN_DP = 126
+
+    const val KEY_FREEFORM_FOLLOW_TRIGGER_SIDE = "freeform_follow_trigger_side"
+    const val KEY_WIDTH = "freeform_width_dp"
+    const val KEY_HEIGHT = "freeform_height_dp"
+    const val KEY_LEFT_MARGIN = "freeform_left_margin_dp"
+    const val KEY_TOP_MARGIN = "freeform_top_margin_dp"
+    const val KEY_EDGE_MARGIN = "freeform_edge_margin_dp"
+
+    fun getSettingsKey(baseKey: String, orientation: Int): String {
+        val suffix =
+            if (orientation == Configuration.ORIENTATION_PORTRAIT) "_portrait" else "_landscape"
+        return "${baseKey}${suffix}"
+    }
 
     suspend fun getRect(
         context: Context,
@@ -65,34 +76,26 @@ object FreeFormUtils {
     suspend fun getWidth(orientation: Int, settingsStore: DataStore<Preferences>): Int {
         val defaultValue = if (orientation == Configuration.ORIENTATION_PORTRAIT) 230 else 200
         return settingsStore.readKey(
-            FreeFormSettingsActivity.getSettingsKey(
-                FreeFormSettingsActivity.KEY_WIDTH, orientation
-            ), defaultValue
+            getSettingsKey(KEY_WIDTH, orientation), defaultValue
         )
     }
 
     suspend fun getHeight(orientation: Int, settingsStore: DataStore<Preferences>): Int {
         val defaultValue = if (orientation == Configuration.ORIENTATION_PORTRAIT) 380 else 300
         return settingsStore.readKey(
-            FreeFormSettingsActivity.getSettingsKey(
-                FreeFormSettingsActivity.KEY_HEIGHT, orientation
-            ), defaultValue
+            getSettingsKey(KEY_HEIGHT, orientation), defaultValue
         )
     }
 
     suspend fun getLeft(orientation: Int, settingsStore: DataStore<Preferences>): Int {
         val defaultValue = if (orientation == Configuration.ORIENTATION_PORTRAIT) 70 else 550
         return settingsStore.readKey(
-            FreeFormSettingsActivity.getSettingsKey(
-                FreeFormSettingsActivity.KEY_LEFT_MARGIN, orientation
-            ), defaultValue
+            getSettingsKey(KEY_LEFT_MARGIN, orientation), defaultValue
         )
     }
 
     suspend fun getEdgeMargin(orientation: Int, settingsStore: DataStore<Preferences>): Int? {
-        val key = FreeFormSettingsActivity.getSettingsKey(
-            FreeFormSettingsActivity.KEY_EDGE_MARGIN, orientation
-        )
+        val key = getSettingsKey(KEY_EDGE_MARGIN, orientation)
         val value = settingsStore.readKey(key, -1)
         return if (value >= 0) value else null
     }
@@ -208,9 +211,7 @@ object FreeFormUtils {
     suspend fun getTop(orientation: Int, settingsStore: DataStore<Preferences>): Int {
         val defaultValue = if (orientation == Configuration.ORIENTATION_PORTRAIT) 250 else 30
         return settingsStore.readKey(
-            FreeFormSettingsActivity.getSettingsKey(
-                FreeFormSettingsActivity.KEY_TOP_MARGIN, orientation
-            ), defaultValue
+            getSettingsKey(KEY_TOP_MARGIN, orientation), defaultValue
         )
     }
 }
