@@ -1,6 +1,5 @@
 package io.github.lumiagg.gestureevo.utils
 
-import FreeFormUtils
 import io.github.lumiagg.gestureevo.diagnostics.AppLogger
 import io.github.lumiagg.gestureevo.diagnostics.LogLevel
 import io.github.lumiagg.gestureevo.diagnostics.LogModule
