@@ -1,5 +1,6 @@
 package io.github.lumiagg.gestureevo
 
+import android.app.ActivityManager
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -44,6 +45,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         // The first onResume belongs to this launch, never to "returned from a child".
         suppressNextResume = true
+        dismissSettingsTasks()
         route()
     }
 
@@ -55,7 +57,27 @@ class MainActivity : AppCompatActivity() {
             // The system is about to resume this instance for the re-launch.
             suppressNextResume = true
         }
+        dismissSettingsTasks()
         route()
+    }
+
+    /**
+     * Settings can live in its own document task when "hide task" is disabled. A singleTask
+     * launch of this activity only clears activities in this task, so that document task would
+     * otherwise be brought to the front first and flash before the search page appears.
+     */
+    private fun dismissSettingsTasks() {
+        val activityManager = getSystemService(ActivityManager::class.java) ?: return
+        activityManager.appTasks.forEach { task ->
+            val component = task.taskInfo.baseIntent?.component ?: return@forEach
+            if (component.packageName != packageName) return@forEach
+            if (component.className == SettingsActivity::class.java.name ||
+                component.className == SettingsGuideActivity::class.java.name
+            ) {
+                Log.i("MainActivity", "Dismissing settings task before launcher routing")
+                task.finishAndRemoveTask()
+            }
+        }
     }
 
     override fun onResume() {

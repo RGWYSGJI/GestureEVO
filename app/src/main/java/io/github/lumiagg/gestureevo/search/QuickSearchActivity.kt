@@ -181,6 +181,7 @@ class QuickSearchActivity : AppCompatActivity() {
         Log.d(TAG, "pickImages result: ${uris.size}")
         if (uris.isEmpty()) {
             clearPendingImageSearch()
+            maybeRestoreKeyboard()
             return@registerForActivityResult
         }
         lifecycleScope.launch(uiDispatcher) {
@@ -201,6 +202,7 @@ class QuickSearchActivity : AppCompatActivity() {
         Log.d(TAG, "pickImageAndSearch result: ${uri != null}")
         if (uri == null) {
             clearPendingImageSearch()
+            maybeRestoreKeyboard()
             return@registerForActivityResult
         }
         lifecycleScope.launch(uiDispatcher) {
@@ -222,6 +224,7 @@ class QuickSearchActivity : AppCompatActivity() {
         pendingCameraImageUri = null
         if (!success || uri == null) {
             clearPendingImageSearch()
+            maybeRestoreKeyboard()
             return@registerForActivityResult
         }
         lifecycleScope.launch(uiDispatcher) {
@@ -782,9 +785,15 @@ class QuickSearchActivity : AppCompatActivity() {
     fun getAttachedImageUris(): List<Uri> = attachedImageUris.toList()
 
     private fun captureImage() {
+        val uri = createCameraImageUri()
+        if (uri == null) {
+            Log.w(TAG, "createCameraImageUri failed")
+            clearPendingImageSearch()
+            maybeRestoreKeyboard()
+            return
+        }
         rememberKeyboardForPicker()
-        pendingCameraImageUri = createCameraImageUri()
-        val uri = pendingCameraImageUri ?: return
+        pendingCameraImageUri = uri
         cameraLauncher.launch(uri)
     }
 
@@ -1039,26 +1048,40 @@ class QuickSearchActivity : AppCompatActivity() {
         if (uri.authority == "${packageName}.fileprovider") {
             return uri
         }
-        runCatching {
-            contentResolver.takePersistableUriPermission(
-                uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION
-            )
-        }.onFailure {
-            Log.d(TAG, "takePersistableUriPermission failed: ${it.javaClass.simpleName}")
-        }
+        // Copy first: the temporary grant from the picker is enough. Taking a
+        // persistable grant for every successful copy leaks the system's limited
+        // persistable-URI quota (about 128 entries per app).
         val copied = runCatching {
             copyImageToCache(uri, index)
         }.onFailure {
             Log.w(TAG, "copyImageToCache failed: ${it.javaClass.simpleName}: ${it.message}")
         }.getOrNull()
         if (copied != null) return copied
+
+        // Only keep the original URI when the copy fails. In that case the URI
+        // must survive this activity, so take a persistable grant now.
+        val persisted = runCatching {
+            contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+        }.onFailure {
+            Log.d(TAG, "takePersistableUriPermission failed: ${it.javaClass.simpleName}")
+        }.isSuccess
         val readable = runCatching {
             contentResolver.openInputStream(uri)?.use { true } ?: false
         }.getOrDefault(false)
         if (readable) {
             Log.w(TAG, "cannot copy picked uri, keep original: $uri")
             return uri
+        }
+        if (persisted) {
+            runCatching {
+                contentResolver.releasePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
         }
         Log.e(TAG, "cannot read picked uri: $uri")
         return null
