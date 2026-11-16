@@ -70,11 +70,15 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import java.security.MessageDigest
+import java.util.UUID
 
 class QuickSearchActivity : AppCompatActivity() {
     companion object {
         private const val TAG = "QuickSearchActivity"
         private const val MAX_PICKED_IMAGES = 10
+        private const val MAX_IMAGE_BYTES = 20L * 1024L * 1024L
+        private const val MAX_IMAGE_CACHE_BYTES = 200L * 1024L * 1024L
         private const val STATE_RESTORE_KEYBOARD = "restore_keyboard_after_picker"
         private const val KEEP_BACKGROUND_BLUR_HANDOFF_TIMEOUT_MS = 1_000L
         private var keepBackgroundBlurHandoffTime = 0L
@@ -123,6 +127,7 @@ class QuickSearchActivity : AppCompatActivity() {
     private var pendingImageEngine: SearchEngine? = null
     private var pendingImageSearchFreeform = false
     private val attachedImageUris = mutableListOf<Uri>()
+    private val attachedImageHashes = mutableListOf<String>()
     private var pendingCameraImageUri: Uri? = null
     private var restoreKeyboardAfterPicker = false
 
@@ -805,11 +810,29 @@ class QuickSearchActivity : AppCompatActivity() {
         contentReady.await()
         inputRevision++
         cancelPendingSearch()
-        val newUris = persistedUris.filterNot { attachedImageUris.contains(it) }
-        if (newUris.isEmpty()) return 0
+        val existingHashes = attachedImageHashes.toMutableSet()
+        val newUris = mutableListOf<Uri>()
+        val newHashes = mutableListOf<String>()
+        withContext(ioDispatcher) {
+            for (uri in persistedUris) {
+                val hash = imageHash(uri)
+                if (hash != null && !existingHashes.add(hash)) {
+                    deleteCachedImage(uri)
+                    continue
+                }
+                newUris += uri
+                newHashes += hash.orEmpty()
+            }
+        }
+        if (newUris.isEmpty()) {
+            maybeRestoreKeyboard()
+            return 0
+        }
         inputReadyForSave = true
         attachedImageUris.addAll(newUris)
+        attachedImageHashes.addAll(newHashes)
         updateInputActionVisibility(binding.searchInput.text?.toString().orEmpty())
+        withContext(ioDispatcher) { pruneImageCache() }
         maybeRestoreKeyboard()
         return newUris.size
     }
@@ -823,8 +846,11 @@ class QuickSearchActivity : AppCompatActivity() {
             }
         }
         if (revision != inputRevision || isClosing) return
+        val validHashes = withContext(ioDispatcher) { validUris.map { imageHash(it).orEmpty() } }
         attachedImageUris.clear()
         attachedImageUris.addAll(validUris)
+        attachedImageHashes.clear()
+        attachedImageHashes.addAll(validHashes)
         updateInputActionVisibility(binding.searchInput.text?.toString().orEmpty())
     }
 
@@ -942,6 +968,7 @@ class QuickSearchActivity : AppCompatActivity() {
         inputReadyForSave = true
         cancelPendingSearch()
         attachedImageUris.clear()
+        attachedImageHashes.clear()
         updateInputActionVisibility(binding.searchInput.text?.toString().orEmpty())
         ToastHelper.showInUIThread(applicationContext, R.string.quick_search_image_cleared)
         if (::resultManager.isInitialized) {
@@ -963,6 +990,49 @@ class QuickSearchActivity : AppCompatActivity() {
     private fun clearPendingImageSearch() {
         pendingImageEngine = null
         pendingImageSearchFreeform = false
+    }
+
+    private fun imageHash(uri: Uri): String? {
+        return runCatching {
+            val digest = MessageDigest.getInstance("SHA-256")
+            val input = contentResolver.openInputStream(uri) ?: return@runCatching null
+            input.use { stream ->
+                val buffer = ByteArray(8 * 1024)
+                while (true) {
+                    val read = stream.read(buffer)
+                    if (read < 0) break
+                    digest.update(buffer, 0, read)
+                }
+            }
+            digest.digest().joinToString("") { "%02x".format(it) }
+        }.getOrNull()
+    }
+
+    private fun deleteCachedImage(uri: Uri) {
+        if (uri.authority != "${packageName}.fileprovider") return
+        val name = uri.lastPathSegment ?: return
+        runCatching { File(File(cacheDir, "images"), name).delete() }
+    }
+
+    private fun pruneImageCache() {
+        val imageDir = File(cacheDir, "images")
+        val files = imageDir.listFiles()?.filter { it.isFile } ?: return
+        val protectedNames = attachedImageUris.mapNotNull { uri ->
+            if (uri.authority == "${packageName}.fileprovider") uri.lastPathSegment else null
+        }.toMutableSet()
+        pendingCameraImageUri?.let { pending ->
+            if (pending.authority == "${packageName}.fileprovider") {
+                pending.lastPathSegment?.let(protectedNames::add)
+            }
+        }
+        var total = files.sumOf { it.length() }
+        if (total <= MAX_IMAGE_CACHE_BYTES) return
+        files.sortedBy { it.lastModified() }.forEach { file ->
+            if (total <= MAX_IMAGE_CACHE_BYTES) return@forEach
+            if (file.name !in protectedNames && file.delete()) {
+                total -= file.length()
+            }
+        }
     }
 
     private fun persistImageUri(uri: Uri, index: Int): Uri? {
@@ -1015,19 +1085,33 @@ class QuickSearchActivity : AppCompatActivity() {
                 }
             }
         }
-        val targetFile =
-            File(imageDir, "picked_${System.currentTimeMillis()}_${index}$ext")
+        val targetFile = File(imageDir, "picked_${UUID.randomUUID()}$ext")
         val inputStream = if (uri.scheme == "file" || uri.scheme == null) {
             val file = File(uri.path ?: uri.schemeSpecificPart ?: uri.toString())
             if (file.exists()) file.inputStream() else contentResolver.openInputStream(uri)
         } else {
             contentResolver.openInputStream(uri)
         }
-        inputStream?.use { input ->
-            FileOutputStream(targetFile).use { output ->
-                input.copyTo(output)
-            }
-        } ?: throw IllegalStateException("openInputStream returned null")
+        try {
+            inputStream?.use { input ->
+                FileOutputStream(targetFile).use { output ->
+                    val buffer = ByteArray(8 * 1024)
+                    var total = 0L
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        total += read
+                        if (total > MAX_IMAGE_BYTES) {
+                            throw IllegalStateException("picked image is too large")
+                        }
+                        output.write(buffer, 0, read)
+                    }
+                }
+            } ?: throw IllegalStateException("openInputStream returned null")
+        } catch (e: Exception) {
+            targetFile.delete()
+            throw e
+        }
         return FileProvider.getUriForFile(
             this,
             "${packageName}.fileprovider",
