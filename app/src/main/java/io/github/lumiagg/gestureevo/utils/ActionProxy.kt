@@ -19,7 +19,6 @@ import android.os.Bundle
 import android.os.UserHandle
 import android.os.UserManager
 import android.provider.Settings
-import android.util.Log
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.browser.customtabs.CustomTabsService
 import androidx.core.net.toUri
@@ -59,6 +58,9 @@ import io.github.lumiagg.gestureevo.utils.app.AShell
 import io.github.lumiagg.gestureevo.utils.app.AShizuku
 import io.github.lumiagg.gestureevo.utils.app.AShizuku.ensureAppEnabledIfFrozen
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
@@ -85,6 +87,23 @@ class ActionProxy(private val context: Context, linkString: String) {
     val triggerSideParam: String? = link.getQueryParameter("triggerSide")
 
     suspend fun execute(anchor: TriggerSide.Point? = null, side: String? = null, sourceTriggerTag: String? = null) {
+        executeTracked(anchor, side) { executeAction(sourceTriggerTag) }
+    }
+
+    /** Executes OTHER_LINK/OTHER_SHORTCUT through the regular launcher and reports submission. */
+    suspend fun executeLink(anchor: TriggerSide.Point? = null, side: String? = null): Boolean {
+        require(event == GestureActionType.OTHER_LINK || event == GestureActionType.OTHER_SHORTCUT)
+        return executeTracked(anchor, side) {
+            val uri = otherLink ?: return@executeTracked false
+            launchUri(uri, pkg.orEmpty())
+        }
+    }
+
+    private suspend fun <T> executeTracked(
+        anchor: TriggerSide.Point?,
+        side: String?,
+        action: suspend () -> T,
+    ): T {
         val startedAt = android.os.SystemClock.elapsedRealtime()
         SystemLogCapture.rememberTarget(pkg)
         AppLogger.event(LogModule.ACTION, "action_triggered", trace = trace,
@@ -98,9 +117,10 @@ class ActionProxy(private val context: Context, linkString: String) {
             TriggerSide.record(effectiveSide)
         }
         try {
-            executeAction(sourceTriggerTag)
+            val result = action()
             AppLogger.event(LogModule.ACTION, "action_dispatch_returned", trace = trace,
                 fields = mapOf("durationMs" to android.os.SystemClock.elapsedRealtime() - startedAt))
+            return result
         } catch (e: kotlinx.coroutines.CancellationException) {
             AppLogger.event(LogModule.ACTION, "action_cancelled", LogLevel.WARN, trace)
             throw e
@@ -446,7 +466,12 @@ class ActionProxy(private val context: Context, linkString: String) {
             try {
                 if (freeform) {
                     when (getFreeFormCode(context)) {
-                        RomFreeFormCode.VIVO.code -> shareOpenIntent(intent)
+                        RomFreeFormCode.VIVO.code -> {
+                            if (!shareOpenIntent(intent).success) {
+                                AppLogger.event(LogModule.ACTION, "launch_failed", LogLevel.WARN, trace, fields = metadata)
+                                return@withContext false
+                            }
+                        }
                         RomFreeFormCode.NUBIA.code -> startNubiaFreeformActivity(context, intent)
                         else -> context.startActivity(intent, getActivityOptions().toBundle())
                     }
@@ -526,16 +551,18 @@ class ActionProxy(private val context: Context, linkString: String) {
             addFlags(FLAG_ACTIVITY_NEW_TASK)
         }
 
-        context.startActivity(chooser)
-
-        // Await result with timeout
-        return withTimeoutOrNull(timeoutMillis) {
-            ShareOpenResultManager.awaitResult(requestId)
-        } ?: ShareOpenResult(
-            requestId = requestId,
-            success = false,
-            data = null
-        )
+        return coroutineScope {
+            // Subscribe before starting the activity: the result flow has no replay buffer.
+            val result = async(start = CoroutineStart.UNDISPATCHED) {
+                withTimeoutOrNull(timeoutMillis) { ShareOpenResultManager.awaitResult(requestId) }
+            }
+            try {
+                context.startActivity(chooser)
+                result.await() ?: ShareOpenResult(requestId, success = false)
+            } finally {
+                result.cancel()
+            }
+        }
     }
 
     suspend fun launchTemporaryAssistant(context: Context, pkg: String, activity: String): Boolean =
