@@ -1491,4 +1491,6 @@
     <string name="link_rule_not_selected">未选择</string>
     <string name="link_rule_enable_named">启用规则：%1$s</string>
     <string name="link_settings_templates_description">已为你勾选已安装应用的可用规则，可按需调整后导入。</string>
+    <string name="shortcut_search_short">搜索</string>
+    <string name="shortcut_search_long">打开 GestureEVO 搜索</string>
 </resources>

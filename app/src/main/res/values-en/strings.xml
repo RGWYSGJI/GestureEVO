@@ -1489,4 +1489,6 @@ Create a rule or import templates to get started</string>
     <string name="link_rule_not_selected">Not selected</string>
     <string name="link_rule_enable_named">Enable rule: %1$s</string>
     <string name="link_settings_templates_description">Available rules for installed apps are selected. Review your selection before importing.</string>
+    <string name="shortcut_search_short">Search</string>
+    <string name="shortcut_search_long">Open GestureEVO search</string>
 </resources>

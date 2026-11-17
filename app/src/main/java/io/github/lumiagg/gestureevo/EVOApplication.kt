@@ -27,6 +27,7 @@ import kotlinx.coroutines.launch
 import io.github.lumiagg.gestureevo.utils.app.syncAppCatalogIfNeeded
 import io.github.lumiagg.gestureevo.utils.app.syncAppCatalogPackage
 import io.github.lumiagg.gestureevo.search.SettingsShortcutSearchHelper
+import io.github.lumiagg.gestureevo.search.SearchShortcutPublisher
 
 
 class EvoApplication : Application() {
@@ -66,6 +67,7 @@ class EvoApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         application = this
+        SearchShortcutPublisher.publish(this)
         AppLogger.initialize(this)
         val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler(AppCrashHandler(this, previousHandler))
