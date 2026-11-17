@@ -159,6 +159,13 @@ sealed class SearchResult {
 
     data class ContactResult(val contact: ContactModel) : SearchResult()
 
+    data class SmsResult(
+        val smsId: Long,
+        val address: String,
+        val body: String,
+        val date: Long,
+    ) : SearchResult()
+
     data class ShortcutResult(val shortcut: ShortcutModel) : SearchResult()
 
     data class HistoryResult(val text: String) : SearchResult()

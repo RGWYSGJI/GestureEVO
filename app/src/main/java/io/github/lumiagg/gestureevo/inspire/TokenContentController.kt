@@ -135,7 +135,10 @@ internal class TokenContentController(
             contentLoader.buildAccessibilityContents()
         }
         contentView.accessibilityContents = accessibilityContents
-        contentView.switchToMode(InspireTokenContentMode.ACCESSIBILITY)
+        contentView.switchToMode(
+            InspireTokenContentMode.ACCESSIBILITY,
+            isSelected = InspireDataHolder.autoSelectAll,
+        )
     }
 
     private fun updateContentsForMode(

@@ -21,6 +21,7 @@ object InspireDataHolder {
     var dragRect: Rect? = null
 
     var forceImageTextSelection: Boolean = false
+    var autoSelectAll: Boolean = false
     var triggerSide: String? = null
     var sourcePackage: String? = null
 
@@ -46,6 +47,7 @@ object InspireDataHolder {
         accessibilityContent = null
         ocrAllowedTextBoxes = null
         forceImageTextSelection = false
+        autoSelectAll = false
         triggerSide = null
         sourcePackage = null
     }

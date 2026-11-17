@@ -40,12 +40,15 @@ import io.github.lumiagg.gestureevo.db.getHiddenSearchResultDao
 import io.github.lumiagg.gestureevo.db.getSearchResultPinDao
 import io.github.lumiagg.gestureevo.gesture.config.GestureActionType
 import io.github.lumiagg.gestureevo.gesture.ui.RoundImageTextView
+import io.github.lumiagg.gestureevo.inspire.InspireContentActivity
+import io.github.lumiagg.gestureevo.inspire.InspireDataHolder
 import io.github.lumiagg.gestureevo.inspire.InspireHelperUtils
 import io.github.lumiagg.gestureevo.search.config.SearchResult
 import io.github.lumiagg.gestureevo.settings.SearchEngineSettingsActivity.Companion.KEY_BOTTOM_INPUT_LAYOUT
 import io.github.lumiagg.gestureevo.settings.SearchEngineSettingsActivity.Companion.KEY_RESULT_DOUBLE_COLUMN
 import io.github.lumiagg.gestureevo.settings.SearchEngineSettingsActivity.Companion.KEY_SEARCH_CONTACT
 import io.github.lumiagg.gestureevo.settings.SearchEngineSettingsActivity.Companion.KEY_SEARCH_HISTORY
+import io.github.lumiagg.gestureevo.settings.SearchEngineSettingsActivity.Companion.KEY_SEARCH_SMS
 import io.github.lumiagg.gestureevo.settings.SearchEngineSettingsActivity.Companion.KEY_SEARCH_SETTINGS_SHORTCUTS
 import io.github.lumiagg.gestureevo.settings.SearchEngineSettingsActivity.Companion.KEY_SHOW_CLIPBOARD_CONTENT
 import io.github.lumiagg.gestureevo.settings.SettingsActivity
@@ -92,6 +95,7 @@ class SearchResultManager(
     private val imageJobs = WeakHashMap<View, Job>()
 
     private var contactSearchEnabled = false
+    private var smsSearchEnabled = false
     private var settingsShortcutsSearchEnabled = false
     private var searchHistoryEnabled = true
     private var bottomInputLayoutEnabled = false
@@ -190,6 +194,8 @@ class SearchResultManager(
 
     private fun initConfigData(preferences: Preferences) {
         contactSearchEnabled = preferences.readKey(KEY_SEARCH_CONTACT, false)
+        smsSearchEnabled = preferences.readKey(KEY_SEARCH_SMS, false) &&
+            SmsSearchHelper.hasSmsPermission(activity.applicationContext)
         settingsShortcutsSearchEnabled =
             preferences.readKey(KEY_SEARCH_SETTINGS_SHORTCUTS, false)
         searchHistoryEnabled = preferences.readKey(KEY_SEARCH_HISTORY, true)
@@ -244,6 +250,7 @@ class SearchResultManager(
             addType<SearchResult.AppResult>(resultItemLayout)
             addType<SearchResult.ShortcutResult>(resultItemLayout)
             addType<SearchResult.ContactResult>(resultItemLayout)
+            addType<SearchResult.SmsResult>(resultItemLayout)
             addType<SearchResult.HistoryResult>(resultItemLayout)
             addType<SearchResult.ClearHistoryAction>(resultItemLayout)
             addType<SearchResult.UrlResult>(resultItemLayout)
@@ -260,6 +267,7 @@ class SearchResultManager(
                 when (model) {
                     is SearchResult.AppResult -> bindAppResult(itemView, model)
                     is SearchResult.ContactResult -> bindContactResult(itemView, model)
+                    is SearchResult.SmsResult -> bindSmsResult(itemView, model)
                     is SearchResult.ShortcutResult -> bindShortcutResult(itemView, model)
                     is SearchResult.HistoryResult -> bindHistoryResult(itemView, model)
                     is SearchResult.ClearHistoryAction -> bindClearHistoryAction(itemView)
@@ -291,6 +299,7 @@ class SearchResultManager(
                     is SearchResult.AppResult -> openApp(result.app, false)
                     is SearchResult.ShortcutResult -> openShortcut(result.shortcut, false)
                     is SearchResult.ContactResult -> callContact(activity, result.contact)
+                    is SearchResult.SmsResult -> openSmsResult(result)
                     is SearchResult.HistoryResult -> clickText(result.text)
                     is SearchResult.ClearHistoryAction -> confirmClearAllHistory()
                     is SearchResult.UrlResult -> openUrl(result.url)
@@ -308,6 +317,7 @@ class SearchResultManager(
                     is SearchResult.ShortcutResult -> openShortcut(result.shortcut, true)
                     is SearchResult.HistoryResult -> removeHistory(result.text)
                     is SearchResult.ContactResult -> copyContactNumber(activity, result.contact)
+                    is SearchResult.SmsResult -> ClipboardUtils.copyText(activity.applicationContext, result.body)
 
                     else -> {}
                 }
@@ -357,6 +367,13 @@ class SearchResultManager(
                 itemBinding.icon.clearTint()
             }
         }
+    }
+
+    private fun bindSmsResult(itemView: View, model: SearchResult.SmsResult) {
+        val itemBinding = SearchResultItemBinding.bind(itemView)
+        itemBinding.resultText.text = model.body
+        applyResultTextStyle(itemBinding.resultText, isUrl = false)
+        bindBuiltInResultIcon(itemBinding.icon, R.drawable.ic_sms_24)
     }
 
     private fun bindHistoryResult(itemView: View, model: SearchResult.HistoryResult) {
@@ -761,6 +778,7 @@ class SearchResultManager(
         is SearchResult.ShortcutResult ->
             "shortcut:${result.shortcut.id}:${result.shortcut.name}:${result.shortcut.uri}"
         is SearchResult.ContactResult -> "contact:${result.contact.phoneNumber}:${result.contact.name}"
+        is SearchResult.SmsResult -> "sms:${result.smsId}"
         is SearchResult.HistoryResult -> "history:${result.text}"
         is SearchResult.UrlResult -> "url:${result.url}"
         is SearchResult.PhoneResult -> "phone:${result.phone}"
@@ -820,10 +838,12 @@ class SearchResultManager(
             val appDeferred = async { filterApps(normalizedQuery) }
             val shortcutDeferred = async { filterShortcuts(normalizedQuery) }
             val contactDeferred = async { filterContacts(normalizedQuery) }
+            val smsDeferred = async { filterSms(normalizedQuery) }
 
             appDeferred.await() +
                     shortcutDeferred.await() +
                     contactDeferred.await() +
+                    smsDeferred.await() +
                     historyDeferred.await()
         }
     }
@@ -834,6 +854,7 @@ class SearchResultManager(
             is SearchResult.AppResult -> openApp(first.app, false)
             is SearchResult.ShortcutResult -> openShortcut(first.shortcut, false)
             is SearchResult.ContactResult -> callContact(activity, first.contact)
+            is SearchResult.SmsResult -> openSmsResult(first)
             is SearchResult.HistoryResult -> {
                 if (first.text == binding.searchInput.text?.toString().orEmpty()) return false
                 clickText(first.text)
@@ -984,6 +1005,15 @@ class SearchResultManager(
         activity.finishWithAnimation()
     }
 
+    private fun openSmsResult(model: SearchResult.SmsResult) {
+        if (model.body.isBlank()) return
+        InspireDataHolder.clear()
+        InspireDataHolder.accessibilityContent = model.body
+        InspireDataHolder.autoSelectAll = true
+        InspireContentActivity.start(activity)
+        activity.finishWithAnimation()
+    }
+
     private suspend fun filterContacts(query: String): List<SearchResult.ContactResult> {
         if (!contactSearchEnabled) return emptyList()
         return try {
@@ -992,6 +1022,20 @@ class SearchResultManager(
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()
+        }
+    }
+
+    private suspend fun filterSms(query: String): List<SearchResult.SmsResult> {
+        if (!smsSearchEnabled) return emptyList()
+        return withContext(ioDispatcher) {
+            SmsSearchHelper.search(activity, query).map { hit ->
+                SearchResult.SmsResult(
+                    smsId = hit.id,
+                    address = hit.address,
+                    body = hit.body,
+                    date = hit.date,
+                )
+            }
         }
     }
 

@@ -297,6 +297,7 @@
     <string name="search_engine_settings_features_title">Feature Settings</string>
     <string name="search_engine_settings_show_clipboard_content">Show Clipboard Content</string>
     <string name="search_engine_settings_search_history">Search History</string>
+    <string name="search_engine_settings_search_sms">Search SMS</string>
     <string name="search_engine_settings_search_contacts">Search Contacts</string>
     <string name="search_engine_settings_search_settings">Search System Settings</string>
     <string name="search_engine_settings_enter_first_result">Press Enter to Open First Result</string>
@@ -1125,6 +1126,7 @@
     <string name="hidden_search_result_restored">Result restored</string>
     <string name="hidden_search_result_update_failed">Unable to update visibility. Please try again.</string>
     <string name="hidden_search_type_app">App</string>
+    <string name="hidden_search_type_sms">SMS</string>
     <string name="hidden_search_type_contact">Contact</string>
     <string name="hidden_search_type_shortcut">Settings shortcut</string>
     <string name="hidden_search_type_history">History</string>

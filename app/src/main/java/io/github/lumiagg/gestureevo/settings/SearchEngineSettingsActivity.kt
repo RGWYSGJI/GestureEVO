@@ -1,6 +1,8 @@
 package io.github.lumiagg.gestureevo.settings
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
@@ -23,6 +25,7 @@ import io.github.lumiagg.gestureevo.search.ContactSearchHelper
 import io.github.lumiagg.gestureevo.search.EngineLayoutPreferences
 import io.github.lumiagg.gestureevo.search.EngineLayoutScope
 import io.github.lumiagg.gestureevo.search.QuickSearchActivity
+import io.github.lumiagg.gestureevo.search.SmsSearchHelper
 import io.github.lumiagg.gestureevo.search.config.EngineType
 import io.github.lumiagg.gestureevo.search.config.SearchEngine
 import io.github.lumiagg.gestureevo.search.config.SearchEngineDataManager
@@ -59,6 +62,8 @@ class SearchEngineSettingsActivity : AppCompatActivity() {
         const val KEY_SHOW_CLIPBOARD_CONTENT = "search_show_clipboard_content"
         const val KEY_SEARCH_HISTORY = "search_history"
         const val KEY_SEARCH_CONTACT = "search_contact"
+        const val KEY_SEARCH_SMS = "search_sms"
+        private const val REQUEST_SMS_PERMISSION = 3
         const val KEY_SEARCH_SETTINGS_SHORTCUTS = "search_settings_shortcuts"
         const val KEY_ENTER_FIRST_RESULT = "search_enter_first_result"
         const val KEY_KEEP_LAST_SEARCH_RESULT = "search_keep_last_search_result"
@@ -251,6 +256,21 @@ class SearchEngineSettingsActivity : AppCompatActivity() {
             }
         }
 
+        binding.searchSmsSwitch.isChecked = (
+            settingsStore.readKey(KEY_SEARCH_SMS, false) &&
+                SmsSearchHelper.hasSmsPermission(applicationContext)
+            )
+        binding.searchSmsSwitch.setOnCheckedChangeListener { _, isChecked ->
+            lifecycleScope.launch {
+                if (isChecked && !SmsSearchHelper.hasSmsPermission(applicationContext)) {
+                    requestPermissions(arrayOf(Manifest.permission.READ_SMS), REQUEST_SMS_PERMISSION)
+                    binding.searchSmsSwitch.isChecked = false
+                } else {
+                    settingsStore.saveKey(KEY_SEARCH_SMS, isChecked)
+                }
+            }
+        }
+
         binding.searchSettingsShortcutsSwitch.isChecked =
             settingsStore.readKey(KEY_SEARCH_SETTINGS_SHORTCUTS, false)
         binding.searchSettingsShortcutsSwitch.setOnCheckedChangeListener { _, isChecked ->
@@ -274,6 +294,19 @@ class SearchEngineSettingsActivity : AppCompatActivity() {
                 settingsStore.saveKey(KEY_KEEP_LAST_SEARCH_RESULT, isChecked)
             }
         }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != REQUEST_SMS_PERMISSION) return
+        val granted = grantResults.isNotEmpty() &&
+            grantResults[0] == PackageManager.PERMISSION_GRANTED
+        binding.searchSmsSwitch.isChecked = granted
+        lifecycleScope.launch { settingsStore.saveKey(KEY_SEARCH_SMS, granted) }
     }
 
     private fun setupDefaultSearchPageControl() = lifecycleScope.launch {

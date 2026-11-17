@@ -10,6 +10,7 @@ internal fun SearchResult.hiddenRecord(context: Context): HiddenSearchResultMode
     val name = when (this) {
         is SearchResult.AppResult -> app.name
         is SearchResult.ContactResult -> "${contact.name} - ${contact.phoneNumber}"
+        is SearchResult.SmsResult -> body
         is SearchResult.ShortcutResult -> shortcut.name
         is SearchResult.HistoryResult -> text
         is SearchResult.UrlResult -> url
@@ -50,6 +51,7 @@ internal fun filterHiddenResults(
 internal fun HiddenSearchResultModel.typeLabelRes(): Int = when (resultKey.substringBefore(':')) {
     "app" -> R.string.hidden_search_type_app
     "contact" -> R.string.hidden_search_type_contact
+    "sms" -> R.string.hidden_search_type_sms
     "shortcut" -> R.string.hidden_search_type_shortcut
     "history" -> R.string.hidden_search_type_history
     "url" -> R.string.hidden_search_type_url
