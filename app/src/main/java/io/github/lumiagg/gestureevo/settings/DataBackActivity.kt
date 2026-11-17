@@ -19,7 +19,9 @@ import com.google.android.material.progressindicator.IndeterminateDrawable
 import io.github.lumiagg.gestureevo.R
 import io.github.lumiagg.gestureevo.databinding.ActivityDataBackBinding
 import io.github.lumiagg.gestureevo.db.APPModel
+import io.github.lumiagg.gestureevo.db.HiddenSearchResultModel
 import io.github.lumiagg.gestureevo.db.getAPPDao
+import io.github.lumiagg.gestureevo.db.getHiddenSearchResultDao
 import io.github.lumiagg.gestureevo.db.updateDB
 import io.github.lumiagg.gestureevo.pin.PinPoolItem
 import io.github.lumiagg.gestureevo.pin.validatePinImagePaths
@@ -68,6 +70,7 @@ class DataBackActivity : AppCompatActivity() {
         const val WEBDAV_BACKUPS_DIR = "GestureEvoBackups"
         const val EXTERNAL_ACTION_PERMISSIONS_FILE = "external_action_permissions.json"
         const val APP_ALIASES_FILE = "app_aliases.json"
+        const val HIDDEN_SEARCH_RESULTS_FILE = "hidden_search_results.json"
     }
 
     private data class AppAliasEntry(
@@ -703,6 +706,17 @@ class DataBackActivity : AppCompatActivity() {
         val appAliasesFile = File(targetDir, APP_ALIASES_FILE)
         val appAliasesJson = MoshiUtils.toJson(collectAppAliases(dao.getAll()), true)
         appAliasesFile.writeText(appAliasesJson)
+
+        // Hidden search results are independent of APPModel and must be backed up explicitly.
+        val hiddenSearchResults = getHiddenSearchResultDao().getAll()
+        File(targetDir, HIDDEN_SEARCH_RESULTS_FILE).writeText(
+            MoshiUtils.toJson(hiddenSearchResults, true)
+        )
+        AppLogger.event(
+            LogModule.BACKUP,
+            "hidden_search_results_backed_up",
+            fields = mapOf("count" to hiddenSearchResults.size)
+        )
     }
 
     private suspend fun restoreDbStates(sourceDir: File) {
@@ -746,6 +760,34 @@ class DataBackActivity : AppCompatActivity() {
         ContactSearchHelper.syncContactsToDatabase(applicationContext, force = true)
         SettingsShortcutSearchHelper.syncShortcutsToDatabase(applicationContext, force = true)
         ExternalActionPermissionStore.replaceAllPermissions(externalPermissions)
+
+        // Restore hidden search results only when the backup contains the file.
+        // Older backups keep the current hidden list instead of silently clearing it.
+        val hiddenSearchResultsFile = File(sourceDir, HIDDEN_SEARCH_RESULTS_FILE)
+        if (hiddenSearchResultsFile.exists()) {
+            val hiddenResults = MoshiUtils.toModel<List<HiddenSearchResultModel>>(
+                hiddenSearchResultsFile.readText()
+            )
+            if (hiddenResults != null) {
+                val hiddenDao = getHiddenSearchResultDao()
+                hiddenDao.deleteAll()
+                if (hiddenResults.isNotEmpty()) {
+                    hiddenDao.insertAll(hiddenResults)
+                }
+                AppLogger.event(
+                    LogModule.BACKUP,
+                    "hidden_search_results_restored",
+                    fields = mapOf("count" to hiddenResults.size)
+                )
+            } else {
+                AppLogger.event(
+                    LogModule.BACKUP,
+                    "hidden_search_results_restore_skipped",
+                    LogLevel.WARN,
+                    fields = mapOf("reason" to "invalid_json")
+                )
+            }
+        }
     }
 
     private fun readPackageListFromFile(file: File): Set<String> {
