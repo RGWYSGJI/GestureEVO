@@ -28,9 +28,16 @@ object SmsSearchHelper {
             Manifest.permission.READ_SMS,
         ) == PackageManager.PERMISSION_GRANTED
 
-    fun search(context: Context, query: String): List<SmsHit> {
+    fun search(
+        context: Context,
+        query: String,
+        limit: Int = 10,
+        offset: Int = 0,
+    ): List<SmsHit> {
         val keyword = query.trim()
-        if (keyword.isEmpty() || !hasSmsPermission(context)) return emptyList()
+        if (keyword.isEmpty() || limit <= 0 || offset < 0 || !hasSmsPermission(context)) {
+            return emptyList()
+        }
 
         val tokens = keyword
             .split(Regex("\\s+"))
@@ -56,7 +63,8 @@ object SmsSearchHelper {
             Telephony.Sms.BODY,
             Telephony.Sms.DATE,
         )
-        val order = "${Telephony.Sms.DATE} DESC"
+        // Fetch one extra row so the caller can tell whether another page exists.
+        val order = "${Telephony.Sms.DATE} DESC LIMIT ${limit + 1} OFFSET $offset"
 
         return runCatching {
             context.contentResolver.query(

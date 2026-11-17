@@ -25,6 +25,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.drake.brv.utils.models
 import com.drake.brv.utils.setup
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -119,6 +120,11 @@ class SearchResultManager(
     private var searchTask: SearchTask? = null
     private var lastResults: List<SearchResult> = emptyList()
     private var lastResultsQuery: String = ""
+    private var smsPageQuery: String = ""
+    private var smsPageOffset: Int = 0
+    private var smsHasMore: Boolean = false
+    private var smsLoading: Boolean = false
+    private var smsLoadJob: Job? = null
     private var lastRenderedResults: List<SearchResult>? = null
     private var panelHeightAnimator: ValueAnimator? = null
     private var isTransitioning = false
@@ -155,9 +161,15 @@ class SearchResultManager(
         val pinOrder: Map<String, Int>
     )
 
+    private data class SmsPage(
+        val results: List<SearchResult.SmsResult>,
+        val hasMore: Boolean,
+    )
+
     companion object {
         private const val RESULT_DOUBLE_COLUMN_SPAN_COUNT = 2
         private const val RESULT_VIEW_CACHE_SIZE = 12
+        private const val SMS_PAGE_SIZE = 10
     }
 
     fun initialize(
@@ -241,6 +253,17 @@ class SearchResultManager(
         applyPanelHeight(binding.resultPanel, 0)
         binding.resultRecycler.itemAnimator = null
         binding.resultRecycler.setItemViewCacheSize(RESULT_VIEW_CACHE_SIZE)
+        binding.resultRecycler.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                if (dy <= 0) return
+                val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return
+                val itemCount = recyclerView.adapter?.itemCount ?: return
+                if (itemCount == 0) return
+                if (layoutManager.findLastVisibleItemPosition() >= itemCount - 3) {
+                    loadMoreSmsIfNeeded()
+                }
+            }
+        })
         binding.resultRecycler.setup {
             val resultItemLayout = if (resultDoubleColumnEnabled) {
                 R.layout.search_result_grid_item
@@ -825,6 +848,12 @@ class SearchResultManager(
         if (query.isEmpty()) return emptyList()
 
         val normalizedQuery = query.trim()
+        smsLoadJob?.cancel()
+        smsLoadJob = null
+        smsLoading = false
+        smsPageQuery = ""
+        smsPageOffset = 0
+        smsHasMore = false
         if (normalizedQuery.isEmpty() && query.contains(' ')) {
             return withContext(ioDispatcher) {
                 SearchHistoryManager.getAll()
@@ -838,12 +867,17 @@ class SearchResultManager(
             val appDeferred = async { filterApps(normalizedQuery) }
             val shortcutDeferred = async { filterShortcuts(normalizedQuery) }
             val contactDeferred = async { filterContacts(normalizedQuery) }
-            val smsDeferred = async { filterSms(normalizedQuery) }
+            val smsDeferred = async { loadSmsPage(normalizedQuery, 0) }
+
+            val smsPage = smsDeferred.await()
+            smsPageQuery = normalizePinQuery(normalizedQuery)
+            smsPageOffset = smsPage.results.size
+            smsHasMore = smsPage.hasMore
 
             appDeferred.await() +
                     shortcutDeferred.await() +
                     contactDeferred.await() +
-                    smsDeferred.await() +
+                    smsPage.results +
                     historyDeferred.await()
         }
     }
@@ -1025,16 +1059,54 @@ class SearchResultManager(
         }
     }
 
-    private suspend fun filterSms(query: String): List<SearchResult.SmsResult> {
-        if (!smsSearchEnabled) return emptyList()
+    private suspend fun loadSmsPage(query: String, offset: Int): SmsPage {
+        if (!smsSearchEnabled) return SmsPage(emptyList(), false)
         return withContext(ioDispatcher) {
-            SmsSearchHelper.search(activity, query).map { hit ->
-                SearchResult.SmsResult(
-                    smsId = hit.id,
-                    address = hit.address,
-                    body = hit.body,
-                    date = hit.date,
-                )
+            val hits = SmsSearchHelper.search(
+                context = activity,
+                query = query,
+                limit = SMS_PAGE_SIZE,
+                offset = offset,
+            )
+            SmsPage(
+                results = hits.take(SMS_PAGE_SIZE).map { hit ->
+                    SearchResult.SmsResult(
+                        smsId = hit.id,
+                        address = hit.address,
+                        body = hit.body,
+                        date = hit.date,
+                    )
+                },
+                hasMore = hits.size > SMS_PAGE_SIZE,
+            )
+        }
+    }
+
+    private fun loadMoreSmsIfNeeded() {
+        if (!smsHasMore || smsLoading || smsPageQuery.isEmpty()) return
+        val query = smsPageQuery
+        val offset = smsPageOffset
+        smsLoading = true
+        smsLoadJob?.cancel()
+        smsLoadJob = lifecycleScope.launch(uiDispatcher) {
+            try {
+                val page = loadSmsPage(query, offset)
+                if (lastResultsQuery != query) return@launch
+                smsPageOffset = offset + page.results.size
+                smsHasMore = page.hasMore
+                if (page.results.isEmpty()) return@launch
+
+                val visible = filterHiddenResults(page.results, hiddenResultKeys)
+                if (visible.isEmpty()) return@launch
+                val merged = lastResults.toMutableList()
+                val insertAt = merged.indexOfLast { it is SearchResult.SmsResult } + 1
+                merged.addAll(insertAt, visible)
+                val ordered = applyResultPins(merged, displayedPinOrder)
+                lastResults = ordered
+                applyResults(ordered)
+                applyPanelHeight(binding.resultPanel, resultPanelHeight(ordered.size))
+            } finally {
+                smsLoading = false
             }
         }
     }
