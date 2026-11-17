@@ -13,7 +13,7 @@ import androidx.core.content.ContextCompat
  * optional search feature privacy-friendly and always up to date.
  */
 object SmsSearchHelper {
-    private const val MAX_RESULTS = 10
+    private const val MAX_RESULTS = 100
     private const val ESCAPE = "\\"
 
     data class SmsHit(
@@ -33,28 +33,38 @@ object SmsSearchHelper {
         val keyword = query.trim()
         if (keyword.isEmpty() || !hasSmsPermission(context)) return emptyList()
 
-        val escaped = keyword
-            .replace(ESCAPE, ESCAPE + ESCAPE)
-            .replace("%", ESCAPE + "%")
-            .replace("_", ESCAPE + "_")
-        val pattern = "%$escaped%"
+        val tokens = keyword
+            .split(Regex("\\s+"))
+            .filter { it.isNotEmpty() }
+            .map { token ->
+                token
+                    .replace(ESCAPE, ESCAPE + ESCAPE)
+                    .replace("%", ESCAPE + "%")
+                    .replace("_", ESCAPE + "_")
+            }
+        if (tokens.isEmpty()) return emptyList()
+
+        val clauses = tokens.joinToString(" AND ") {
+            "(${Telephony.Sms.BODY} LIKE ? ESCAPE '$ESCAPE' " +
+                "OR ${Telephony.Sms.ADDRESS} LIKE ? ESCAPE '$ESCAPE')"
+        }
+        val args = tokens
+            .flatMap { token -> listOf("%$token%", "%$token%") }
+            .toTypedArray()
         val projection = arrayOf(
             Telephony.Sms._ID,
             Telephony.Sms.ADDRESS,
             Telephony.Sms.BODY,
             Telephony.Sms.DATE,
         )
-        val selection =
-            "(${Telephony.Sms.BODY} LIKE ? ESCAPE '$ESCAPE' " +
-                "OR ${Telephony.Sms.ADDRESS} LIKE ? ESCAPE '$ESCAPE')"
         val order = "${Telephony.Sms.DATE} DESC"
 
         return runCatching {
             context.contentResolver.query(
                 Telephony.Sms.CONTENT_URI,
                 projection,
-                selection,
-                arrayOf(pattern, pattern),
+                clauses,
+                args,
                 order,
             )?.use { cursor ->
                 val idIndex = cursor.getColumnIndexOrThrow(Telephony.Sms._ID)
