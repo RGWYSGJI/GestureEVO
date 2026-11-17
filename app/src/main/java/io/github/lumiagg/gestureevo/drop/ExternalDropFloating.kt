@@ -22,6 +22,8 @@ import io.github.lumiagg.gestureevo.floating.BaseFloatingWindow
 import android.content.Context
 import kotlinx.coroutines.CoroutineScope
 import io.github.lumiagg.gestureevo.gesture.ui.RoundImageTextView
+import io.github.lumiagg.gestureevo.search.EngineLayoutPreferences
+import io.github.lumiagg.gestureevo.search.EngineLayoutScope
 import io.github.lumiagg.gestureevo.search.QuickSearchEnginePager
 import io.github.lumiagg.gestureevo.search.config.SearchEngine
 import io.github.lumiagg.gestureevo.search.config.SearchEngineDataManager
@@ -435,13 +437,12 @@ internal class ExternalDropFloating(
                 EXTERNAL_DROP_FILL_COLUMNS
         }
         showImageBadge = store.readKey(SearchEngineSettingsActivity.KEY_SHOW_IMAGE_BADGE, true)
+        val layout = EngineLayoutPreferences.read(store, EngineLayoutScope.DROP)
         appearance.configure()
         val config = QuickSearchEnginePager.Config(
-            rowCount = if (sidebar) 1 else store.readKey(SearchEngineSettingsActivity.KEY_ROW_COUNT, 1)
-                .coerceIn(SearchEngineSettingsActivity.MIN_ROW_COUNT, SearchEngineSettingsActivity.MAX_ROW_COUNT),
-            columnCount = if (sidebar) 1 else store.readKey(SearchEngineSettingsActivity.KEY_COLUMN_COUNT, 5)
-                .coerceIn(SearchEngineSettingsActivity.MIN_COLUMN_COUNT, SearchEngineSettingsActivity.MAX_COLUMN_COUNT),
-            showLabel = store.readKey(SearchEngineSettingsActivity.KEY_ENGINE_SHOW_LABEL, true),
+            rowCount = if (sidebar) 1 else layout.rowCount,
+            columnCount = if (sidebar) 1 else layout.columnCount,
+            showLabel = layout.showLabel,
             showImageBadge = showImageBadge,
             previewSortMode = false,
         )

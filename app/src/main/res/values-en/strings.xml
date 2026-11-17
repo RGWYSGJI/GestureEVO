@@ -280,8 +280,13 @@
     <string name="acc_action_select_power_dialog">Power Menu</string>
     <string name="search_engine_settings_title">Search</string>
     <string name="search_engine_settings_display_title">Display Settings</string>
+    <string name="search_engine_layout_scope_title">Configuration Scope</string>
+    <string name="search_engine_layout_scope_description">Rows, columns and labels are saved per entry</string>
+    <string name="search_engine_layout_scope_search">Search</string>
+    <string name="search_engine_layout_scope_inspire">Screen OCR</string>
+    <string name="search_engine_layout_scope_drop">Share &amp; Drop</string>
     <string name="search_engine_settings_row_count_title">Search Engine Rows</string>
-    <string name="search_engine_settings_row_count_description">Set the number of engine rows to display on search page</string>
+    <string name="search_engine_settings_row_count_description">Set engine rows for the current entry</string>
     <string name="search_engine_settings_row_count_default">2</string>
     <string name="search_engine_settings_show_labels">Show Icon Names</string>
     <string name="search_engine_settings_preview_mode">Preview Sort Mode</string>
@@ -1158,9 +1163,9 @@
     <string name="appearance_settings_external_drop_system_drag_blur">System drag background blur</string>
     <string name="appearance_settings_external_drop_system_drag_blur_summary">Also show the background blur for drags started by other apps</string>
     <string name="appearance_settings_external_drop_card_background_blur">Card background blur</string>
-    <string name="search_engine_settings_display_description">Adjust the search layout density and icon display</string>
+    <string name="search_engine_settings_display_description">Set layout separately for Search, Screen OCR, and Share &amp; Drop</string>
     <string name="search_engine_settings_column_count_title">Search engine columns</string>
-    <string name="search_engine_settings_column_count_description">Set the number of icon columns on each page</string>
+    <string name="search_engine_settings_column_count_description">Set engine columns per page for the current entry</string>
     <string name="search_engine_settings_column_count_default">5</string>
     <string name="search_engine_settings_features_description">Choose additional content to include in search</string>
     <string name="search_engine_settings_engine_list_description">Manage search engine order and configuration</string>

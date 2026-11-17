@@ -20,6 +20,8 @@ import io.github.lumiagg.gestureevo.databinding.HiddenSearchResultItemBinding
 import io.github.lumiagg.gestureevo.db.HiddenSearchResultModel
 import io.github.lumiagg.gestureevo.db.getHiddenSearchResultDao
 import io.github.lumiagg.gestureevo.search.ContactSearchHelper
+import io.github.lumiagg.gestureevo.search.EngineLayoutPreferences
+import io.github.lumiagg.gestureevo.search.EngineLayoutScope
 import io.github.lumiagg.gestureevo.search.QuickSearchActivity
 import io.github.lumiagg.gestureevo.search.config.EngineType
 import io.github.lumiagg.gestureevo.search.config.SearchEngine
@@ -42,11 +44,14 @@ class SearchEngineSettingsActivity : AppCompatActivity() {
     private var engineColumnCount = 5
     private var engineRowCount = 1 // Default row count
     private var showImageBadge = true
+    private var currentLayoutScope = EngineLayoutScope.SEARCH
+    private var applyingLayoutScope = false
 
     companion object {
-        const val KEY_ENGINE_SHOW_LABEL = "engine_show_label"
-        const val KEY_ROW_COUNT = "engine_row_count"
-        const val KEY_COLUMN_COUNT = "engine_column_count"
+        const val KEY_ENGINE_SHOW_LABEL = EngineLayoutPreferences.LEGACY_SHOW_LABEL
+        const val KEY_ROW_COUNT = EngineLayoutPreferences.LEGACY_ROW_COUNT
+        const val KEY_COLUMN_COUNT = EngineLayoutPreferences.LEGACY_COLUMN_COUNT
+        const val KEY_LAYOUT_SCOPE = EngineLayoutPreferences.KEY_SCOPE
         const val KEY_BOTTOM_INPUT_LAYOUT = "search_bottom_input_layout"
         const val KEY_RESULT_DOUBLE_COLUMN = "search_result_double_column"
         const val KEY_KEYBOARD_FOLLOW_ANIMATION = "search_keyboard_follow_animation"
@@ -58,10 +63,10 @@ class SearchEngineSettingsActivity : AppCompatActivity() {
         const val KEY_ENTER_FIRST_RESULT = "search_enter_first_result"
         const val KEY_KEEP_LAST_SEARCH_RESULT = "search_keep_last_search_result"
         const val KEY_DEFAULT_SEARCH_PAGE = "default_search_page"
-        const val MIN_ROW_COUNT = 1
-        const val MAX_ROW_COUNT = 5
-        const val MIN_COLUMN_COUNT = 2
-        const val MAX_COLUMN_COUNT = 8
+        const val MIN_ROW_COUNT = EngineLayoutPreferences.MIN_ROW_COUNT
+        const val MAX_ROW_COUNT = EngineLayoutPreferences.MAX_ROW_COUNT
+        const val MIN_COLUMN_COUNT = EngineLayoutPreferences.MIN_COLUMN_COUNT
+        const val MAX_COLUMN_COUNT = EngineLayoutPreferences.MAX_COLUMN_COUNT
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -95,14 +100,6 @@ class SearchEngineSettingsActivity : AppCompatActivity() {
     }
 
     private fun setupDisplayControls() = lifecycleScope.launch {
-        binding.engineLabelVisbilitySwitch.isChecked =
-            settingsStore.readKey(KEY_ENGINE_SHOW_LABEL, true)
-        binding.engineLabelVisbilitySwitch.setOnCheckedChangeListener { _, isChecked ->
-            lifecycleScope.launch {
-                settingsStore.saveKey(KEY_ENGINE_SHOW_LABEL, isChecked)
-            }
-        }
-
         binding.previewSortCard.setOnClickListener { openPreviewSortMode() }
 
         binding.searchBottomLayoutSwitch.isChecked =
@@ -139,53 +136,81 @@ class SearchEngineSettingsActivity : AppCompatActivity() {
             }
         }
 
-        engineRowCount = settingsStore.readKey(KEY_ROW_COUNT, 1)
-            .coerceIn(MIN_ROW_COUNT, MAX_ROW_COUNT)
-        engineColumnCount = settingsStore.readKey(KEY_COLUMN_COUNT, 5)
-            .coerceIn(MIN_COLUMN_COUNT, MAX_COLUMN_COUNT)
-        // Display current row count
+        currentLayoutScope = EngineLayoutScope.fromStorageKey(
+            settingsStore.readKey(KEY_LAYOUT_SCOPE, EngineLayoutScope.SEARCH.storageKey)
+        )
+        applyingLayoutScope = true
+        binding.engineScopeGroup.check(scopeButtonId(currentLayoutScope))
+        applyingLayoutScope = false
+        applyLayoutScope(currentLayoutScope)
+
+        binding.engineScopeGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (!isChecked || applyingLayoutScope) return@addOnButtonCheckedListener
+            val scope = when (checkedId) {
+                R.id.engine_scope_search -> EngineLayoutScope.SEARCH
+                R.id.engine_scope_inspire -> EngineLayoutScope.INSPIRE
+                R.id.engine_scope_drop -> EngineLayoutScope.DROP
+                else -> return@addOnButtonCheckedListener
+            }
+            currentLayoutScope = scope
+            lifecycleScope.launch {
+                settingsStore.saveKey(KEY_LAYOUT_SCOPE, scope.storageKey)
+                applyLayoutScope(scope)
+            }
+        }
+
+        binding.engineLabelVisbilitySwitch.setOnCheckedChangeListener { _, isChecked ->
+            if (applyingLayoutScope) return@setOnCheckedChangeListener
+            val scope = currentLayoutScope
+            lifecycleScope.launch {
+                settingsStore.saveKey(scope.showLabelKey, isChecked)
+            }
+        }
+
+        binding.btnDecreaseRows.setOnClickListener { changeRowCount(-1) }
+        binding.btnIncreaseRows.setOnClickListener { changeRowCount(1) }
+        binding.btnDecreaseColumns.setOnClickListener { changeColumnCount(-1) }
+        binding.btnIncreaseColumns.setOnClickListener { changeColumnCount(1) }
+    }
+
+    private fun scopeButtonId(scope: EngineLayoutScope): Int = when (scope) {
+        EngineLayoutScope.SEARCH -> R.id.engine_scope_search
+        EngineLayoutScope.INSPIRE -> R.id.engine_scope_inspire
+        EngineLayoutScope.DROP -> R.id.engine_scope_drop
+    }
+
+    private suspend fun applyLayoutScope(scope: EngineLayoutScope) {
+        applyingLayoutScope = true
+        try {
+            val layout = EngineLayoutPreferences.read(settingsStore, scope)
+            engineRowCount = layout.rowCount
+            engineColumnCount = layout.columnCount
+            binding.engineLabelVisbilitySwitch.isChecked = layout.showLabel
+            updateGridCountDisplay()
+        } finally {
+            applyingLayoutScope = false
+        }
+    }
+
+    private fun changeRowCount(delta: Int) {
+        val next = (engineRowCount + delta).coerceIn(MIN_ROW_COUNT, MAX_ROW_COUNT)
+        if (next == engineRowCount) return
+        engineRowCount = next
         updateGridCountDisplay()
-
-        // Decrease row count
-        binding.btnDecreaseRows.setOnClickListener {
-            if (engineRowCount > MIN_ROW_COUNT) {
-                lifecycleScope.launch {
-                    engineRowCount -= 1
-                    settingsStore.saveKey(KEY_ROW_COUNT, engineRowCount)
-                    updateGridCountDisplay()
-                }
-            }
+        val scope = currentLayoutScope
+        lifecycleScope.launch {
+            settingsStore.saveKey(scope.rowCountKey, next)
         }
+    }
 
-        // Increase row count
-        binding.btnIncreaseRows.setOnClickListener {
-            if (engineRowCount < MAX_ROW_COUNT) {
-                lifecycleScope.launch {
-                    engineRowCount += 1
-                    settingsStore.saveKey(KEY_ROW_COUNT, engineRowCount)
-                    updateGridCountDisplay()
-                }
-            }
-        }
-
-        binding.btnDecreaseColumns.setOnClickListener {
-            if (engineColumnCount > MIN_COLUMN_COUNT) {
-                lifecycleScope.launch {
-                    engineColumnCount -= 1
-                    settingsStore.saveKey(KEY_COLUMN_COUNT, engineColumnCount)
-                    updateGridCountDisplay()
-                }
-            }
-        }
-
-        binding.btnIncreaseColumns.setOnClickListener {
-            if (engineColumnCount < MAX_COLUMN_COUNT) {
-                lifecycleScope.launch {
-                    engineColumnCount += 1
-                    settingsStore.saveKey(KEY_COLUMN_COUNT, engineColumnCount)
-                    updateGridCountDisplay()
-                }
-            }
+    private fun changeColumnCount(delta: Int) {
+        val next = (engineColumnCount + delta).coerceIn(MIN_COLUMN_COUNT, MAX_COLUMN_COUNT)
+        if (next == engineColumnCount) return
+        engineColumnCount = next
+        updateGridCountDisplay()
+        val scope = currentLayoutScope
+        lifecycleScope.launch {
+            settingsStore.saveKey(scope.columnCountKey, next)
         }
     }
 

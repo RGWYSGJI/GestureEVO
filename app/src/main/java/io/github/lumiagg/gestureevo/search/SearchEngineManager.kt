@@ -90,29 +90,20 @@ class SearchEngineManager(
             SearchEngineSettingsActivity.KEY_BOTTOM_INPUT_LAYOUT,
             false
         )
-        val showEngineLabel = preferences.readKey(
-            SearchEngineSettingsActivity.KEY_ENGINE_SHOW_LABEL,
-            true
-        )
+        val layout = EngineLayoutPreferences.read(preferences, EngineLayoutScope.SEARCH)
         showImageBadge = preferences.readKey(
             SearchEngineSettingsActivity.KEY_SHOW_IMAGE_BADGE,
             true
         )
         val previewSortMode = activity.intent.getBooleanExtra("previewSortMode", false)
-        val engineLineCount =
-            preferences.readKey(SearchEngineSettingsActivity.KEY_ROW_COUNT, 1)
-                .coerceIn(SearchEngineSettingsActivity.MIN_ROW_COUNT, SearchEngineSettingsActivity.MAX_ROW_COUNT)
-        val engineColumnCount =
-            preferences.readKey(SearchEngineSettingsActivity.KEY_COLUMN_COUNT, 5)
-                .coerceIn(SearchEngineSettingsActivity.MIN_COLUMN_COUNT, SearchEngineSettingsActivity.MAX_COLUMN_COUNT)
 
         enginePager = binding.enginePager.apply {
             setIconLoader { view, engine, badge -> loadEngineIcon(view, engine, badge) }
             configure(
                 QuickSearchEnginePager.Config(
-                    rowCount = engineLineCount,
-                    columnCount = engineColumnCount,
-                    showLabel = showEngineLabel,
+                    rowCount = layout.rowCount,
+                    columnCount = layout.columnCount,
+                    showLabel = layout.showLabel,
                     showImageBadge = showImageBadge,
                     previewSortMode = previewSortMode
                 )

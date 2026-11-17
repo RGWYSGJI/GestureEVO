@@ -71,6 +71,72 @@
             android:textColor="?attr/colorOnSurface"
             android:textSize="16sp"
             android:textStyle="bold" />
+          <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/search_engine_layout_scope_title"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+          <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:layout_marginBottom="8dp"
+            android:text="@string/search_engine_layout_scope_description"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="12sp" />
+          <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/engine_scope_group"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            app:selectionRequired="true"
+            app:singleSelection="true">
+            <com.google.android.material.button.MaterialButton
+              android:id="@+id/engine_scope_search"
+              style="@style/Widget.Material3.Button.OutlinedButton"
+              android:layout_width="0dp"
+              android:layout_height="40dp"
+              android:layout_weight="1"
+              android:checkable="true"
+              android:insetTop="0dp"
+              android:insetBottom="0dp"
+              android:minWidth="0dp"
+              android:paddingLeft="4dp"
+              android:paddingRight="4dp"
+              android:text="@string/search_engine_layout_scope_search"
+              android:textSize="12sp" />
+            <com.google.android.material.button.MaterialButton
+              android:id="@+id/engine_scope_inspire"
+              style="@style/Widget.Material3.Button.OutlinedButton"
+              android:layout_width="0dp"
+              android:layout_height="40dp"
+              android:layout_weight="1"
+              android:checkable="true"
+              android:insetTop="0dp"
+              android:insetBottom="0dp"
+              android:minWidth="0dp"
+              android:paddingLeft="4dp"
+              android:paddingRight="4dp"
+              android:text="@string/search_engine_layout_scope_inspire"
+              android:textSize="12sp" />
+            <com.google.android.material.button.MaterialButton
+              android:id="@+id/engine_scope_drop"
+              style="@style/Widget.Material3.Button.OutlinedButton"
+              android:layout_width="0dp"
+              android:layout_height="40dp"
+              android:layout_weight="1"
+              android:checkable="true"
+              android:insetTop="0dp"
+              android:insetBottom="0dp"
+              android:minWidth="0dp"
+              android:paddingLeft="4dp"
+              android:paddingRight="4dp"
+              android:text="@string/search_engine_layout_scope_drop"
+              android:textSize="12sp" />
+          </com.google.android.material.button.MaterialButtonToggleGroup>
+
           <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

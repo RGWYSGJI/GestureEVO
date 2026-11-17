@@ -2,6 +2,8 @@ package io.github.lumiagg.gestureevo.inspire
 
 import androidx.lifecycle.LifecycleCoroutineScope
 import androidx.lifecycle.lifecycleScope
+import io.github.lumiagg.gestureevo.search.EngineLayoutPreferences
+import io.github.lumiagg.gestureevo.search.EngineLayoutScope
 import io.github.lumiagg.gestureevo.search.QuickSearchEnginePager
 import io.github.lumiagg.gestureevo.search.SearchEngineExecutor
 import io.github.lumiagg.gestureevo.search.config.EngineType
@@ -30,15 +32,9 @@ class SearchEngineManagerInspire(
     }
 
     private suspend fun initEnginePager() {
-        val rowCount = activity.settingsStore
-            .readKey(SearchEngineSettingsActivity.KEY_ROW_COUNT, 1)
-            .coerceIn(SearchEngineSettingsActivity.MIN_ROW_COUNT, SearchEngineSettingsActivity.MAX_ROW_COUNT)
-        val columnCount = activity.settingsStore
-            .readKey(SearchEngineSettingsActivity.KEY_COLUMN_COUNT, 5)
-            .coerceIn(SearchEngineSettingsActivity.MIN_COLUMN_COUNT, SearchEngineSettingsActivity.MAX_COLUMN_COUNT)
-        val showEngineLabel = activity.settingsStore.readKey(
-            SearchEngineSettingsActivity.KEY_ENGINE_SHOW_LABEL,
-            true
+        val layout = EngineLayoutPreferences.read(
+            activity.settingsStore,
+            EngineLayoutScope.INSPIRE,
         )
         val showImageBadge = activity.settingsStore.readKey(
             SearchEngineSettingsActivity.KEY_SHOW_IMAGE_BADGE,
@@ -47,9 +43,9 @@ class SearchEngineManagerInspire(
 
         enginePager.configure(
             QuickSearchEnginePager.Config(
-                rowCount = rowCount,
-                columnCount = columnCount,
-                showLabel = showEngineLabel,
+                rowCount = layout.rowCount,
+                columnCount = layout.columnCount,
+                showLabel = layout.showLabel,
                 showImageBadge = showImageBadge,
                 previewSortMode = false
             )
