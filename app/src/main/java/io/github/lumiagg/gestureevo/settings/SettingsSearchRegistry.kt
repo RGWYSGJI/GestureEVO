@@ -442,14 +442,6 @@ object SettingsSearchRegistry {
             keywords = listOf("保留", "上次搜索", "搜索结果", "搜索关键词", "last search")
         ),
         entry(
-            id = "search_default_page",
-            titleResId = R.string.search_engine_settings_default_search_page,
-            pageTitleResId = R.string.search_engine_settings_title,
-            targetActivity = SearchEngineSettingsActivity::class.java,
-            targetViewId = R.id.defaultSearchPageCard,
-            keywords = listOf("默认搜索页", "打开应用", "启动页面", "default search", "startup")
-        ),
-        entry(
             id = "search_import",
             titleResId = R.string.search_engine_settings_import,
             pageTitleResId = R.string.search_engine_settings_title,

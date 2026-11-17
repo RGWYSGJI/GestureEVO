@@ -412,42 +412,6 @@
         </LinearLayout>
       </io.github.lumiagg.gestureevo.settings.ui.SettingsSectionCard>
       <io.github.lumiagg.gestureevo.settings.ui.SettingsSectionCard
-        android:id="@+id/defaultSearchPageCard"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="@dimen/settings_card_spacing"
-        app:cardCornerRadius="@dimen/settings_card_corner_radius"
-        app:settingsCardExpanded="false"
-        app:settingsCardSummary="@string/search_engine_settings_startup_description"
-        app:settingsCardTitle="@string/search_engine_settings_startup_title">
-        <LinearLayout
-          android:layout_width="match_parent"
-          android:layout_height="wrap_content"
-          android:orientation="vertical"
-          android:paddingHorizontal="12dp"
-          android:paddingTop="4dp"
-          android:paddingBottom="12dp">
-          <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            android:text="@string/search_engine_settings_startup_title"
-            android:textColor="?attr/colorOnSurface"
-            android:textSize="16sp"
-            android:textStyle="bold" />
-          <io.github.lumiagg.gestureevo.settings.ui.SettingsSwitchRow
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            app:settingsRowTitle="@string/search_engine_settings_default_search_page">
-            <com.google.android.material.materialswitch.MaterialSwitch
-              android:id="@+id/defaultSearchPageSwitch"
-              android:layout_width="wrap_content"
-              android:layout_height="wrap_content" />
-          </io.github.lumiagg.gestureevo.settings.ui.SettingsSwitchRow>
-        </LinearLayout>
-      </io.github.lumiagg.gestureevo.settings.ui.SettingsSectionCard>
-      <io.github.lumiagg.gestureevo.settings.ui.SettingsSectionCard
         android:id="@+id/importExportCard"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

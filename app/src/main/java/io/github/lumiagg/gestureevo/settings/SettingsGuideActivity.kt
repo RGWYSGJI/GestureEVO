@@ -26,7 +26,6 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.github.lumiagg.gestureevo.R
 import io.github.lumiagg.gestureevo.databinding.ActivitySettingsGuideBinding
-import io.github.lumiagg.gestureevo.search.QuickSearchActivity
 import io.github.lumiagg.gestureevo.settings.guide.QuickSetupController
 import io.github.lumiagg.gestureevo.settings.guide.SettingsGuideState
 import io.github.lumiagg.gestureevo.settings.guide.SettingsGuideStatus
@@ -355,15 +354,11 @@ class SettingsGuideActivity : AppCompatActivity() {
                 if (completed) SettingsGuideState.markCompleted(this@SettingsGuideActivity)
                 else SettingsGuideState.markSkipped(this@SettingsGuideActivity)
                 if (intent.getBooleanExtra(EXTRA_FROM_LAUNCHER, false)) {
-                    if (settingsStore.readKey(SearchEngineSettingsActivity.KEY_DEFAULT_SEARCH_PAGE, false)) {
-                        QuickSearchActivity.start(this@SettingsGuideActivity)
-                    } else {
-                        startActivity(Intent(this@SettingsGuideActivity, SettingsActivity::class.java).apply {
-                            if (!settingsStore.readKey(BackgroundStabilityActivity.HIDE_TASK, true)) {
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NEW_DOCUMENT
-                            }
-                        })
-                    }
+                    startActivity(Intent(this@SettingsGuideActivity, SettingsActivity::class.java).apply {
+                        if (!settingsStore.readKey(BackgroundStabilityActivity.HIDE_TASK, true)) {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NEW_DOCUMENT
+                        }
+                    })
                 }
                 finish()
             } catch (e: CancellationException) {

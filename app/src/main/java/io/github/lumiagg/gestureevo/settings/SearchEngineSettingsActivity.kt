@@ -67,7 +67,6 @@ class SearchEngineSettingsActivity : AppCompatActivity() {
         const val KEY_SEARCH_SETTINGS_SHORTCUTS = "search_settings_shortcuts"
         const val KEY_ENTER_FIRST_RESULT = "search_enter_first_result"
         const val KEY_KEEP_LAST_SEARCH_RESULT = "search_keep_last_search_result"
-        const val KEY_DEFAULT_SEARCH_PAGE = "default_search_page"
         const val MIN_ROW_COUNT = EngineLayoutPreferences.MIN_ROW_COUNT
         const val MAX_ROW_COUNT = EngineLayoutPreferences.MAX_ROW_COUNT
         const val MIN_COLUMN_COUNT = EngineLayoutPreferences.MIN_COLUMN_COUNT
@@ -82,7 +81,6 @@ class SearchEngineSettingsActivity : AppCompatActivity() {
         setupToolbar()
         setupDisplayControls()
         setupFunctionControls()
-        setupDefaultSearchPageControl()
         setupButtons()
         setupRecyclerView()
         setupHiddenResults()
@@ -307,35 +305,6 @@ class SearchEngineSettingsActivity : AppCompatActivity() {
             grantResults[0] == PackageManager.PERMISSION_GRANTED
         binding.searchSmsSwitch.isChecked = granted
         lifecycleScope.launch { settingsStore.saveKey(KEY_SEARCH_SMS, granted) }
-    }
-
-    private fun setupDefaultSearchPageControl() = lifecycleScope.launch {
-        binding.defaultSearchPageSwitch.isChecked =
-            settingsStore.readKey(KEY_DEFAULT_SEARCH_PAGE, false)
-        binding.defaultSearchPageSwitch.setOnCheckedChangeListener { _, isChecked ->
-            if (!isChecked) {
-                lifecycleScope.launch {
-                    settingsStore.saveKey(KEY_DEFAULT_SEARCH_PAGE, false)
-                }
-                return@setOnCheckedChangeListener
-            }
-
-            MaterialAlertDialogBuilder(this@SearchEngineSettingsActivity)
-                .setTitle(R.string.search_engine_settings_default_search_page_dialog_title)
-                .setMessage(R.string.search_engine_settings_default_search_page_dialog_message)
-                .setPositiveButton(android.R.string.ok) { _, _ ->
-                    lifecycleScope.launch {
-                        settingsStore.saveKey(KEY_DEFAULT_SEARCH_PAGE, true)
-                    }
-                }
-                .setNegativeButton(android.R.string.cancel) { _, _ ->
-                    binding.defaultSearchPageSwitch.isChecked = false
-                }
-                .setOnCancelListener {
-                    binding.defaultSearchPageSwitch.isChecked = false
-                }
-                .show()
-        }
     }
 
     private fun updateGridCountDisplay() {

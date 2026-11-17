@@ -302,11 +302,6 @@
     <string name="search_engine_settings_search_settings">Search System Settings</string>
     <string name="search_engine_settings_enter_first_result">Press Enter to Open First Result</string>
     <string name="search_engine_settings_keep_last_result">Keep Last Search Results</string>
-    <string name="search_engine_settings_default_search_page">Show Search When Opening App</string>
-    <string name="search_engine_settings_startup_title">Startup Settings</string>
-    <string name="search_engine_settings_startup_description">Choose the page shown by default when opening the app</string>
-    <string name="search_engine_settings_default_search_page_dialog_title">Use Search as the Default Page?</string>
-    <string name="search_engine_settings_default_search_page_dialog_message">GestureEVO will open directly to Search. To return to settings, search for “Settings” and tap “GestureEVO Settings”.</string>
     <string name="quick_search_app_settings">GestureEVO Settings</string>
     <string name="search_engine_settings_import">Import</string>
     <string name="search_engine_settings_export">Export</string>

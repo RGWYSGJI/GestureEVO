@@ -331,11 +331,6 @@
     <string name="search_engine_settings_search_settings">搜索系统设置</string>
     <string name="search_engine_settings_enter_first_result">回车打开首条结果</string>
     <string name="search_engine_settings_keep_last_result">保留上次搜索结果</string>
-    <string name="search_engine_settings_default_search_page">打开应用时显示搜索页面</string>
-    <string name="search_engine_settings_startup_title">启动设置</string>
-    <string name="search_engine_settings_startup_description">控制打开应用时默认显示的页面</string>
-    <string name="search_engine_settings_default_search_page_dialog_title">启用默认搜索页？</string>
-    <string name="search_engine_settings_default_search_page_dialog_message">启用后，打开 GestureEVO 将直接显示搜索页面。如需重新进入设置，请在搜索页面搜索“设置”，然后点击“GestureEVO 设置”。</string>
     <string name="quick_search_app_settings">GestureEVO 设置</string>
     <string name="search_engine_settings_import">导入</string>
     <string name="search_engine_settings_export">导出</string>
