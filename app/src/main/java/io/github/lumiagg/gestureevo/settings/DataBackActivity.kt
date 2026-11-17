@@ -13,6 +13,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.lifecycleScope
+import androidx.room.withTransaction
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.progressindicator.CircularProgressIndicatorSpec
 import com.google.android.material.progressindicator.IndeterminateDrawable
@@ -20,6 +21,7 @@ import io.github.lumiagg.gestureevo.R
 import io.github.lumiagg.gestureevo.databinding.ActivityDataBackBinding
 import io.github.lumiagg.gestureevo.db.APPModel
 import io.github.lumiagg.gestureevo.db.HiddenSearchResultModel
+import io.github.lumiagg.gestureevo.db.DatabaseManager
 import io.github.lumiagg.gestureevo.db.getAPPDao
 import io.github.lumiagg.gestureevo.db.getHiddenSearchResultDao
 import io.github.lumiagg.gestureevo.db.updateDB
@@ -770,9 +772,13 @@ class DataBackActivity : AppCompatActivity() {
             )
             if (hiddenResults != null) {
                 val hiddenDao = getHiddenSearchResultDao()
-                hiddenDao.deleteAll()
-                if (hiddenResults.isNotEmpty()) {
-                    hiddenDao.insertAll(hiddenResults)
+                // Replace the whole hidden list atomically: a failed insert must not
+                // leave the user with an empty list after deleting the old rows.
+                DatabaseManager.db.withTransaction {
+                    hiddenDao.deleteAll()
+                    if (hiddenResults.isNotEmpty()) {
+                        hiddenDao.insertAll(hiddenResults)
+                    }
                 }
                 AppLogger.event(
                     LogModule.BACKUP,
