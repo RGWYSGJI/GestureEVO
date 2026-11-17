@@ -280,8 +280,6 @@
     <string name="acc_action_select_power_dialog">Power Menu</string>
     <string name="search_engine_settings_title">Search</string>
     <string name="search_engine_settings_display_title">Display Settings</string>
-    <string name="search_engine_layout_scope_title">Configuration Scope</string>
-    <string name="search_engine_layout_scope_description">Rows, columns and labels are saved per entry</string>
     <string name="search_engine_layout_scope_search">Search</string>
     <string name="search_engine_layout_scope_inspire">Screen OCR</string>
     <string name="search_engine_layout_scope_drop">Share &amp; Drop</string>
@@ -1160,7 +1158,7 @@
     <string name="appearance_settings_external_drop_system_drag_blur">System drag background blur</string>
     <string name="appearance_settings_external_drop_system_drag_blur_summary">Also show the background blur for drags started by other apps</string>
     <string name="appearance_settings_external_drop_card_background_blur">Card background blur</string>
-    <string name="search_engine_settings_display_description">Set layout separately for Search, Screen OCR, and Share &amp; Drop</string>
+    <string name="search_engine_settings_display_description">Set search engine layout separately</string>
     <string name="search_engine_settings_column_count_title">Search engine columns</string>
     <string name="search_engine_settings_column_count_description">Set engine columns per page for the current entry</string>
     <string name="search_engine_settings_column_count_default">5</string>

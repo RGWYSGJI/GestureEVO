@@ -304,9 +304,7 @@
     <string name="acc_action_select_power_dialog">电源菜单</string>
     <string name="search_engine_settings_title">搜索</string>
     <string name="search_engine_settings_display_title">显示设置</string>
-    <string name="search_engine_settings_display_description">分别设置搜索页、屏幕内容识别、分享与拖放的排版</string>
-    <string name="search_engine_layout_scope_title">配置入口</string>
-    <string name="search_engine_layout_scope_description">每个入口独立保存行数、列数和名称显示</string>
+    <string name="search_engine_settings_display_description">分别设置搜索引擎排版</string>
     <string name="search_engine_layout_scope_search">搜索页</string>
     <string name="search_engine_layout_scope_inspire">屏幕内容识别</string>
     <string name="search_engine_layout_scope_drop">分享与拖放</string>
