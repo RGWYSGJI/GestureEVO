@@ -7,6 +7,7 @@ import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
 import io.github.lumiagg.gestureevo.R
+import io.github.lumiagg.gestureevo.inspire.ScreenContentShortcutActivity
 
 /**
  * Publishes the launcher shortcut that opens the search page directly.
@@ -15,27 +16,43 @@ import io.github.lumiagg.gestureevo.R
  * so it also works for the .debug applicationId used by local builds.
  */
 object SearchShortcutPublisher {
-    private const val SHORTCUT_ID = "search"
+    private const val SEARCH_SHORTCUT_ID = "search"
+    private const val SCREEN_CONTENT_SHORTCUT_ID = "screen_content"
     const val ACTION_OPEN_SEARCH = "io.github.lumiagg.gestureevo.action.OPEN_SEARCH"
+    const val ACTION_OPEN_SCREEN_CONTENT =
+        "io.github.lumiagg.gestureevo.action.OPEN_SCREEN_CONTENT"
 
     fun publish(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N_MR1) return
 
-        val intent = Intent(context, QuickSearchActivity::class.java).apply {
-            action = ACTION_OPEN_SEARCH
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-
-        val shortcut = ShortcutInfoCompat.Builder(context, SHORTCUT_ID)
+        val search = ShortcutInfoCompat.Builder(context, SEARCH_SHORTCUT_ID)
             .setShortLabel(context.getString(R.string.shortcut_search_short))
             .setLongLabel(context.getString(R.string.shortcut_search_long))
-            .setIcon(IconCompat.createWithResource(context, R.drawable.search_24px))
-            .setIntent(intent)
+            .setIcon(IconCompat.createWithResource(context, R.mipmap.ic_launcher))
+            .setIntent(
+                Intent(context, QuickSearchActivity::class.java).apply {
+                    action = ACTION_OPEN_SEARCH
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            )
             .setRank(0)
             .build()
 
+        val screenContent = ShortcutInfoCompat.Builder(context, SCREEN_CONTENT_SHORTCUT_ID)
+            .setShortLabel(context.getString(R.string.shortcut_screen_content_short))
+            .setLongLabel(context.getString(R.string.shortcut_screen_content_long))
+            .setIcon(IconCompat.createWithResource(context, R.mipmap.ic_launcher))
+            .setIntent(
+                Intent(context, ScreenContentShortcutActivity::class.java).apply {
+                    action = ACTION_OPEN_SCREEN_CONTENT
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            )
+            .setRank(1)
+            .build()
+
         runCatching {
-            ShortcutManagerCompat.setDynamicShortcuts(context, listOf(shortcut))
+            ShortcutManagerCompat.setDynamicShortcuts(context, listOf(search, screenContent))
         }
     }
 }

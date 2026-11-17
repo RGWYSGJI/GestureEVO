@@ -105,6 +105,11 @@
             android:launchMode="singleInstance"
             android:theme="@style/Theme.GestureEVO.transparent" />
         <activity
+            android:name=".inspire.ScreenContentShortcutActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:theme="@style/Theme.GestureEVO.transparent" />
+        <activity
             android:name=".inspire.InspireContentActivity"
             android:clearTaskOnLaunch="true"
             android:excludeFromRecents="true"
