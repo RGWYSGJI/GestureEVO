@@ -31,8 +31,8 @@ object SmsSearchHelper {
 
 
     /**
-     * Splits a query into words so that all words must occur somewhere in the
-     * message, but they do not have to occur as one contiguous phrase.
+     * Splits a query into words for a broad OR search: a message matches when
+     * any of the words occurs somewhere in its body or address.
      *
      * ICU's word iterator handles CJK text better than splitting on whitespace
      * alone. If it still returns a single long CJK token, fall back to
@@ -84,7 +84,7 @@ object SmsSearchHelper {
             }
         if (tokens.isEmpty()) return emptyList()
 
-        val clauses = tokens.joinToString(" AND ") {
+        val clauses = tokens.joinToString(" OR ") {
             "(${Telephony.Sms.BODY} LIKE ? ESCAPE '$ESCAPE' " +
                 "OR ${Telephony.Sms.ADDRESS} LIKE ? ESCAPE '$ESCAPE')"
         }
