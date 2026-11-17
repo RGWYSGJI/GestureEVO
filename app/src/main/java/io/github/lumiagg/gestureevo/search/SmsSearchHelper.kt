@@ -13,7 +13,6 @@ import androidx.core.content.ContextCompat
  * optional search feature privacy-friendly and always up to date.
  */
 object SmsSearchHelper {
-    private const val MAX_RESULTS = 100
     private const val ESCAPE = "\\"
 
     data class SmsHit(
@@ -72,7 +71,7 @@ object SmsSearchHelper {
                 val bodyIndex = cursor.getColumnIndexOrThrow(Telephony.Sms.BODY)
                 val dateIndex = cursor.getColumnIndexOrThrow(Telephony.Sms.DATE)
                 buildList {
-                    while (cursor.moveToNext() && size < MAX_RESULTS) {
+                    while (cursor.moveToNext()) {
                         val body = cursor.getString(bodyIndex).orEmpty()
                         if (body.isBlank()) continue
                         add(
