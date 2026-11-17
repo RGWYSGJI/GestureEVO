@@ -1,6 +1,6 @@
 package io.github.lumiagg.gestureevo.inspire
 
-import android.app.Activity
+import androidx.activity.ComponentActivity
 import android.os.Bundle
 import androidx.lifecycle.lifecycleScope
 import io.github.lumiagg.gestureevo.gesture.EventBusManager
@@ -13,7 +13,7 @@ import kotlinx.coroutines.launch
  * The actual screenshot/selection UI is owned by GestureService; this activity only
  * posts the same event that the gesture action uses and gets out of the way.
  */
-class ScreenContentShortcutActivity : Activity() {
+class ScreenContentShortcutActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         lifecycleScope.launch {
