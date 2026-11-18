@@ -105,7 +105,10 @@ class PointerFloating(
             onDoubleClick = { onMouseDoubleClick() },
             onLongPressToggle = { onMouseLongPressToggle() },
             onQuickScroll = { toTop -> onMouseQuickScroll(toTop) },
-            onClose = { enable = false },
+            onClose = {
+                Log.d(TAG, "mousePad close button double tap")
+                enable = false
+            },
         )
     }
     /**
@@ -547,7 +550,9 @@ class PointerFloating(
         onPointerHidden?.invoke()
 
         positionMousePad()
-        attachMouseExitCatcher()
+        // The close button is the explicit exit now. Do not attach the full-screen
+        // catcher: on some devices it can be ordered above the pad after a relayout,
+        // swallow the button's DOWN/UP and then treat the same point as an outside tap.
         if (bringPadToFront) bringTouchViewAbovePointerLayer()
     }
 
@@ -675,7 +680,6 @@ class PointerFloating(
         pointerManger.stopMouseMode()
         mousePadOverlay.setLongPressActive(false)
         mousePadOverlay.visibility = View.GONE
-        detachViewSafely(mouseExitCatcher)
     }
 
     private fun onMouseEdgeScroll(direction: MousePadOverlay.Direction) {
@@ -1122,12 +1126,12 @@ class PointerFloating(
         }
 
         fun onTouchEvent(event: MotionEvent, fromTouchView: Boolean = false) {
-            if (fromTouchView && alwaysShowTouchArea && !mouseMode) {
-                enterMouseMode(bringPadToFront = false)
-                if (mouseMode) {
-                    handleMouseTouch(event)
-                    return
-                }
+            if (fromTouchView && alwaysShowTouchArea) {
+                // The pad is a mouse surface while the setting is on. Never let its
+                // ACTION_UP fall through to the normal pointer path, which hides the pad.
+                if (!mouseMode) enterMouseMode(bringPadToFront = false)
+                if (mouseMode) handleMouseTouch(event)
+                return
             }
             if (mouseMode) {
                 // Mouse mode owns the session. Events forwarded from gesture triggers must not
