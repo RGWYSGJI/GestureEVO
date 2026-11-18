@@ -27,6 +27,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import io.github.lumiagg.gestureevo.settings.ui.bindLinkRadarSwitch
 import io.github.lumiagg.gestureevo.drop.PressInputStatus
 import io.github.lumiagg.gestureevo.R
 import io.github.lumiagg.gestureevo.databinding.ActivityInspireSettingsBinding
@@ -65,6 +66,7 @@ class InspireSettingsActivity : AppCompatActivity() {
         // Preference keys
         const val KEY_OCR_PRIORITY = "inspire_ocr_priority"
         const val KEY_INSPIRE_DOUBLE_CHECK = "key_inspire_double_check"
+        const val KEY_SCREEN_CONTENT_LINK_RADAR = "key_screen_content_link_radar"
         const val KEY_INSPIRE_SELECTION_VIBRATE = "key_inspire_selection_vibrate"
         const val KEY_INSPIRE_EDGE_BACK = "key_inspire_edge_back"
         const val KEY_INSPIRE_DELAY_REMOVE_IMAGE = "key_inspire_delay_remove_image"
@@ -86,6 +88,7 @@ class InspireSettingsActivity : AppCompatActivity() {
         const val KEY_ALWAYS_SHOW_POINTER_TOUCH_AREA = "key_always_show_pointer_touch_area"
         const val KEY_POINTER_TOUCH_AREA_OFFSET_DP = "key_pointer_touch_area_offset_dp"
         const val KEY_ENABLE_POINTER_DRAG_MODE = "key_enable_pointer_drag_mode"
+        const val KEY_POINTER_HOVER_MENU = "key_pointer_hover_menu"
         const val KEY_PIN_POOL_DISPLAY_MODE = "key_pin_pool_display_mode"
         const val KEY_PIN_POOL_LOCAL_RULE_EXTRACTION = "key_pin_pool_local_rule_extraction"
         const val DEFAULT_PIN_POOL_LOCAL_RULE_EXTRACTION = false
@@ -113,6 +116,7 @@ class InspireSettingsActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         setupToolbar()
+        bindLinkRadarSwitch(binding.pointerLinkRadarSwitch)
 
         lifecycleScope.launch {
             initializeViews()
@@ -194,6 +198,8 @@ class InspireSettingsActivity : AppCompatActivity() {
             )
         )
 
+        binding.screenContentLinkRadarSwitch.isChecked = settingsStore.readKey(KEY_SCREEN_CONTENT_LINK_RADAR, false)
+
         // Pointer trail
         binding.pointerTrailSwitch.isChecked =
             settingsStore.readKey(KEY_SHOW_POINTER_TRAIL, false)
@@ -204,6 +210,8 @@ class InspireSettingsActivity : AppCompatActivity() {
 
         binding.pointerDragModeSwitch.isChecked =
             settingsStore.readKey(KEY_ENABLE_POINTER_DRAG_MODE, false)
+        binding.pointerHoverMenuSwitch.isChecked = settingsStore.readKey(KEY_POINTER_HOVER_MENU, false)
+        updatePointerHoverMenuSetting(binding.pointerHoverMenuSwitch.isChecked)
 
         val pinPoolDisplayMode =
             settingsStore.readKey(KEY_PIN_POOL_DISPLAY_MODE, PIN_POOL_DISPLAY_MODE_RIGHT_SIDEBAR)
@@ -513,6 +521,15 @@ class InspireSettingsActivity : AppCompatActivity() {
             lifecycleScope.launch {
                 settingsStore.saveKey(KEY_ENABLE_POINTER_DRAG_MODE, isChecked)
             }
+        }
+
+        binding.screenContentLinkRadarSwitch.setOnCheckedChangeListener { _, isChecked ->
+            lifecycleScope.launch { settingsStore.saveKey(KEY_SCREEN_CONTENT_LINK_RADAR, isChecked) }
+        }
+
+        binding.pointerHoverMenuSwitch.setOnCheckedChangeListener { _, isChecked ->
+            updatePointerHoverMenuSetting(isChecked)
+            lifecycleScope.launch { settingsStore.saveKey(KEY_POINTER_HOVER_MENU, isChecked) }
         }
 
         binding.pinPoolModeRow.setOnClickListener {
@@ -1000,6 +1017,13 @@ class InspireSettingsActivity : AppCompatActivity() {
                 }
             }.show()
         }
+    }
+
+    private fun updatePointerHoverMenuSetting(enabled: Boolean) {
+        binding.pointerDragModeSwitch.isEnabled = !enabled
+        binding.pointerDragModeRow.isEnabled = !enabled
+        binding.pointerDragModeRow.alpha = if (enabled) 0.5f else 1f
+        binding.pointerHoverMenuHint.visibility = if (enabled) View.VISIBLE else View.GONE
     }
 
     private fun updatePointerTouchAreaOffsetText(offsetDp: Int) {
