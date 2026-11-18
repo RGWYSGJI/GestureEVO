@@ -249,9 +249,16 @@ class PointerFloating(
             allowDisplayCutout = false,
             title = "GestureEVO:PointerFloating:Touch",
         )
-        touchView.setOnTouchListener { view, event ->
+        touchView.setOnTouchListener { _, event ->
+            // Once the simulated-mouse setting is on, the first touch must enter mouse mode
+            // instead of falling through to the normal pointer's ACTION_UP hide path.
+            if (alwaysShowTouchArea && !mouseModeActive && event.actionMasked == MotionEvent.ACTION_DOWN) {
+                enterMouseMode()
+            }
             pointerManger.onTouchEvent(event, fromTouchView = true)
-            return@setOnTouchListener false
+            // Consume the event while mouse mode owns the session. Otherwise the touch can
+            // fall through to the full-screen pointer layer, whose outside-tap handler exits.
+            mouseModeActive
         }
         touchView.addView(
             mousePadOverlay,
