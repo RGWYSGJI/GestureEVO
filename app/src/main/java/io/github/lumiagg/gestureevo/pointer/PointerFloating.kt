@@ -111,18 +111,6 @@ class PointerFloating(
             },
         )
     }
-    /**
-     * Full-screen transparent window below the touch pad. The pointer layer stays
-     * non-touchable, so an outside tap lands here and ends the mouse session without the
-     * pointer layer racing the pad for z-order.
-     */
-    private val mouseExitCatcher: View by lazy {
-        View(context).apply {
-            isClickable = true
-            setOnTouchListener { _, event -> handleMouseCatcherTouch(event) }
-        }
-    }
-    private val mouseExitParams = WindowManager.LayoutParams()
     private val pointerLayoutParams = WindowManager.LayoutParams()
     private val touchLayoutParams = WindowManager.LayoutParams()
     private var touchViewScale = 0.35
@@ -135,7 +123,6 @@ class PointerFloating(
     private var touchAreaOffsetDp = 0
     private var mouseModeActive = false
     private var mouseLongPressMode = false
-    private var mouseCatcherDownInside = false
     private var mouseScrollJob: Job? = null
     private var mouseQuickScrollJob: Job? = null
     private var pointerVisibleRequested = false
@@ -557,80 +544,7 @@ class PointerFloating(
     }
 
     /**
-     * The catcher is below the pad when z-order is correct, so this usually only sees outside
-     * taps. If a retry leaves it above the pad, forward pad gestures instead of exiting.
-     */
-    private fun handleMouseCatcherTouch(event: MotionEvent): Boolean {
-        if (!mouseModeActive) return false
-        val insidePad = isTouchInsidePad(event.rawX, event.rawY)
-        when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                mouseCatcherDownInside = insidePad
-                if (mouseCatcherDownInside) {
-                    pointerManger.onTouchEvent(event, fromTouchView = true)
-                }
-            }
-            MotionEvent.ACTION_MOVE -> {
-                if (mouseCatcherDownInside) {
-                    pointerManger.onTouchEvent(event, fromTouchView = true)
-                }
-            }
-            MotionEvent.ACTION_UP -> {
-                if (mouseCatcherDownInside) {
-                    pointerManger.onTouchEvent(event, fromTouchView = true)
-                } else {
-                    enable = false
-                }
-                mouseCatcherDownInside = false
-            }
-            MotionEvent.ACTION_CANCEL -> {
-                if (mouseCatcherDownInside) {
-                    pointerManger.onTouchEvent(event, fromTouchView = true)
-                }
-                mouseCatcherDownInside = false
-            }
-        }
-        return true
-    }
-
-    private fun isTouchInsidePad(rawX: Float, rawY: Float): Boolean {
-        if (!touchView.isAttachedToWindow) return false
-        val location = IntArray(2)
-        touchView.getLocationOnScreen(location)
-        return rawX >= location[0] &&
-            rawX <= location[0] + touchView.width &&
-            rawY >= location[1] &&
-            rawY <= location[1] + touchView.height
-    }
-
-    private fun attachMouseExitCatcher() {
-        if (!mouseModeActive || mouseExitCatcher.isAttachedToWindow) return
-        // WindowManager.LayoutParams() defaults to TYPE_APPLICATION, and width is
-        // MATCH_PARENT (-1), not 0. Always configure the accessibility overlay type before
-        // the first addView; otherwise a service has no window token and addView throws
-        // BadTokenException.
-        if (mouseExitParams.type != WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY) {
-            mouseExitParams.configureAccessibilityOverlay(
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-                title = "GestureEVO:PointerFloating:MouseExit",
-            )
-        }
-        attachViewSafely(
-            mouseExitCatcher,
-            mouseExitParams,
-            shouldRetry = { mouseModeActive && pointerVisibleRequested },
-            onAttached = {
-                // If the catcher attaches after the pad (or a retry lands late), put the pad
-                // back on top so its buttons and drag handling keep receiving touches.
-                if (mouseModeActive) bringTouchViewAbovePointerLayer()
-            },
-        )
-    }
-
-    /**
-     * Window z-order is attach-order. Re-attaching the pad after the pointer/catcher layers
+     * Window z-order is attach-order. Re-attaching the pad after the pointer layer
      * makes sure the visible pad is the window that receives its own touches.
      */
     private fun bringTouchViewAbovePointerLayer() {
@@ -672,7 +586,6 @@ class PointerFloating(
     private fun resetMouseModeState() {
         mouseModeActive = false
         mouseLongPressMode = false
-        mouseCatcherDownInside = false
         mouseScrollJob?.cancel()
         mouseScrollJob = null
         mouseQuickScrollJob?.cancel()
