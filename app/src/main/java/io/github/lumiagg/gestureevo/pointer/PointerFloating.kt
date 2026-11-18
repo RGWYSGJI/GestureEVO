@@ -645,6 +645,7 @@ class PointerFloating(
 
     private fun onMouseDoubleClick() {
         if (!mouseModeActive) return
+        pointerManger.pulseClickFeedback()
         val point = pointerManger.pointerCenter()
         context.launch {
             performPointerClick(
@@ -658,6 +659,7 @@ class PointerFloating(
 
     private fun onMouseLongPress() {
         if (!mouseModeActive) return
+        pointerManger.pulseClickFeedback()
         val point = pointerManger.pointerCenter()
         context.launch {
             performPointerClick(point.x, point.y, MOUSE_LONG_PRESS_DURATION_MS)
@@ -1192,6 +1194,7 @@ class PointerFloating(
         }
 
         private fun handleMouseTap() {
+            pulseClickFeedback()
             val point = pointerCenter()
             // Match the normal pointer's tap path: click immediately after release, no
             // double-tap window. Double-click and long-press have their own explicit buttons.
@@ -1220,6 +1223,24 @@ class PointerFloating(
         }
 
         fun isClickFeedbackEnabled(): Boolean = pointerClickFeedback
+
+        /** Brief scale pulse used by simulated-mouse clicks while the pointer stays visible. */
+        fun pulseClickFeedback() {
+            if (!pointerClickFeedback || view.visibility != View.VISIBLE) return
+            view.animate().cancel()
+            view.animate()
+                .scaleX(POINTER_CLICK_PRESS_SCALE)
+                .scaleY(POINTER_CLICK_PRESS_SCALE)
+                .setDuration(POINTER_CLICK_PULSE_SHRINK_DURATION)
+                .withEndAction {
+                    view.animate()
+                        .scaleX(1f)
+                        .scaleY(1f)
+                        .setDuration(POINTER_CLICK_PULSE_RETURN_DURATION)
+                        .start()
+                }
+                .start()
+        }
 
         fun getPointerColor(): Int {
             return if (pointerColor == 0) DynamicColorUtils.primaryColor else pointerColor
