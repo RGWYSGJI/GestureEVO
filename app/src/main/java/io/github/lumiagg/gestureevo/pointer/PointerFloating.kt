@@ -111,6 +111,7 @@ class PointerFloating(
     private var touchAreaOffsetDp = 0
     private var mouseModeActive = false
     private var mouseScrollJob: Job? = null
+    private var pointerLayerMouseDownInside = false
     private var pointerVisibleRequested = false
     private var hoverMenuEnabled = false
     var captureLinks: suspend () -> List<LinkRegion> = { emptyList() }
@@ -253,7 +254,9 @@ class PointerFloating(
             // Once the simulated-mouse setting is on, the first touch must enter mouse mode
             // instead of falling through to the normal pointer's ACTION_UP hide path.
             if (alwaysShowTouchArea && !mouseModeActive && event.actionMasked == MotionEvent.ACTION_DOWN) {
-                enterMouseMode()
+                // Do not re-attach the pad from inside its own touch dispatch; the normal entry
+                // path (show()) has already put it above the pointer layer.
+                enterMouseMode(bringPadToFront = false)
             }
             pointerManger.onTouchEvent(event, fromTouchView = true)
             // Consume the event while mouse mode owns the session. Otherwise the touch can
@@ -371,8 +374,6 @@ class PointerFloating(
         /** Simulated mouse mode. */
         const val MOUSE_SENSITIVITY = 1.8f
         const val MOUSE_MOVE_SLOP_PX = 4f
-        const val MOUSE_LONG_PRESS_MS = 500L
-        const val MOUSE_LONG_PRESS_CLICK_MS = 600L
         const val MOUSE_CLICK_DURATION_MS = 60L
         const val MOUSE_DOUBLE_TAP_MS = 280L
         const val MOUSE_DOUBLE_TAP_SLOP_PX = 36f
@@ -460,7 +461,12 @@ class PointerFloating(
             pointerFloatingView,
             pointerLayoutParams,
             shouldRetry = { pointerVisibleRequested },
-            onAttached = updateWhenReady
+            onAttached = {
+                updateWhenReady()
+                // A retried pointer attachment can arrive after the pad and land on top.
+                // Re-assert the pad's z-order whenever the full-screen layer attaches.
+                if (mouseModeActive) bringTouchViewAbovePointerLayer()
+            }
         )
         attachViewSafely(
             touchView,
@@ -505,7 +511,7 @@ class PointerFloating(
         ).coerceIn(-100, 100)
     }
 
-    private fun enterMouseMode() {
+    private fun enterMouseMode(bringPadToFront: Boolean = true) {
         if (!enable || !pointerVisibleRequested || mouseModeActive) return
         mouseModeActive = true
         needShowTouchView = true
@@ -520,7 +526,29 @@ class PointerFloating(
         onPointerHidden?.invoke()
 
         positionMousePad()
+        if (bringPadToFront) bringTouchViewAbovePointerLayer()
         setPointerLayerTouchable(true)
+    }
+
+    /**
+     * The full-screen pointer window is made touchable in mouse mode so an outside tap can
+     * leave the session. Window z-order is attach-order, and a retried pointer attachment can
+     * land above the touch pad; re-attaching the pad guarantees it stays on top and keeps the
+     * pad's own scroll buttons and drag handling reachable.
+     */
+    private fun bringTouchViewAbovePointerLayer() {
+        if (!mouseModeActive) return
+        if (!touchView.isAttachedToWindow) {
+            touchView.post { if (mouseModeActive) bringTouchViewAbovePointerLayer() }
+            return
+        }
+        detachViewSafely(touchView)
+        attachViewSafely(
+            touchView,
+            touchLayoutParams,
+            shouldRetry = { mouseModeActive && pointerVisibleRequested },
+            onAttached = { if (mouseModeActive) updateTouchView() },
+        )
     }
 
     private fun positionMousePad() {
@@ -546,6 +574,7 @@ class PointerFloating(
     /** Clears mouse-mode-only state. Safe to call repeatedly. */
     private fun resetMouseModeState() {
         mouseModeActive = false
+        pointerLayerMouseDownInside = false
         mouseScrollJob?.cancel()
         mouseScrollJob = null
         pointerManger.stopMouseMode()
@@ -567,16 +596,50 @@ class PointerFloating(
 
     private fun onPointerLayerTouch(event: MotionEvent): Boolean {
         if (!mouseModeActive) return false
-        return when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> true
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                // A tap outside the pad leaves mouse mode; consume the release so the tap does
-                // not also click an app underneath.
-                enable = false
-                true
+        // Safety net for a retried pointer-layer attachment that ends up above the pad: forward
+        // gestures whose down landed on the pad into the mouse handler instead of treating them
+        // as an outside tap. When the pad is on top this path is never used.
+        val insidePad = isTouchInsidePad(event.rawX, event.rawY)
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                pointerLayerMouseDownInside = insidePad
+                if (pointerLayerMouseDownInside) {
+                    pointerManger.onTouchEvent(event, fromTouchView = true)
+                }
             }
-            else -> true
+            MotionEvent.ACTION_MOVE -> {
+                if (pointerLayerMouseDownInside) {
+                    pointerManger.onTouchEvent(event, fromTouchView = true)
+                }
+            }
+            MotionEvent.ACTION_UP -> {
+                if (pointerLayerMouseDownInside) {
+                    pointerManger.onTouchEvent(event, fromTouchView = true)
+                    pointerLayerMouseDownInside = false
+                } else {
+                    // A tap outside the pad leaves mouse mode; consume the release so the tap
+                    // does not also click an app underneath.
+                    enable = false
+                }
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                if (pointerLayerMouseDownInside) {
+                    pointerManger.onTouchEvent(event, fromTouchView = true)
+                }
+                pointerLayerMouseDownInside = false
+            }
         }
+        return true
+    }
+
+    private fun isTouchInsidePad(rawX: Float, rawY: Float): Boolean {
+        if (!touchView.isAttachedToWindow) return false
+        val location = IntArray(2)
+        touchView.getLocationOnScreen(location)
+        return rawX >= location[0] &&
+            rawX <= location[0] + touchView.width &&
+            rawY >= location[1] &&
+            rawY <= location[1] + touchView.height
     }
 
     private fun onMouseEdgeScroll(direction: MousePadOverlay.Direction) {
@@ -711,8 +774,6 @@ class PointerFloating(
         private var mouseLastX = 0f
         private var mouseLastY = 0f
         private var mouseMoved = false
-        private var mouseLongPressTriggered = false
-        private var mouseLongPressJob: Job? = null
         private var mouseTapJob: Job? = null
         private var lastMouseTapTime = 0L
         private var lastMouseTapPoint: Point? = null
@@ -893,7 +954,7 @@ class PointerFloating(
 
         fun onTouchEvent(event: MotionEvent, fromTouchView: Boolean = false) {
             if (fromTouchView && alwaysShowTouchArea && !mouseMode) {
-                enterMouseMode()
+                enterMouseMode(bringPadToFront = false)
                 if (mouseMode) {
                     handleMouseTouch(event)
                     return
@@ -937,24 +998,18 @@ class PointerFloating(
 
         fun startMouseMode() {
             mouseMode = true
-            mouseLongPressJob?.cancel()
-            mouseLongPressJob = null
             mouseTapJob?.cancel()
             mouseTapJob = null
             mouseMoved = false
-            mouseLongPressTriggered = false
             lastMouseTapTime = 0L
             lastMouseTapPoint = null
         }
 
         fun stopMouseMode() {
             mouseMode = false
-            mouseLongPressJob?.cancel()
-            mouseLongPressJob = null
             mouseTapJob?.cancel()
             mouseTapJob = null
             mouseMoved = false
-            mouseLongPressTriggered = false
         }
 
         fun pointerCenter(): Point = Point(
@@ -971,27 +1026,14 @@ class PointerFloating(
                     mouseLastX = event.rawX
                     mouseLastY = event.rawY
                     mouseMoved = false
-                    mouseLongPressTriggered = false
-                    mouseLongPressJob?.cancel()
-                    mouseLongPressJob = context.launch {
-                        delay(MOUSE_LONG_PRESS_MS)
-                        if (!mouseMoved && !mouseLongPressTriggered) {
-                            mouseLongPressTriggered = true
-                            val point = pointerCenter()
-                            performPointerClick(point.x, point.y, MOUSE_LONG_PRESS_CLICK_MS)
-                        }
-                    }
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    if (mouseLongPressTriggered) return
                     val dx = event.rawX - mouseLastX
                     val dy = event.rawY - mouseLastY
                     mouseLastX = event.rawX
                     mouseLastY = event.rawY
                     if (abs(dx) + abs(dy) > MOUSE_MOVE_SLOP_PX) {
                         mouseMoved = true
-                        mouseLongPressJob?.cancel()
-                        mouseLongPressJob = null
                     }
                     movePointerBy(
                         dx * MOUSE_SENSITIVITY,
@@ -999,18 +1041,13 @@ class PointerFloating(
                     )
                 }
                 MotionEvent.ACTION_CANCEL -> {
-                    mouseLongPressJob?.cancel()
-                    mouseLongPressJob = null
                     mouseTapJob?.cancel()
                     mouseTapJob = null
                 }
                 MotionEvent.ACTION_UP -> {
-                    mouseLongPressJob?.cancel()
-                    mouseLongPressJob = null
-                    if (!mouseLongPressTriggered && !mouseMoved) {
+                    if (!mouseMoved) {
                         handleMouseTap()
                     }
-                    mouseLongPressTriggered = false
                     mouseMoved = false
                 }
             }
