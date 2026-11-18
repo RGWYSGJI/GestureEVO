@@ -20,6 +20,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import android.view.ViewConfiguration
 import androidx.constraintlayout.utils.widget.ImageFilterView
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
@@ -78,7 +79,6 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import kotlin.math.abs
 import java.lang.ref.WeakReference
 import java.util.Collections
 import java.util.LinkedList
@@ -383,11 +383,7 @@ class PointerFloating(
         const val TRAIL_STENCIL_GROWTH_DP = 10f
 
         /** Simulated mouse mode. */
-        const val MOUSE_SENSITIVITY = 1.8f
-        const val MOUSE_MOVE_SLOP_PX = 4f
-        const val MOUSE_CLICK_DURATION_MS = 60L
-        const val MOUSE_DOUBLE_TAP_MS = 280L
-        const val MOUSE_DOUBLE_TAP_SLOP_PX = 36f
+        const val MOUSE_CLICK_DURATION_MS = 50L
         const val MOUSE_SCROLL_DURATION_MS = 260L
         const val MOUSE_SCROLL_DISTANCE_RATIO = 0.35f
     }
@@ -791,10 +787,15 @@ class PointerFloating(
             private set
         private var mouseLastX = 0f
         private var mouseLastY = 0f
+        private var mouseDownX = 0f
+        private var mouseDownY = 0f
         private var mouseMoved = false
         private var mouseTapJob: Job? = null
         private var lastMouseTapTime = 0L
         private var lastMouseTapPoint: Point? = null
+        private val mouseTouchSlop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
+        private val mouseDoubleTapSlop = 48f.dp2px.toFloat()
+        private val mouseDoubleTapTimeout = ViewConfiguration.getDoubleTapTimeout().toLong()
 
         /** True only once the drag selection box is actually being drawn (not mere drag mode). */
         val isDragSelectionStarted: Boolean
@@ -1045,6 +1046,8 @@ class PointerFloating(
                     mouseTapJob = null
                     mouseLastX = event.rawX
                     mouseLastY = event.rawY
+                    mouseDownX = event.rawX
+                    mouseDownY = event.rawY
                     mouseMoved = false
                 }
                 MotionEvent.ACTION_MOVE -> {
@@ -1052,12 +1055,14 @@ class PointerFloating(
                     val dy = event.rawY - mouseLastY
                     mouseLastX = event.rawX
                     mouseLastY = event.rawY
-                    if (abs(dx) + abs(dy) > MOUSE_MOVE_SLOP_PX) {
+                    if (distance(mouseDownX, mouseDownY, event.rawX, event.rawY) > mouseTouchSlop) {
                         mouseMoved = true
                     }
+                    // Match the old pointer's absolute mapping speed: one pixel of finger
+                    // travel on the pad moves the pointer by screen/pad pixels.
                     movePointerBy(
-                        dx * MOUSE_SENSITIVITY,
-                        dy * MOUSE_SENSITIVITY,
+                        dx * mouseScaleX(),
+                        dy * mouseScaleY(),
                     )
                 }
                 MotionEvent.ACTION_CANCEL -> {
@@ -1070,6 +1075,26 @@ class PointerFloating(
                     }
                     mouseMoved = false
                 }
+            }
+        }
+
+        private fun mouseScaleX(): Float {
+            val screenWidth = pointerFloatingView.width
+            val padWidth = touchView.width
+            return if (screenWidth > 0 && padWidth > 0) {
+                screenWidth.toFloat() / padWidth
+            } else {
+                2.8f
+            }
+        }
+
+        private fun mouseScaleY(): Float {
+            val screenHeight = pointerFloatingView.height
+            val padHeight = touchView.height
+            return if (screenHeight > 0 && padHeight > 0) {
+                screenHeight.toFloat() / padHeight
+            } else {
+                2.8f
             }
         }
 
@@ -1091,8 +1116,8 @@ class PointerFloating(
             val point = pointerCenter()
             val previousPoint = lastMouseTapPoint
             val isDoubleTap = previousPoint != null &&
-                now - lastMouseTapTime in 1L..MOUSE_DOUBLE_TAP_MS &&
-                distance(previousPoint.x, previousPoint.y, point.x, point.y) < MOUSE_DOUBLE_TAP_SLOP_PX
+                now - lastMouseTapTime in 1L..mouseDoubleTapTimeout &&
+                distance(previousPoint.x, previousPoint.y, point.x, point.y) < mouseDoubleTapSlop
             lastMouseTapTime = now
             lastMouseTapPoint = point
             mouseTapJob?.cancel()
