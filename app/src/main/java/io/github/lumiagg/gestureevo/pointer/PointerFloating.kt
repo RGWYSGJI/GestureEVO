@@ -103,7 +103,7 @@ class PointerFloating(
             onDirectionPress = { direction -> onMouseDirectionPress(direction) },
             onDirectionRelease = { onMouseDirectionRelease() },
             onDoubleClick = { onMouseDoubleClick() },
-            onLongPressToggle = { onMouseLongPressToggle() },
+            onLongPress = { onMouseLongPress() },
             onQuickScroll = { toTop -> onMouseQuickScroll(toTop) },
             onClose = {
                 Log.d("PointerFloating", "mousePad close button double tap")
@@ -122,7 +122,6 @@ class PointerFloating(
     private var alwaysShowTouchArea = false
     private var touchAreaOffsetDp = 0
     private var mouseModeActive = false
-    private var mouseLongPressMode = false
     private var mouseHoldScrollJob: Job? = null
     private var mouseHoldDirection: MousePadOverlay.Direction? = null
     private var mouseQuickScrollJob: Job? = null
@@ -526,7 +525,6 @@ class PointerFloating(
     private fun enterMouseMode(bringPadToFront: Boolean = true) {
         if (!enable || !pointerVisibleRequested || mouseModeActive) return
         mouseModeActive = true
-        mouseLongPressMode = false
         needShowTouchView = true
         pointerManger.viewPositionMonitor.stop()
         hoverMenu.reset()
@@ -587,7 +585,6 @@ class PointerFloating(
     /** Clears mouse-mode-only state. Safe to call repeatedly. */
     private fun resetMouseModeState() {
         mouseModeActive = false
-        mouseLongPressMode = false
         mouseHoldDirection = null
         mouseHoldScrollJob?.cancel()
         mouseHoldScrollJob = null
@@ -595,7 +592,6 @@ class PointerFloating(
         mouseQuickScrollJob = null
         pointerManger.stopMouseMode()
         mousePadOverlay.cancelDirectionHold()
-        mousePadOverlay.setLongPressActive(false)
         mousePadOverlay.visibility = View.GONE
     }
 
@@ -660,15 +656,11 @@ class PointerFloating(
         }
     }
 
-    private fun onMouseLongPressToggle() {
+    private fun onMouseLongPress() {
         if (!mouseModeActive) return
-        mouseLongPressMode = !mouseLongPressMode
-        mousePadOverlay.setLongPressActive(mouseLongPressMode)
-        if (mouseLongPressMode) {
-            val point = pointerManger.pointerCenter()
-            context.launch {
-                performPointerClick(point.x, point.y, MOUSE_LONG_PRESS_DURATION_MS)
-            }
+        val point = pointerManger.pointerCenter()
+        context.launch {
+            performPointerClick(point.x, point.y, MOUSE_LONG_PRESS_DURATION_MS)
         }
     }
 
@@ -1177,14 +1169,8 @@ class PointerFloating(
 
         private fun handleMouseTap() {
             val point = pointerCenter()
-            if (mouseLongPressMode) {
-                context.launch {
-                    performPointerClick(point.x, point.y, MOUSE_LONG_PRESS_DURATION_MS)
-                }
-                return
-            }
             // Match the normal pointer's tap path: click immediately after release, no
-            // double-tap window. Double-click now has its own explicit button.
+            // double-tap window. Double-click and long-press have their own explicit buttons.
             context.launch {
                 delay(20)
                 if (mouseMode) {

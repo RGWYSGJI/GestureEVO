@@ -25,7 +25,7 @@ class MousePadOverlay(
     private val onDirectionPress: (Direction) -> Unit,
     private val onDirectionRelease: () -> Unit,
     private val onDoubleClick: () -> Unit,
-    private val onLongPressToggle: () -> Unit,
+    private val onLongPress: () -> Unit,
     private val onQuickScroll: (Boolean) -> Unit,
     private val onClose: () -> Unit,
 ) : FrameLayout(context) {
@@ -49,7 +49,6 @@ class MousePadOverlay(
     }
 
     private val buttons = linkedMapOf<Direction, TextView>()
-    private lateinit var longPressButton: TextView
     private lateinit var closeButton: TextView
     private var activeDirection: Direction? = null
     private var closeArmed = false
@@ -85,8 +84,8 @@ class MousePadOverlay(
 
         // Top short edge: double-click, then long-press.
         addActionButton(topBar, "×2", vertical = false) { onDoubleClick() }
-        longPressButton = addActionButton(topBar, "长", vertical = false) {
-            onLongPressToggle()
+        addActionButton(topBar, "长", vertical = false) {
+            onLongPress()
         }
 
         // Inner long edge: the existing four directions, unchanged in order.
@@ -195,12 +194,6 @@ class MousePadOverlay(
         setButtonColor(closeButton, BUTTON_ARMED_COLOR)
         removeCallbacks(closeReset)
         postDelayed(closeReset, CLOSE_DOUBLE_TAP_MS)
-    }
-
-    /** Toggle state for the long-press mode button: lit while enabled, dark while disabled. */
-    fun setLongPressActive(active: Boolean) {
-        if (!::longPressButton.isInitialized) return
-        setButtonColor(longPressButton, if (active) BUTTON_ON_COLOR else BUTTON_OFF_COLOR)
     }
 
     /** [touchPadOnLeft] is true when the pad itself occupies the left side of the screen. */
