@@ -862,6 +862,7 @@ class PointerFloating(
         private var mouseDownX = 0f
         private var mouseDownY = 0f
         private var mouseMoved = false
+        private var centerPointerPosted = false
         private val mouseTouchSlop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
 
         /** True only once the drag selection box is actually being drawn (not mere drag mode). */
@@ -1087,6 +1088,29 @@ class PointerFloating(
         fun startMouseMode() {
             mouseMode = true
             mouseMoved = false
+            centerPointerOnScreen()
+        }
+
+        /**
+         * Mouse mode is relative: without an explicit starting point the pointer starts at
+         * (0, 0) and the first movement drags it in from the top-left corner. Put it at the
+         * visual screen center instead. The icon may not be measured yet when mouse mode is
+         * entered, so retry once after layout.
+         */
+        private fun centerPointerOnScreen() {
+            val screenWidth = pointerFloatingView.width
+            val screenHeight = pointerFloatingView.height
+            if (screenWidth <= 0 || screenHeight <= 0 || view.width <= 0 || view.height <= 0) {
+                if (!centerPointerPosted) {
+                    centerPointerPosted = true
+                    pointerFloatingView.post {
+                        centerPointerPosted = false
+                        if (mouseMode) centerPointerOnScreen()
+                    }
+                }
+                return
+            }
+            placePointer(Point(screenWidth / 2f, screenHeight / 2f))
         }
 
         fun stopMouseMode() {
