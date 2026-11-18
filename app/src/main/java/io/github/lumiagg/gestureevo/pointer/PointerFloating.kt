@@ -101,7 +101,8 @@ class PointerFloating(
     private val mousePadOverlay: MousePadOverlay by lazy {
         MousePadOverlay(
             context = context,
-            onScroll = { direction -> onMouseEdgeScroll(direction) },
+            onDirectionPress = { direction -> onMouseDirectionPress(direction) },
+            onDirectionRelease = { onMouseDirectionRelease() },
             onDoubleClick = { onMouseDoubleClick() },
             onLongPressToggle = { onMouseLongPressToggle() },
             onQuickScroll = { toTop -> onMouseQuickScroll(toTop) },
@@ -123,7 +124,8 @@ class PointerFloating(
     private var touchAreaOffsetDp = 0
     private var mouseModeActive = false
     private var mouseLongPressMode = false
-    private var mouseScrollJob: Job? = null
+    private var mouseHoldScrollJob: Job? = null
+    private var mouseHoldDirection: MousePadOverlay.Direction? = null
     private var mouseQuickScrollJob: Job? = null
     private var pointerVisibleRequested = false
     private var hoverMenuEnabled = false
@@ -387,6 +389,7 @@ class PointerFloating(
         const val MOUSE_CLICK_DURATION_MS = 50L
         const val MOUSE_LONG_PRESS_DURATION_MS = 600L
         const val MOUSE_SCROLL_DURATION_MS = 260L
+        const val MOUSE_SCROLL_REPEAT_DELAY_MS = 40L
         const val MOUSE_QUICK_SCROLL_STEPS = 30
         const val MOUSE_SCROLL_DISTANCE_RATIO = 0.35f
     }
@@ -586,17 +589,36 @@ class PointerFloating(
     private fun resetMouseModeState() {
         mouseModeActive = false
         mouseLongPressMode = false
-        mouseScrollJob?.cancel()
-        mouseScrollJob = null
+        mouseHoldDirection = null
+        mouseHoldScrollJob?.cancel()
+        mouseHoldScrollJob = null
         mouseQuickScrollJob?.cancel()
         mouseQuickScrollJob = null
         pointerManger.stopMouseMode()
+        mousePadOverlay.cancelDirectionHold()
         mousePadOverlay.setLongPressActive(false)
         mousePadOverlay.visibility = View.GONE
     }
 
-    private fun onMouseEdgeScroll(direction: MousePadOverlay.Direction) {
-        if (!mouseModeActive || mouseScrollJob?.isActive == true) return
+    private fun onMouseDirectionPress(direction: MousePadOverlay.Direction) {
+        if (!mouseModeActive) return
+        mouseHoldDirection = direction
+        mouseHoldScrollJob?.cancel()
+        mouseHoldScrollJob = context.launch {
+            while (isActive && mouseModeActive && mouseHoldDirection == direction) {
+                performMouseScrollStep(direction)
+                delay(MOUSE_SCROLL_REPEAT_DELAY_MS)
+            }
+        }
+    }
+
+    private fun onMouseDirectionRelease() {
+        mouseHoldDirection = null
+        mouseHoldScrollJob?.cancel()
+        mouseHoldScrollJob = null
+    }
+
+    private suspend fun performMouseScrollStep(direction: MousePadOverlay.Direction) {
         val screenWidth = pointerFloatingView.width.coerceAtLeast(1).toFloat()
         val screenHeight = pointerFloatingView.height.coerceAtLeast(1).toFloat()
         val center = pointerManger.pointerCenter()
@@ -616,20 +638,14 @@ class PointerFloating(
                 center.x + half, center.y, center.x - half, center.y
             )
         }
-        mouseScrollJob = context.launch {
-            try {
-                context.performSwipeAsync(
-                    startX.coerceIn(1f, screenWidth - 1f),
-                    startY.coerceIn(1f, screenHeight - 1f),
-                    endX.coerceIn(1f, screenWidth - 1f),
-                    endY.coerceIn(1f, screenHeight - 1f),
-                    duration = MOUSE_SCROLL_DURATION_MS,
-                    useDecelerationCurve = false,
-                )
-            } finally {
-                mouseScrollJob = null
-            }
-        }
+        context.performSwipeAsync(
+            startX.coerceIn(1f, screenWidth - 1f),
+            startY.coerceIn(1f, screenHeight - 1f),
+            endX.coerceIn(1f, screenWidth - 1f),
+            endY.coerceIn(1f, screenHeight - 1f),
+            duration = MOUSE_SCROLL_DURATION_MS,
+            useDecelerationCurve = false,
+        )
     }
 
     private fun onMouseDoubleClick() {

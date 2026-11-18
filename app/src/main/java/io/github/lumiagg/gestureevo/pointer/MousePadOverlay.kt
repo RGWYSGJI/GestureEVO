@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.SystemClock
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -21,7 +22,8 @@ import io.github.lumiagg.gestureevo.utils.dp2px
  */
 class MousePadOverlay(
     context: Context,
-    private val onScroll: (Direction) -> Unit,
+    private val onDirectionPress: (Direction) -> Unit,
+    private val onDirectionRelease: () -> Unit,
     private val onDoubleClick: () -> Unit,
     private val onLongPressToggle: () -> Unit,
     private val onQuickScroll: (Boolean) -> Unit,
@@ -49,6 +51,7 @@ class MousePadOverlay(
     private val buttons = linkedMapOf<Direction, TextView>()
     private lateinit var longPressButton: TextView
     private lateinit var closeButton: TextView
+    private var activeDirection: Direction? = null
     private var closeArmed = false
     private var lastCloseTapAt = 0L
     private val closeReset = Runnable {
@@ -103,10 +106,43 @@ class MousePadOverlay(
     }
 
     private fun addDirectionButton(direction: Direction, label: String) {
-        val button = addActionButton(directionStrip, label, vertical = true) {
-            onScroll(direction)
+        val button = addActionButton(directionStrip, label, vertical = true) {}
+        button.setOnClickListener(null)
+        button.setOnTouchListener { view, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    if (activeDirection == null) {
+                        activeDirection = direction
+                        view.isPressed = true
+                        setButtonColor(view as TextView, BUTTON_ON_COLOR)
+                        onDirectionPress(direction)
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    if (activeDirection == direction) {
+                        activeDirection = null
+                        view.isPressed = false
+                        setButtonColor(view as TextView, BUTTON_OFF_COLOR)
+                        onDirectionRelease()
+                    }
+                    true
+                }
+                else -> true
+            }
         }
         buttons[direction] = button
+    }
+
+    /** Stops a direction hold if the pad is hidden while the finger is still down. */
+    fun cancelDirectionHold() {
+        val direction = activeDirection ?: return
+        activeDirection = null
+        buttons[direction]?.let {
+            it.isPressed = false
+            setButtonColor(it, BUTTON_OFF_COLOR)
+        }
+        onDirectionRelease()
     }
 
     private fun addActionButton(
@@ -175,6 +211,7 @@ class MousePadOverlay(
     }
 
     override fun onDetachedFromWindow() {
+        cancelDirectionHold()
         removeCallbacks(closeReset)
         super.onDetachedFromWindow()
     }
