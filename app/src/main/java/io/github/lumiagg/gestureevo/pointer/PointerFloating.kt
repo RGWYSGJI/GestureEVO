@@ -892,6 +892,13 @@ class PointerFloating(
         }
 
         fun onTouchEvent(event: MotionEvent, fromTouchView: Boolean = false) {
+            if (fromTouchView && alwaysShowTouchArea && !mouseMode) {
+                enterMouseMode()
+                if (mouseMode) {
+                    handleMouseTouch(event)
+                    return
+                }
+            }
             if (mouseMode && fromTouchView) {
                 handleMouseTouch(event)
                 return
