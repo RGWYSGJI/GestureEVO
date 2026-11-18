@@ -106,7 +106,7 @@ class PointerFloating(
             onLongPressToggle = { onMouseLongPressToggle() },
             onQuickScroll = { toTop -> onMouseQuickScroll(toTop) },
             onClose = {
-                Log.d(TAG, "mousePad close button double tap")
+                Log.d("PointerFloating", "mousePad close button double tap")
                 enable = false
             },
         )
