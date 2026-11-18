@@ -12,11 +12,12 @@ import android.widget.TextView
 import io.github.lumiagg.gestureevo.utils.dp2px
 
 /**
- * Edge action strip shown only while the pointer is in mouse mode.
+ * Action overlay shown only while the pointer is in mouse mode.
  *
- * The strip is attached to the inner edge of the touch pad: when the pad is on the left side of
- * the screen, the strip sits on its right edge, and vice versa. The four arrow buttons stay in
- * the middle; the two gesture buttons sit above them and the three navigation buttons below.
+ * The touch pad is a rectangle: the four direction buttons stay on its inner long edge (the
+ * "x" edge, left or right), while the two gesture buttons sit on the top short edge and the
+ * three page/navigation buttons sit on the bottom short edge. That keeps the new actions off
+ * the same side as the arrows without changing the pad's existing width/position.
  */
 class MousePadOverlay(
     context: Context,
@@ -29,7 +30,17 @@ class MousePadOverlay(
 
     enum class Direction { UP, DOWN, LEFT, RIGHT }
 
-    private val strip = LinearLayout(context).apply {
+    private val topBar = LinearLayout(context).apply {
+        orientation = LinearLayout.HORIZONTAL
+        isClickable = false
+        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+    }
+    private val bottomBar = LinearLayout(context).apply {
+        orientation = LinearLayout.HORIZONTAL
+        isClickable = false
+        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+    }
+    private val directionStrip = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
         isClickable = false
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
@@ -51,32 +62,59 @@ class MousePadOverlay(
     init {
         isClickable = false
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+
+        val barHeight = BAR_HEIGHT_DP.dp2px.toInt()
         addView(
-            strip,
-            LayoutParams(STRIP_WIDTH_DP.dp2px.toInt(), LayoutParams.MATCH_PARENT, Gravity.END)
+            topBar,
+            LayoutParams(LayoutParams.MATCH_PARENT, barHeight, Gravity.TOP),
+        )
+        addView(
+            bottomBar,
+            LayoutParams(LayoutParams.MATCH_PARENT, barHeight, Gravity.BOTTOM),
+        )
+        addView(
+            directionStrip,
+            LayoutParams(STRIP_WIDTH_DP.dp2px.toInt(), LayoutParams.MATCH_PARENT, Gravity.END).apply {
+                topMargin = barHeight
+                bottomMargin = barHeight
+            },
         )
 
-        // Order is deliberate: gesture buttons on top, four directions in the middle,
-        // page navigation on the bottom.
-        addActionButton("×2") { onDoubleClick() }
-        longPressButton = addActionButton("长") { onLongPressToggle() }
+        // Top short edge: double-click, then long-press.
+        addActionButton(topBar, "×2", vertical = false) { onDoubleClick() }
+        longPressButton = addActionButton(topBar, "长", vertical = false) {
+            onLongPressToggle()
+        }
+
+        // Inner long edge: the existing four directions, unchanged in order.
         addDirectionButton(Direction.UP, "↑")
         addDirectionButton(Direction.DOWN, "↓")
         addDirectionButton(Direction.LEFT, "←")
         addDirectionButton(Direction.RIGHT, "→")
-        addActionButton("顶") { onQuickScroll(true) }
-        addActionButton("底") { onQuickScroll(false) }
-        closeButton = addActionButton("关") { handleCloseTap() }
+
+        // Bottom short edge: quick top, quick bottom, close.
+        addActionButton(bottomBar, "顶", vertical = false) { onQuickScroll(true) }
+        addActionButton(bottomBar, "底", vertical = false) { onQuickScroll(false) }
+        closeButton = addActionButton(bottomBar, "关", vertical = false) {
+            handleCloseTap()
+        }
 
         visibility = View.GONE
     }
 
     private fun addDirectionButton(direction: Direction, label: String) {
-        val button = addActionButton(label) { onScroll(direction) }
+        val button = addActionButton(directionStrip, label, vertical = true) {
+            onScroll(direction)
+        }
         buttons[direction] = button
     }
 
-    private fun addActionButton(label: String, action: () -> Unit): TextView {
+    private fun addActionButton(
+        parent: LinearLayout,
+        label: String,
+        vertical: Boolean,
+        action: () -> Unit,
+    ): TextView {
         val button = TextView(context).apply {
             text = label
             textSize = if (label.length > 1) 14f else 18f
@@ -87,15 +125,23 @@ class MousePadOverlay(
             background = buttonBackground(BUTTON_OFF_COLOR)
             setOnClickListener { action() }
         }
-        val params = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            0,
-            1f,
-        ).apply {
+        val params = if (vertical) {
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f,
+            )
+        } else {
+            LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                1f,
+            )
+        }.apply {
             val margin = 2f.dp2px.toInt()
             setMargins(margin, margin, margin, margin)
         }
-        strip.addView(button, params)
+        parent.addView(button, params)
         return button
     }
 
@@ -123,9 +169,9 @@ class MousePadOverlay(
 
     /** [touchPadOnLeft] is true when the pad itself occupies the left side of the screen. */
     fun setTouchPadSide(touchPadOnLeft: Boolean) {
-        val params = strip.layoutParams as LayoutParams
+        val params = directionStrip.layoutParams as LayoutParams
         params.gravity = if (touchPadOnLeft) Gravity.END else Gravity.START
-        strip.layoutParams = params
+        directionStrip.layoutParams = params
     }
 
     override fun onDetachedFromWindow() {
@@ -144,6 +190,7 @@ class MousePadOverlay(
 
     private companion object {
         const val STRIP_WIDTH_DP = 48f
+        const val BAR_HEIGHT_DP = 48f
         const val BUTTON_OFF_COLOR = 0x66000000
         val BUTTON_ON_COLOR = 0xCC4CAF50.toInt()
         val BUTTON_ARMED_COLOR = 0xCCD32F2F.toInt()
