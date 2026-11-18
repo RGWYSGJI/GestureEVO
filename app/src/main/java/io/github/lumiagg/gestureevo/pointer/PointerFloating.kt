@@ -795,7 +795,9 @@ class PointerFloating(
         private var lastMouseTapPoint: Point? = null
         private val mouseTouchSlop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
         private val mouseDoubleTapSlop = 48f.dp2px.toFloat()
-        private val mouseDoubleTapTimeout = ViewConfiguration.getDoubleTapTimeout().toLong()
+        // A shorter window makes the single click fire sooner. The trade-off is that the
+        // second tap must follow quickly; 220 ms still feels natural for a deliberate double tap.
+        private val mouseDoubleTapTimeout = 220L
 
         /** True only once the drag selection box is actually being drawn (not mere drag mode). */
         val isDragSelectionStarted: Boolean
