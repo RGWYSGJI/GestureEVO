@@ -95,9 +95,9 @@ class MousePadOverlay(
         addDirectionButton(Direction.LEFT, "←")
         addDirectionButton(Direction.RIGHT, "→")
 
-        // Bottom short edge: quick top, quick bottom, close. The two edge arrows use
-        // Supplemental Arrows-B; not every Android font has those glyphs, so fall back to
-        // plain arrows instead of showing a tofu box on such devices.
+        // Bottom short edge: quick top, quick bottom, close. U+21D1/U+21D3 live in the
+        // ordinary Arrows block, which is much more widely covered than Supplemental
+        // Arrows-B; keep a plain-arrow fallback for ROMs that still lack them.
         addActionButton(bottomBar, edgeArrowLabel(up = true), vertical = false) {
             onQuickScroll(true)
         }
@@ -152,7 +152,7 @@ class MousePadOverlay(
     }
 
     private fun edgeArrowLabel(up: Boolean): String {
-        val symbol = if (up) "\u2912" else "\u2913"
+        val symbol = if (up) "\u21D1" else "\u21D3"
         return if (Paint().hasGlyph(symbol)) symbol else if (up) "↑" else "↓"
     }
 
