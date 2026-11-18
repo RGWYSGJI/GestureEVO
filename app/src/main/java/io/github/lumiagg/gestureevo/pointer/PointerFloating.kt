@@ -783,7 +783,7 @@ class PointerFloating(
                 )
             }
             handled = scrollable.performAction(
-                AccessibilityNodeInfo.ACTION_SCROLL_TO_POSITION,
+                AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_TO_POSITION.id,
                 arguments,
             )
         }
