@@ -586,7 +586,11 @@ class PointerFloating(
 
     private fun attachMouseExitCatcher() {
         if (!mouseModeActive || mouseExitCatcher.isAttachedToWindow) return
-        if (mouseExitParams.width == 0) {
+        // WindowManager.LayoutParams() defaults to TYPE_APPLICATION, and width is
+        // MATCH_PARENT (-1), not 0. Always configure the accessibility overlay type before
+        // the first addView; otherwise a service has no window token and addView throws
+        // BadTokenException.
+        if (mouseExitParams.type != WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY) {
             mouseExitParams.configureAccessibilityOverlay(
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                     WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
