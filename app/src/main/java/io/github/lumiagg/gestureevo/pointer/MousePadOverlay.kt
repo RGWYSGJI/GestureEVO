@@ -2,6 +2,7 @@ package io.github.lumiagg.gestureevo.pointer
 
 import android.content.Context
 import android.graphics.Color
+import android.graphics.Paint
 import android.graphics.drawable.GradientDrawable
 import android.os.SystemClock
 import android.view.Gravity
@@ -83,8 +84,8 @@ class MousePadOverlay(
         )
 
         // Top short edge: double-click, then long-press.
-        addActionButton(topBar, "×2", vertical = false) { onDoubleClick() }
-        addActionButton(topBar, "长", vertical = false) {
+        addActionButton(topBar, "双击", vertical = false) { onDoubleClick() }
+        addActionButton(topBar, "长按", vertical = false) {
             onLongPress()
         }
 
@@ -94,10 +95,16 @@ class MousePadOverlay(
         addDirectionButton(Direction.LEFT, "←")
         addDirectionButton(Direction.RIGHT, "→")
 
-        // Bottom short edge: quick top, quick bottom, close.
-        addActionButton(bottomBar, "顶", vertical = false) { onQuickScroll(true) }
-        addActionButton(bottomBar, "底", vertical = false) { onQuickScroll(false) }
-        closeButton = addActionButton(bottomBar, "关", vertical = false) {
+        // Bottom short edge: quick top, quick bottom, close. The two edge arrows use
+        // Supplemental Arrows-B; not every Android font has those glyphs, so fall back to
+        // plain arrows instead of showing a tofu box on such devices.
+        addActionButton(bottomBar, edgeArrowLabel(up = true), vertical = false) {
+            onQuickScroll(true)
+        }
+        addActionButton(bottomBar, edgeArrowLabel(up = false), vertical = false) {
+            onQuickScroll(false)
+        }
+        closeButton = addActionButton(bottomBar, "关闭", vertical = false) {
             handleCloseTap()
         }
 
@@ -142,6 +149,11 @@ class MousePadOverlay(
             setButtonColor(it, BUTTON_OFF_COLOR)
         }
         onDirectionRelease()
+    }
+
+    private fun edgeArrowLabel(up: Boolean): String {
+        val symbol = if (up) "\u2912" else "\u2913"
+        return if (Paint().hasGlyph(symbol)) symbol else if (up) "↑" else "↓"
     }
 
     private fun addActionButton(
