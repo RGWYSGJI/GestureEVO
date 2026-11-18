@@ -13,6 +13,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.drawable.Drawable
+import android.os.SystemClock
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -24,6 +25,7 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.view.doOnNextLayout
+import android.widget.FrameLayout
 import com.google.android.material.card.MaterialCardView
 import com.google.zxing.common.detector.MathUtils.distance
 import io.github.lumiagg.gestureevo.R
@@ -76,6 +78,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlin.math.abs
 import java.lang.ref.WeakReference
 import java.util.Collections
 import java.util.LinkedList
@@ -93,6 +96,9 @@ class PointerFloating(
     private val touchView: MaterialCardView by lazy {
         PointerFloatingTouchViewBinding.inflate(LayoutInflater.from(context)).root
     }
+    private val mousePadOverlay: MousePadOverlay by lazy {
+        MousePadOverlay(context) { direction -> onMouseEdgeScroll(direction) }
+    }
     private val pointerLayoutParams = WindowManager.LayoutParams()
     private val touchLayoutParams = WindowManager.LayoutParams()
     private var touchViewScale = 0.35
@@ -103,6 +109,9 @@ class PointerFloating(
     var needShowTouchView = false
     private var alwaysShowTouchArea = false
     private var touchAreaOffsetDp = 0
+    private var mouseModeActive = false
+    private var mouseModeCountdown: Job? = null
+    private var mouseScrollJob: Job? = null
     private var pointerVisibleRequested = false
     private var hoverMenuEnabled = false
     var captureLinks: suspend () -> List<LinkRegion> = { emptyList() }
@@ -126,15 +135,21 @@ class PointerFloating(
             pointerManger.isMenuCoordinateSpaceCurrent()
         })
     }
-    val isHoverInteractionActive: Boolean get() = hoverMenuEnabled && hoverMenu.ownsInteraction
+    val isHoverInteractionActive: Boolean
+        get() = !mouseModeActive && hoverMenuEnabled && hoverMenu.ownsInteraction
+
+    /** True while the pointer is controlled by the simulated mouse touch pad. */
+    val isMouseMode: Boolean get() = mouseModeActive
 
     fun onWindowEvent(event: AccessibilityEvent) {
+        if (mouseModeActive) return
         if (hoverMenuEnabled && hoverMenu.onWindowEvent(event) && pointerManger.isDragMode) {
             pointerManger.exitDragMode()
         }
     }
 
     fun cancelHoverInteraction() {
+        if (mouseModeActive) return
         if (hoverMenuEnabled) {
             hoverMenu.cancel()
             if (pointerManger.isDragMode) pointerManger.exitDragMode()
@@ -149,7 +164,7 @@ class PointerFloating(
      * True only while a drag selection box is actually being drawn (not mere drag mode).
      */
     val isPointerDragSelecting: Boolean
-        get() = pointerManger.isDragMode && pointerManger.isDragSelectionStarted
+        get() = !mouseModeActive && pointerManger.isDragMode && pointerManger.isDragSelectionStarted
 
     /**
      * True from hover-stability until drag mode exits. The link radar yields for this whole
@@ -157,10 +172,11 @@ class PointerFloating(
      * and its tap interception would turn a release into a link open.
      */
     val isPointerDragMode: Boolean
-        get() = pointerManger.isDragMode
+        get() = !mouseModeActive && pointerManger.isDragMode
 
     /** Current pointer center/radius in screen coordinates, null while the icon is hidden. */
-    fun currentPointerSnapshot(): PointerSnapshot? = pointerManger.currentPointerSnapshot()
+    fun currentPointerSnapshot(): PointerSnapshot? =
+        if (mouseModeActive) null else pointerManger.currentPointerSnapshot()
 
     /**
      * Lets the link radar consume the pointer's tap: with a link targeted, tapping the
@@ -202,6 +218,7 @@ class PointerFloating(
 
     private fun initView() {
         pointerFloatingView.visibility = View.GONE
+        pointerFloatingView.setOnTouchListener { _, event -> onPointerLayerTouch(event) }
     }
 
     fun refreshTheme() {
@@ -237,6 +254,13 @@ class PointerFloating(
             pointerManger.onTouchEvent(event, fromTouchView = true)
             return@setOnTouchListener false
         }
+        touchView.addView(
+            mousePadOverlay,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT,
+            )
+        )
         touchView.visibility = View.GONE
     }
 
@@ -295,7 +319,8 @@ class PointerFloating(
         touchView.visibility = View.VISIBLE
     }
 
-    private fun shouldShowTouchArea() = needShowTouchView || alwaysShowTouchArea
+    private fun shouldShowTouchArea() =
+        mouseModeActive || needShowTouchView || alwaysShowTouchArea
 
     private companion object {
         const val POINTER_SHOW_ANIMATION_DURATION = 140L
@@ -336,10 +361,28 @@ class PointerFloating(
         /** Trail stencil size range: the newest copy is largest, the oldest smallest. */
         const val TRAIL_STENCIL_MIN_DP = 4f
         const val TRAIL_STENCIL_GROWTH_DP = 10f
+
+        /** Simulated mouse mode. */
+        const val MOUSE_MODE_IDLE_TIMEOUT_MS = 4_600L
+        const val MOUSE_SENSITIVITY = 1.8f
+        const val MOUSE_MOVE_SLOP_PX = 4f
+        const val MOUSE_LONG_PRESS_MS = 500L
+        const val MOUSE_LONG_PRESS_CLICK_MS = 600L
+        const val MOUSE_CLICK_DURATION_MS = 60L
+        const val MOUSE_DOUBLE_TAP_MS = 280L
+        const val MOUSE_DOUBLE_TAP_SLOP_PX = 36f
+        const val MOUSE_SCROLL_DURATION_MS = 260L
+        const val MOUSE_SCROLL_DISTANCE_RATIO = 0.35f
     }
 
     var enable = false
         set(value) {
+            if (value && field && mouseModeActive) {
+                // A second pointer action is the documented way to leave mouse mode.
+                field = false
+                hide()
+                return
+            }
             if (value) {
                 show()
             } else {
@@ -349,6 +392,7 @@ class PointerFloating(
         }
 
     fun show() = context.postOnMain {
+        resetMouseModeState()
         pointerVisibleRequested = true
         ensureViewsAttached()
         updateTouchAreaConfig()
@@ -370,6 +414,7 @@ class PointerFloating(
     }
 
     fun hide() = context.postOnMain {
+        resetMouseModeState()
         pointerVisibleRequested = false
         hoverMenu.reset()
         onPointerHidden?.invoke()
@@ -422,6 +467,7 @@ class PointerFloating(
     }
 
     fun destroy() = context.postOnMain {
+        resetMouseModeState()
         pointerVisibleRequested = false
         hoverMenu.reset()
         onPointerHidden?.invoke()
@@ -448,6 +494,127 @@ class PointerFloating(
             KEY_POINTER_TOUCH_AREA_OFFSET_DP,
             0
         ).coerceIn(-100, 100)
+    }
+
+    private fun scheduleMouseModeCountdown() {
+        if (!enable || !pointerVisibleRequested || mouseModeActive) return
+        if (mouseModeCountdown?.isActive == true) return
+        mouseModeCountdown = context.launch {
+            delay(MOUSE_MODE_IDLE_TIMEOUT_MS)
+            if (enable && pointerVisibleRequested && !mouseModeActive) {
+                enterMouseMode()
+            }
+            mouseModeCountdown = null
+        }
+    }
+
+    private fun cancelMouseModeCountdown() {
+        mouseModeCountdown?.cancel()
+        mouseModeCountdown = null
+    }
+
+    private fun enterMouseMode() {
+        if (!enable || !pointerVisibleRequested || mouseModeActive) return
+        cancelMouseModeCountdown()
+        mouseModeActive = true
+        needShowTouchView = true
+        pointerManger.viewPositionMonitor.stop()
+        hoverMenu.reset()
+        if (pointerManger.isDragMode) pointerManger.exitDragMode()
+        highlightRectView.hidePotentialRect()
+        pointerManger.resetMenuMapping()
+        pointerManger.startMouseMode()
+        // Mouse mode owns the pointer session from here; stop link radar / link picking even
+        // though the icon itself stays visible.
+        onPointerHidden?.invoke()
+
+        val screenWidth = pointerFloatingView.width.coerceAtLeast(1)
+        val screenHeight = pointerFloatingView.height.coerceAtLeast(1)
+        val onLeft = (triggerSide ?: if (pointerManger.touchViewX < screenWidth / 2f) {
+            TriggerSide.LEFT
+        } else {
+            TriggerSide.RIGHT
+        }) == TriggerSide.LEFT
+        pointerManger.touchViewX = if (onLeft) 0f else screenWidth.toFloat()
+        pointerManger.touchViewY = screenHeight.toFloat()
+        updateTouchViewLayout()
+        mousePadOverlay.setTouchPadSide(onLeft)
+        mousePadOverlay.visibility = View.VISIBLE
+        setPointerLayerTouchable(true)
+    }
+
+    /** Clears mouse-mode-only state. Safe to call repeatedly. */
+    private fun resetMouseModeState() {
+        mouseModeActive = false
+        cancelMouseModeCountdown()
+        mouseScrollJob?.cancel()
+        mouseScrollJob = null
+        pointerManger.stopMouseMode()
+        mousePadOverlay.visibility = View.GONE
+        setPointerLayerTouchable(false)
+    }
+
+    private fun setPointerLayerTouchable(touchable: Boolean) {
+        val current = pointerLayoutParams.flags
+        pointerLayoutParams.flags = if (touchable) {
+            current and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
+        } else {
+            current or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        }
+        if (pointerFloatingView.isAttachedToWindow) {
+            updateViewLayoutSafely(pointerFloatingView, pointerLayoutParams)
+        }
+    }
+
+    private fun onPointerLayerTouch(event: MotionEvent): Boolean {
+        if (!mouseModeActive) return false
+        return when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> true
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                // A tap outside the pad leaves mouse mode; consume the release so the tap does
+                // not also click an app underneath.
+                enable = false
+                true
+            }
+            else -> true
+        }
+    }
+
+    private fun onMouseEdgeScroll(direction: MousePadOverlay.Direction) {
+        if (!mouseModeActive || mouseScrollJob?.isActive == true) return
+        val screenWidth = pointerFloatingView.width.coerceAtLeast(1).toFloat()
+        val screenHeight = pointerFloatingView.height.coerceAtLeast(1).toFloat()
+        val center = pointerManger.pointerCenter()
+        val distance = minOf(screenWidth, screenHeight) * MOUSE_SCROLL_DISTANCE_RATIO
+        val half = distance / 2f
+        val (startX, startY, endX, endY) = when (direction) {
+            MousePadOverlay.Direction.UP -> listOf(
+                center.x, center.y - half, center.x, center.y + half
+            )
+            MousePadOverlay.Direction.DOWN -> listOf(
+                center.x, center.y + half, center.x, center.y - half
+            )
+            MousePadOverlay.Direction.LEFT -> listOf(
+                center.x - half, center.y, center.x + half, center.y
+            )
+            MousePadOverlay.Direction.RIGHT -> listOf(
+                center.x + half, center.y, center.x - half, center.y
+            )
+        }
+        mouseScrollJob = context.launch {
+            try {
+                context.performSwipeAsync(
+                    startX.coerceIn(1f, screenWidth - 1f),
+                    startY.coerceIn(1f, screenHeight - 1f),
+                    endX.coerceIn(1f, screenWidth - 1f),
+                    endY.coerceIn(1f, screenHeight - 1f),
+                    duration = MOUSE_SCROLL_DURATION_MS,
+                    useDecelerationCurve = false,
+                )
+            } finally {
+                mouseScrollJob = null
+            }
+        }
     }
 
     // Trail View class to draw the pointer's trail
@@ -540,6 +707,16 @@ class PointerFloating(
         var touchViewX = 0f
         var touchViewY = 0f
         var isDragMode = false
+        var mouseMode = false
+            private set
+        private var mouseLastX = 0f
+        private var mouseLastY = 0f
+        private var mouseMoved = false
+        private var mouseLongPressTriggered = false
+        private var mouseLongPressJob: Job? = null
+        private var mouseTapJob: Job? = null
+        private var lastMouseTapTime = 0L
+        private var lastMouseTapPoint: Point? = null
 
         /** True only once the drag selection box is actually being drawn (not mere drag mode). */
         val isDragSelectionStarted: Boolean
@@ -716,8 +893,13 @@ class PointerFloating(
         }
 
         fun onTouchEvent(event: MotionEvent, fromTouchView: Boolean = false) {
+            if (mouseMode && fromTouchView) {
+                handleMouseTouch(event)
+                return
+            }
             when (event.action and MotionEvent.ACTION_MASK) {
                 MotionEvent.ACTION_DOWN -> {
+                    cancelMouseModeCountdown()
                     touchViewX = event.rawX
                     touchViewY = event.rawY
                     hoverMenu.reset()
@@ -730,6 +912,7 @@ class PointerFloating(
                 }
 
                 MotionEvent.ACTION_MOVE -> {
+                    cancelMouseModeCountdown()
                     touchViewX = event.rawX
                     touchViewY = event.rawY
                     if (enable) {
@@ -744,6 +927,132 @@ class PointerFloating(
                         moveTouchHandler.handleActionUp(event)
                     }
                     enable = false
+                }
+            }
+        }
+
+        fun startMouseMode() {
+            mouseMode = true
+            mouseLongPressJob?.cancel()
+            mouseLongPressJob = null
+            mouseTapJob?.cancel()
+            mouseTapJob = null
+            mouseMoved = false
+            mouseLongPressTriggered = false
+            lastMouseTapTime = 0L
+            lastMouseTapPoint = null
+        }
+
+        fun stopMouseMode() {
+            mouseMode = false
+            mouseLongPressJob?.cancel()
+            mouseLongPressJob = null
+            mouseTapJob?.cancel()
+            mouseTapJob = null
+            mouseMoved = false
+            mouseLongPressTriggered = false
+        }
+
+        fun pointerCenter(): Point = Point(
+            view.x + view.width / 2f,
+            view.y + view.height / 2f,
+        )
+
+        private fun handleMouseTouch(event: MotionEvent) {
+            if (!mouseMode) return
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    cancelMouseModeCountdown()
+                    mouseTapJob?.cancel()
+                    mouseTapJob = null
+                    mouseLastX = event.rawX
+                    mouseLastY = event.rawY
+                    mouseMoved = false
+                    mouseLongPressTriggered = false
+                    mouseLongPressJob?.cancel()
+                    mouseLongPressJob = context.launch {
+                        delay(MOUSE_LONG_PRESS_MS)
+                        if (!mouseMoved && !mouseLongPressTriggered) {
+                            mouseLongPressTriggered = true
+                            val point = pointerCenter()
+                            performPointerClick(point.x, point.y, MOUSE_LONG_PRESS_CLICK_MS)
+                        }
+                    }
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    if (mouseLongPressTriggered) return
+                    val dx = event.rawX - mouseLastX
+                    val dy = event.rawY - mouseLastY
+                    mouseLastX = event.rawX
+                    mouseLastY = event.rawY
+                    if (abs(dx) + abs(dy) > MOUSE_MOVE_SLOP_PX) {
+                        mouseMoved = true
+                        mouseLongPressJob?.cancel()
+                        mouseLongPressJob = null
+                    }
+                    movePointerBy(
+                        dx * MOUSE_SENSITIVITY,
+                        dy * MOUSE_SENSITIVITY,
+                    )
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    mouseLongPressJob?.cancel()
+                    mouseLongPressJob = null
+                    mouseTapJob?.cancel()
+                    mouseTapJob = null
+                }
+                MotionEvent.ACTION_UP -> {
+                    mouseLongPressJob?.cancel()
+                    mouseLongPressJob = null
+                    if (!mouseLongPressTriggered && !mouseMoved) {
+                        handleMouseTap()
+                    }
+                    mouseLongPressTriggered = false
+                    mouseMoved = false
+                }
+            }
+        }
+
+        private fun movePointerBy(dx: Float, dy: Float) {
+            val screenWidth = pointerFloatingView.width.coerceAtLeast(1)
+            val screenHeight = pointerFloatingView.height.coerceAtLeast(1)
+            val halfWidth = view.width / 2f
+            val halfHeight = view.height / 2f
+            val center = pointerCenter()
+            val target = Point(
+                (center.x + dx).coerceIn(halfWidth, screenWidth - halfWidth),
+                (center.y + dy).coerceIn(halfHeight, screenHeight - halfHeight),
+            )
+            placePointer(target)
+        }
+
+        private fun handleMouseTap() {
+            val now = SystemClock.uptimeMillis()
+            val point = pointerCenter()
+            val previousPoint = lastMouseTapPoint
+            val isDoubleTap = previousPoint != null &&
+                now - lastMouseTapTime in 1L..MOUSE_DOUBLE_TAP_MS &&
+                distance(previousPoint.x, previousPoint.y, point.x, point.y) < MOUSE_DOUBLE_TAP_SLOP_PX
+            lastMouseTapTime = now
+            lastMouseTapPoint = point
+            mouseTapJob?.cancel()
+            mouseTapJob = null
+            if (isDoubleTap) {
+                lastMouseTapTime = 0L
+                lastMouseTapPoint = null
+                context.launch {
+                    performPointerClick(point.x, point.y, MOUSE_CLICK_DURATION_MS, clickCount = 2)
+                }
+            } else {
+                mouseTapJob = context.launch {
+                    delay(MOUSE_DOUBLE_TAP_MS)
+                    try {
+                        if (mouseMode) {
+                            performPointerClick(point.x, point.y, MOUSE_CLICK_DURATION_MS)
+                        }
+                    } finally {
+                        mouseTapJob = null
+                    }
                 }
             }
         }
@@ -862,6 +1171,7 @@ class PointerFloating(
             startPoint: Point = moveTouchHandler.computePosition(),
             endPoint: Point = startPoint,
         ) {
+            cancelMouseModeCountdown()
             isDragMode = true
             clearPotentialDragSelection()
             hasStartedDragSelection = false
@@ -1181,7 +1491,12 @@ class PointerFloating(
             private fun onStableChange(isStable: Boolean, stablePoint: Point) {
                 // Dispatch UI operations to the main thread
                 context.postOnMain {
-                    if (!enable || !pointerVisibleRequested) return@postOnMain
+                    if (!enable || !pointerVisibleRequested || mouseModeActive) return@postOnMain
+                    if (isStable) {
+                        scheduleMouseModeCountdown()
+                    } else {
+                        cancelMouseModeCountdown()
+                    }
                     if (hoverMenuEnabled) {
                         if (isStable && !isDragMode && hoverMenu.canShow) {
                             resetHoverLongPressHint()
@@ -1283,6 +1598,7 @@ class PointerFloating(
                     } else {
                         currentCheckJob?.cancel()
                         checkJob = null
+                        cancelMouseModeCountdown()
                         if (!dragModeEnabled) {
                             context.postOnMain {
                                 if (!isLongPressRunning) {
@@ -1376,6 +1692,7 @@ class PointerFloating(
             }
 
             fun stop() {
+                cancelMouseModeCountdown()
                 // Execute stop operations on main thread
                 context.postOnMain {
                     try {
