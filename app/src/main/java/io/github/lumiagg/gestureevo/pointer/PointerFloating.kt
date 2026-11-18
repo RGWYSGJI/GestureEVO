@@ -1132,7 +1132,7 @@ class PointerFloating(
                 }
             } else {
                 mouseTapJob = context.launch {
-                    delay(MOUSE_DOUBLE_TAP_MS)
+                    delay(mouseDoubleTapTimeout)
                     try {
                         if (mouseMode) {
                             performPointerClick(point.x, point.y, MOUSE_CLICK_DURATION_MS)
