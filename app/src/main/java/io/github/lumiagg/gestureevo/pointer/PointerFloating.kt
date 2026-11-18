@@ -13,6 +13,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.drawable.Drawable
+import android.os.Bundle
 import android.os.SystemClock
 import android.util.Log
 import android.view.LayoutInflater
@@ -55,6 +56,7 @@ import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.K
 import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_POINTER_HOVER_MENU
 import io.github.lumiagg.gestureevo.pointer.radar.LinkRegion
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_POINTER_TOUCH_AREA_OFFSET_DP
 import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_SHOW_POINTER_TRAIL
 import io.github.lumiagg.gestureevo.utils.DynamicColorUtils
@@ -97,7 +99,14 @@ class PointerFloating(
         PointerFloatingTouchViewBinding.inflate(LayoutInflater.from(context)).root
     }
     private val mousePadOverlay: MousePadOverlay by lazy {
-        MousePadOverlay(context) { direction -> onMouseEdgeScroll(direction) }
+        MousePadOverlay(
+            context = context,
+            onScroll = { direction -> onMouseEdgeScroll(direction) },
+            onDoubleClick = { onMouseDoubleClick() },
+            onLongPressToggle = { onMouseLongPressToggle() },
+            onQuickScroll = { toTop -> onMouseQuickScroll(toTop) },
+            onClose = { enable = false },
+        )
     }
     /**
      * Full-screen transparent window below the touch pad. The pointer layer stays
@@ -122,8 +131,10 @@ class PointerFloating(
     private var alwaysShowTouchArea = false
     private var touchAreaOffsetDp = 0
     private var mouseModeActive = false
+    private var mouseLongPressMode = false
     private var mouseCatcherDownInside = false
     private var mouseScrollJob: Job? = null
+    private var mouseQuickScrollJob: Job? = null
     private var pointerVisibleRequested = false
     private var hoverMenuEnabled = false
     var captureLinks: suspend () -> List<LinkRegion> = { emptyList() }
@@ -384,7 +395,9 @@ class PointerFloating(
 
         /** Simulated mouse mode. */
         const val MOUSE_CLICK_DURATION_MS = 50L
+        const val MOUSE_LONG_PRESS_DURATION_MS = 600L
         const val MOUSE_SCROLL_DURATION_MS = 260L
+        const val MOUSE_QUICK_SCROLL_STEPS = 30
         const val MOUSE_SCROLL_DISTANCE_RATIO = 0.35f
     }
 
@@ -521,6 +534,7 @@ class PointerFloating(
     private fun enterMouseMode(bringPadToFront: Boolean = true) {
         if (!enable || !pointerVisibleRequested || mouseModeActive) return
         mouseModeActive = true
+        mouseLongPressMode = false
         needShowTouchView = true
         pointerManger.viewPositionMonitor.stop()
         hoverMenu.reset()
@@ -652,10 +666,14 @@ class PointerFloating(
     /** Clears mouse-mode-only state. Safe to call repeatedly. */
     private fun resetMouseModeState() {
         mouseModeActive = false
+        mouseLongPressMode = false
         mouseCatcherDownInside = false
         mouseScrollJob?.cancel()
         mouseScrollJob = null
+        mouseQuickScrollJob?.cancel()
+        mouseQuickScrollJob = null
         pointerManger.stopMouseMode()
+        mousePadOverlay.setLongPressActive(false)
         mousePadOverlay.visibility = View.GONE
         detachViewSafely(mouseExitCatcher)
     }
@@ -694,6 +712,132 @@ class PointerFloating(
             } finally {
                 mouseScrollJob = null
             }
+        }
+    }
+
+    private fun onMouseDoubleClick() {
+        if (!mouseModeActive) return
+        val point = pointerManger.pointerCenter()
+        context.launch {
+            performPointerClick(
+                point.x,
+                point.y,
+                MOUSE_CLICK_DURATION_MS,
+                clickCount = 2,
+            )
+        }
+    }
+
+    private fun onMouseLongPressToggle() {
+        if (!mouseModeActive) return
+        mouseLongPressMode = !mouseLongPressMode
+        mousePadOverlay.setLongPressActive(mouseLongPressMode)
+        if (mouseLongPressMode) {
+            val point = pointerManger.pointerCenter()
+            context.launch {
+                performPointerClick(point.x, point.y, MOUSE_LONG_PRESS_DURATION_MS)
+            }
+        }
+    }
+
+    private fun onMouseQuickScroll(toTop: Boolean) {
+        if (!mouseModeActive || mouseQuickScrollJob?.isActive == true) return
+        val point = pointerManger.pointerCenter()
+        mouseQuickScrollJob = context.launch {
+            try {
+                val handled = withContext(Dispatchers.Main) {
+                    scrollToEdge(point.x.toInt(), point.y.toInt(), toTop)
+                }
+                if (!handled) {
+                    flingToEdge(toTop)
+                }
+            } finally {
+                mouseQuickScrollJob = null
+            }
+        }
+    }
+
+    /**
+     * Best-effort "jump to edge" using the accessibility tree. ACTION_SCROLL_TO_POSITION is
+     * exact for RecyclerView/ListView; repeated scroll actions are the fallback for containers
+     * that only expose scrollable=true.
+     */
+    private fun scrollToEdge(x: Int, y: Int, toTop: Boolean): Boolean {
+        val root = context.rootInActiveWindow ?: return false
+        if (root.packageName == context.packageName) {
+            root.recycle()
+            return false
+        }
+        val scrollable = findScrollableNodeAt(root, x, y)
+        if (scrollable == null) {
+            root.recycle()
+            return false
+        }
+        var handled = false
+        val rowCount = scrollable.collectionInfo?.rowCount ?: 0
+        if (rowCount > 0) {
+            val arguments = Bundle().apply {
+                putInt(
+                    AccessibilityNodeInfo.ACTION_ARGUMENT_ROW_INT,
+                    if (toTop) 0 else rowCount - 1,
+                )
+            }
+            handled = scrollable.performAction(
+                AccessibilityNodeInfo.ACTION_SCROLL_TO_POSITION,
+                arguments,
+            )
+        }
+        if (!handled) {
+            val action = if (toTop) {
+                AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
+            } else {
+                AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
+            }
+            for (i in 0 until MOUSE_QUICK_SCROLL_STEPS) {
+                if (!scrollable.performAction(action)) break
+                handled = true
+            }
+        }
+        scrollable.recycle()
+        if (scrollable !== root) root.recycle()
+        return handled
+    }
+
+    private fun findScrollableNodeAt(
+        node: AccessibilityNodeInfo,
+        x: Int,
+        y: Int,
+    ): AccessibilityNodeInfo? {
+        val bounds = Rect()
+        node.getBoundsInScreen(bounds)
+        if (!bounds.contains(x, y)) return null
+        // Prefer the deepest scrollable under the pointer.
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i) ?: continue
+            val found = findScrollableNodeAt(child, x, y)
+            if (found != null) return found
+            child.recycle()
+        }
+        return if (node.isScrollable) node else null
+    }
+
+    private suspend fun flingToEdge(toTop: Boolean) {
+        val screenWidth = pointerFloatingView.width
+        val screenHeight = pointerFloatingView.height
+        if (screenWidth <= 0 || screenHeight <= 0) return
+        val x = screenWidth / 2f
+        val startY = screenHeight * if (toTop) 0.30f else 0.70f
+        val endY = screenHeight * if (toTop) 0.75f else 0.25f
+        repeat(3) {
+            context.performSwipeAsync(
+                x,
+                startY,
+                x,
+                endY,
+                duration = 180L,
+                useDecelerationCurve = false,
+            )
+            delay(80)
         }
     }
 
@@ -1120,6 +1264,16 @@ class PointerFloating(
         private fun handleMouseTap() {
             val now = SystemClock.uptimeMillis()
             val point = pointerCenter()
+            if (mouseLongPressMode) {
+                mouseTapJob?.cancel()
+                mouseTapJob = null
+                lastMouseTapTime = 0L
+                lastMouseTapPoint = null
+                context.launch {
+                    performPointerClick(point.x, point.y, MOUSE_LONG_PRESS_DURATION_MS)
+                }
+                return
+            }
             val previousPoint = lastMouseTapPoint
             val isDoubleTap = previousPoint != null &&
                 now - lastMouseTapTime in 1L..mouseDoubleTapTimeout &&
