@@ -548,8 +548,8 @@
     <string name="inspire_settings_pointer_settings_description">调整指针轨迹、触摸区域和拖动行为</string>
     <string name="inspire_settings_show_pointer_trail">显示指针轨迹</string>
     <string name="inspire_settings_show_pointer_trail_desc">显示指针移动路径，便于观察悬停和拖动轨迹</string>
-    <string name="inspire_settings_always_show_pointer_touch_area">始终显示触摸区域</string>
-    <string name="inspire_settings_always_show_pointer_touch_area_desc">使用指针时始终显示用于控制指针的触摸区域</string>
+    <string name="inspire_settings_always_show_pointer_touch_area">模拟鼠标（触摸区域）</string>
+    <string name="inspire_settings_always_show_pointer_touch_area_desc">开启后，触发指针功能会直接进入模拟鼠标模式，并始终显示触摸区域</string>
     <string name="inspire_settings_pointer_touch_area_offset">触摸区域上下偏移</string>
     <string name="inspire_settings_pointer_touch_area_offset_desc">调整指针触摸区域的显示位置，负数向上，正数向下</string>
     <string name="inspire_settings_pointer_touch_area_offset_dp">%1$d dp</string>
