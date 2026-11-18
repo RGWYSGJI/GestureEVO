@@ -14,7 +14,6 @@ import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.drawable.Drawable
 import android.os.Bundle
-import android.os.SystemClock
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -871,14 +870,7 @@ class PointerFloating(
         private var mouseDownX = 0f
         private var mouseDownY = 0f
         private var mouseMoved = false
-        private var mouseTapJob: Job? = null
-        private var lastMouseTapTime = 0L
-        private var lastMouseTapPoint: Point? = null
         private val mouseTouchSlop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
-        private val mouseDoubleTapSlop = 48f.dp2px.toFloat()
-        // A shorter window makes the single click fire sooner. The trade-off is that the
-        // second tap must follow quickly; 220 ms still feels natural for a deliberate double tap.
-        private val mouseDoubleTapTimeout = 220L
 
         /** True only once the drag selection box is actually being drawn (not mere drag mode). */
         val isDragSelectionStarted: Boolean
@@ -1102,17 +1094,11 @@ class PointerFloating(
 
         fun startMouseMode() {
             mouseMode = true
-            mouseTapJob?.cancel()
-            mouseTapJob = null
             mouseMoved = false
-            lastMouseTapTime = 0L
-            lastMouseTapPoint = null
         }
 
         fun stopMouseMode() {
             mouseMode = false
-            mouseTapJob?.cancel()
-            mouseTapJob = null
             mouseMoved = false
         }
 
@@ -1125,8 +1111,6 @@ class PointerFloating(
             if (!mouseMode) return
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
-                    mouseTapJob?.cancel()
-                    mouseTapJob = null
                     mouseLastX = event.rawX
                     mouseLastY = event.rawY
                     mouseDownX = event.rawX
@@ -1148,10 +1132,7 @@ class PointerFloating(
                         dy * mouseScaleY(),
                     )
                 }
-                MotionEvent.ACTION_CANCEL -> {
-                    mouseTapJob?.cancel()
-                    mouseTapJob = null
-                }
+                MotionEvent.ACTION_CANCEL -> {}
                 MotionEvent.ACTION_UP -> {
                     if (!mouseMoved) {
                         handleMouseTap()
@@ -1195,42 +1176,19 @@ class PointerFloating(
         }
 
         private fun handleMouseTap() {
-            val now = SystemClock.uptimeMillis()
             val point = pointerCenter()
             if (mouseLongPressMode) {
-                mouseTapJob?.cancel()
-                mouseTapJob = null
-                lastMouseTapTime = 0L
-                lastMouseTapPoint = null
                 context.launch {
                     performPointerClick(point.x, point.y, MOUSE_LONG_PRESS_DURATION_MS)
                 }
                 return
             }
-            val previousPoint = lastMouseTapPoint
-            val isDoubleTap = previousPoint != null &&
-                now - lastMouseTapTime in 1L..mouseDoubleTapTimeout &&
-                distance(previousPoint.x, previousPoint.y, point.x, point.y) < mouseDoubleTapSlop
-            lastMouseTapTime = now
-            lastMouseTapPoint = point
-            mouseTapJob?.cancel()
-            mouseTapJob = null
-            if (isDoubleTap) {
-                lastMouseTapTime = 0L
-                lastMouseTapPoint = null
-                context.launch {
-                    performPointerClick(point.x, point.y, MOUSE_CLICK_DURATION_MS, clickCount = 2)
-                }
-            } else {
-                mouseTapJob = context.launch {
-                    delay(mouseDoubleTapTimeout)
-                    try {
-                        if (mouseMode) {
-                            performPointerClick(point.x, point.y, MOUSE_CLICK_DURATION_MS)
-                        }
-                    } finally {
-                        mouseTapJob = null
-                    }
+            // Match the normal pointer's tap path: click immediately after release, no
+            // double-tap window. Double-click now has its own explicit button.
+            context.launch {
+                delay(20)
+                if (mouseMode) {
+                    performPointerClick(point.x, point.y)
                 }
             }
         }
