@@ -50,7 +50,7 @@ internal class QuickSearchMotionController(
         get() = motionTimeline.hiddenBottomOffset
 
     val keyboardInsetPixels: Int
-        get() = keyboardInset.roundToInt()
+        get() = if (keyboardFollowAnimationEnabled) keyboardInset.roundToInt() else 0
 
     private var visibilityProgress = 0f
     private var keyboardInset = 0f
@@ -86,14 +86,13 @@ internal class QuickSearchMotionController(
         applyStaticCardBackgrounds()
         motionStrategy.captureBaseLayout()
         baseBottomPadding = binding.root.paddingBottom
-        // Always intercept IME insets: the window uses adjustNothing and never resizes.
-        // The setting below only controls whether the IME animation callback is used.
-        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
-            applySystemBarInsets(insets)
-            updateKeyboardState(insets, fromAnimation = false)
-            insets
-        }
+        // Intercept IME insets only when follow animation is enabled; otherwise allow native system adjustResize.
         if (keyboardFollowAnimationEnabled) {
+            ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
+                applySystemBarInsets(insets)
+                updateKeyboardState(insets, fromAnimation = false)
+                insets
+            }
             ViewCompat.setWindowInsetsAnimationCallback(
                 binding.root,
                 object : WindowInsetsAnimationCompat.Callback(DISPATCH_MODE_CONTINUE_ON_SUBTREE) {
@@ -218,42 +217,23 @@ internal class QuickSearchMotionController(
 
     private fun updateKeyboardState(insets: WindowInsetsCompat, fromAnimation: Boolean) {
         val imeBottom = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
-        if (imeBottom > 0) {
-            // The IME can appear while the entrance animation is still translating the
-            // input card. In that case the card moves up twice: once by the remaining
-            // entrance offset and once by the keyboard inset. Snap the entrance to its
-            // final position before applying the IME inset so only the keyboard motion
-            // remains, which also avoids a one-frame jump when the IME animates in.
-            finishEnterAnimationForIme()
-        }
         baseBottomPadding = maxOf(baseBottomPadding, binding.root.paddingBottom)
         val targetInset = (imeBottom - baseBottomPadding).coerceAtLeast(0).toFloat()
-        if (keyboardFollowAnimationEnabled) {
-            if (fromAnimation) {
-                deferredKeyboardInset = null
-                applyKeyboardInset(targetInset)
-                return
-            }
-            if (isImeAnimationRunning) {
-                deferredKeyboardInset = targetInset
-                return
-            }
-            if (awaitingImeAnimationAfterShow && targetInset > keyboardInset) {
-                deferredKeyboardInset = targetInset
-                return
-            }
+        if (fromAnimation) {
+            deferredKeyboardInset = null
+            applyKeyboardInset(targetInset)
+            return
+        }
+        if (isImeAnimationRunning) {
+            deferredKeyboardInset = targetInset
+            return
+        }
+        if (awaitingImeAnimationAfterShow && targetInset > keyboardInset) {
+            deferredKeyboardInset = targetInset
+            return
         }
         deferredKeyboardInset = null
         applyKeyboardInset(targetInset)
-    }
-
-    private fun finishEnterAnimationForIme() {
-        if (!isEnteringVisibilityAnimation) return
-        visibilityAnimator?.cancel()
-        visibilityAnimator = null
-        visibilityProgress = 1f
-        isEnteringVisibilityAnimation = false
-        render()
     }
 
     private fun applyKeyboardInset(targetInset: Float) {
@@ -296,13 +276,11 @@ internal class QuickSearchMotionController(
         if (!binding.searchInput.isFocused) {
             binding.searchInput.requestFocus()
         }
-        awaitingImeAnimationAfterShow = keyboardFollowAnimationEnabled
+        awaitingImeAnimationAfterShow = true
         isImeAnimationRunning = false
         deferredKeyboardInset = null
         binding.root.removeCallbacks(imeAnimationFallbackRunnable)
-        if (keyboardFollowAnimationEnabled) {
-            binding.root.postDelayed(imeAnimationFallbackRunnable, 220L)
-        }
+        binding.root.postDelayed(imeAnimationFallbackRunnable, 220L)
         pendingShowKeyboard = false
         val imm = activity.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
         val shown =
@@ -329,10 +307,16 @@ internal class QuickSearchMotionController(
         )
 
         binding.searchContainer.setBackgroundColor(backgroundColor)
-        // The page is always edge-to-edge; keep the status bar transparent to avoid tint stacking.
-        window.statusBarColor = Color.TRANSPARENT
+        // Keep status bar transparent in edge-to-edge mode to avoid tint stacking issues obscuring blur.
+        window.statusBarColor = if (keyboardFollowAnimationEnabled) {
+            Color.TRANSPARENT
+        } else {
+            backgroundColor
+        }
 
-        motionStrategy.applyKeyboardLinkedLayout(keyboardInset.roundToInt())
+        motionStrategy.applyKeyboardLinkedLayout(
+            if (keyboardFollowAnimationEnabled) keyboardInset.roundToInt() else 0
+        )
 
         if (bottomInputLayoutEnabled) {
             binding.topSearchCard.alpha = topCardAlphaProgress
