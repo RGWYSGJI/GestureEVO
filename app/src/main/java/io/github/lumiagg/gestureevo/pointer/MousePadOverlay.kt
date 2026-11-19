@@ -336,7 +336,9 @@ class MousePadOverlay(
         const val STRIP_WIDTH_DP = 48f
         const val WHEEL_WIDTH_DP = 46f
         const val TOP_BAR_HEIGHT_DP = 96f
-        const val BOTTOM_BAR_HEIGHT_DP = 48f
+        // The bottom buttons carry 2dp top/bottom margins. A 52dp bar gives them the
+        // same 48dp content height as the top quick-top and long-press buttons.
+        const val BOTTOM_BAR_HEIGHT_DP = 52f
         const val BUTTON_OFF_COLOR = 0x66000000
         val BUTTON_ON_COLOR = 0xCC4CAF50.toInt()
         val BUTTON_ARMED_COLOR = 0xCCD32F2F.toInt()
