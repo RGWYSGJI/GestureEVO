@@ -283,22 +283,24 @@ class GestureManager(
                         pointerFloating.enable = it.enable
                     }
                 }
-                // 链接雷达跟随指针会话，开关位于链接分发设置。
-                if (it.enable) {
+                // 链接雷达跟随普通指针会话；触摸板模式不需要链接拾取。
+                if (it.enable && !it.mouseMode && pointerFloating.enable) {
                     pointerLinks.start()
                     val radarEnabled = context.settingsStore.readKey(
                         LinkRadarPreferences.KEY_ENABLED,
                         LinkRadarPreferences.DEFAULT_ENABLED
                     )
-                    if (radarEnabled && pointerFloating.enable) {
+                    if (radarEnabled) {
                         linkRadarFloating.startSession()
                     } else if (linkRadarFloatingLazy.isInitialized()) {
                         linkRadarFloating.stopSession()
                     }
-                } else if (linkRadarFloatingLazy.isInitialized()) {
-                    linkRadarFloating.stopSession()
+                } else {
+                    pointerLinks.stop()
+                    if (linkRadarFloatingLazy.isInitialized()) {
+                        linkRadarFloating.stopSession()
+                    }
                 }
-                if (!it.enable) pointerLinks.stop()
             }
         }
         // Notification
