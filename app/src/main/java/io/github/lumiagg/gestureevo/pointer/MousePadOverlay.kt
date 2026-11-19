@@ -17,8 +17,8 @@ import io.github.lumiagg.gestureevo.utils.dp2px
  * Action overlay shown only while the pointer is in mouse mode.
  *
  * The touch pad is a rectangle: the four direction buttons stay on its inner long edge (the
- * "x" edge, left or right), a scroll wheel runs along the top short edge, and the three
- * page/navigation buttons sit on the bottom short edge.
+ * "x" edge, left or right), a scroll wheel and the long-press button share the top short
+ * edge, and the three page/navigation buttons sit on the bottom short edge.
  */
 class MousePadOverlay(
     context: Context,
@@ -26,6 +26,7 @@ class MousePadOverlay(
     private val onDirectionRelease: () -> Unit,
     private val onWheelScroll: (Float) -> Unit,
     private val onWheelRelease: (Float) -> Unit,
+    private val onLongPress: () -> Unit,
     private val onQuickScroll: (Boolean) -> Unit,
     private val onClose: () -> Unit,
 ) : FrameLayout(context) {
@@ -82,18 +83,22 @@ class MousePadOverlay(
             },
         )
 
-        // Top short edge: one scroll wheel, spanning the area that used to hold the two
-        // gesture buttons.
+        // Top short edge: the wheel takes the old double-click slot; the long-press
+        // button keeps its original right-hand slot.
         topBar.addView(
             MouseScrollWheelView(context, onWheelScroll, onWheelRelease),
             LinearLayout.LayoutParams(
+                0,
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.MATCH_PARENT,
+                1f,
             ).apply {
                 val margin = 2f.dp2px.toInt()
                 setMargins(margin, margin, margin, margin)
             },
         )
+        addActionButton(topBar, "长按", vertical = false) {
+            onLongPress()
+        }
 
         // Inner long edge: the existing four directions, unchanged in order.
         addDirectionButton(Direction.UP, "↑")

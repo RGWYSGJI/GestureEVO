@@ -105,6 +105,7 @@ class PointerFloating(
             onDirectionRelease = { onMouseDirectionRelease() },
             onWheelScroll = { delta -> onMouseWheelScroll(delta) },
             onWheelRelease = { velocity -> onMouseWheelRelease(velocity) },
+            onLongPress = { onMouseLongPress() },
             onQuickScroll = { toTop -> onMouseQuickScroll(toTop) },
             onClose = {
                 Log.d("PointerFloating", "mousePad close button double tap")
@@ -392,6 +393,7 @@ class PointerFloating(
         const val MOUSE_SCROLL_REPEAT_DELAY_MS = 40L
         const val MOUSE_QUICK_SCROLL_STEPS = 30
         const val MOUSE_SCROLL_DISTANCE_RATIO = 0.35f
+        const val MOUSE_LONG_PRESS_DURATION_MS = 600L
         const val MOUSE_WHEEL_STEP_DP = 10f
         const val MOUSE_WHEEL_INERTIA_DECAY = 0.86f
         const val MOUSE_WHEEL_MIN_VELOCITY = 0.04f
@@ -655,6 +657,15 @@ class PointerFloating(
             duration = MOUSE_SCROLL_DURATION_MS,
             useDecelerationCurve = false,
         )
+    }
+
+    private fun onMouseLongPress() {
+        if (!mouseModeActive) return
+        pointerManger.pulseClickFeedback()
+        val point = pointerManger.pointerCenter()
+        context.launch {
+            performPointerClick(point.x, point.y, MOUSE_LONG_PRESS_DURATION_MS)
+        }
     }
 
     private fun onMouseWheelScroll(deltaY: Float) {
