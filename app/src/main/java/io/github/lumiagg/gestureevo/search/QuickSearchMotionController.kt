@@ -218,6 +218,14 @@ internal class QuickSearchMotionController(
 
     private fun updateKeyboardState(insets: WindowInsetsCompat, fromAnimation: Boolean) {
         val imeBottom = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
+        if (imeBottom > 0) {
+            // The IME can appear while the entrance animation is still translating the
+            // input card. In that case the card moves up twice: once by the remaining
+            // entrance offset and once by the keyboard inset. Snap the entrance to its
+            // final position before applying the IME inset so only the keyboard motion
+            // remains, which also avoids a one-frame jump when the IME animates in.
+            finishEnterAnimationForIme()
+        }
         baseBottomPadding = maxOf(baseBottomPadding, binding.root.paddingBottom)
         val targetInset = (imeBottom - baseBottomPadding).coerceAtLeast(0).toFloat()
         if (keyboardFollowAnimationEnabled) {
@@ -237,6 +245,16 @@ internal class QuickSearchMotionController(
         }
         deferredKeyboardInset = null
         applyKeyboardInset(targetInset)
+    }
+
+    private fun finishEnterAnimationForIme() {
+        if (!isEnteringVisibilityAnimation) return
+        val animator = visibilityAnimator ?: return
+        animator.cancel()
+        visibilityAnimator = null
+        visibilityProgress = 1f
+        isEnteringVisibilityAnimation = false
+        render()
     }
 
     private fun applyKeyboardInset(targetInset: Float) {
