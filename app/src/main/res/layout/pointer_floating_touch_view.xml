@@ -4,6 +4,9 @@
     android:layout_height="match_parent"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     app:cardBackgroundColor="@color/transparent_night"
-    app:cardCornerRadius="25dp">
+    app:cardCornerRadius="25dp"
+    app:cardElevation="0dp"
+    app:strokeColor="@android:color/transparent"
+    app:strokeWidth="0dp">
 
 </com.google.android.material.card.MaterialCardView>

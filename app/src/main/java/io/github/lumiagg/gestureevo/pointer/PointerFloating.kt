@@ -273,6 +273,10 @@ class PointerFloating(
 
     @SuppressLint("ClickableViewAccessibility")
     private fun initTouchView() {
+        // Some Material3 card themes inherit a 1dp outline. The touch pad should be only
+        // the translucent fill, with no light rim in either pointer mode.
+        touchView.strokeWidth = 0
+        touchView.strokeColor = android.graphics.Color.TRANSPARENT
         touchLayoutParams.configureAccessibilityOverlay(
             WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                     WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
