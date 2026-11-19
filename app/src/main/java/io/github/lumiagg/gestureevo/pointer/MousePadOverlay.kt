@@ -91,9 +91,8 @@ class MousePadOverlay(
         topBar.addView(
             wheelView,
             LinearLayout.LayoutParams(
-                0,
+                46f.dp2px.toInt(),
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                1f,
             ).apply {
                 val margin = 2f.dp2px.toInt()
                 setMargins(margin, margin, margin, margin)
