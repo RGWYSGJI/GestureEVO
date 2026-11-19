@@ -13,6 +13,8 @@ import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Path
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
@@ -401,6 +403,14 @@ class GestureService : AccessibilityService(), CoroutineScope {
         y: Float,
         holdDurationMs: Long = 600L,
     ): Boolean = suspendCancellableCoroutine { continuation ->
+        fun reject(reason: String) {
+            AppLogger.event(
+                LogModule.OVERLAY, "pointer_drag_begin_rejected", LogLevel.WARN,
+                fields = mapOf("reason" to reason),
+            )
+            if (continuation.isActive) continuation.resume(false)
+        }
+
         if (
             pointerDragStroke != null ||
             !x.isFinite() ||
@@ -409,7 +419,7 @@ class GestureService : AccessibilityService(), CoroutineScope {
             y < 0f ||
             holdDurationMs <= 0L
         ) {
-            if (continuation.isActive) continuation.resume(false)
+            reject(if (pointerDragStroke != null) "stroke_pending" else "invalid_args")
             return@suspendCancellableCoroutine
         }
 
@@ -418,7 +428,7 @@ class GestureService : AccessibilityService(), CoroutineScope {
             GestureDescription.StrokeDescription(path, 0L, holdDurationMs, true)
         } catch (error: Throwable) {
             Log.d(TAG, "beginPointerDrag: invalid stroke, ${error.message}")
-            if (continuation.isActive) continuation.resume(false)
+            reject("stroke_error")
             return@suspendCancellableCoroutine
         }
 
@@ -432,11 +442,19 @@ class GestureService : AccessibilityService(), CoroutineScope {
             object : GestureResultCallback() {
                 override fun onCompleted(gestureDescription: GestureDescription?) {
                     Log.d(TAG, "beginPointerDrag: hold completed, finger still down")
+                    AppLogger.event(
+                        LogModule.OVERLAY, "pointer_drag_hold_completed", LogLevel.INFO,
+                        fields = mapOf("holdMs" to holdDurationMs),
+                    )
                     if (continuation.isActive) continuation.resume(true)
                 }
 
                 override fun onCancelled(gestureDescription: GestureDescription?) {
                     Log.d(TAG, "beginPointerDrag: hold cancelled")
+                    AppLogger.event(
+                        LogModule.OVERLAY, "pointer_drag_hold_cancelled", LogLevel.WARN,
+                        fields = mapOf("holdMs" to holdDurationMs),
+                    )
                     pointerDragStroke = null
                     if (continuation.isActive) continuation.resume(false)
                 }
@@ -445,8 +463,20 @@ class GestureService : AccessibilityService(), CoroutineScope {
         )
         if (!accepted) {
             pointerDragStroke = null
-            Log.d(TAG, "beginPointerDrag: dispatch rejected")
-            if (continuation.isActive) continuation.resume(false)
+            reject("dispatch_rejected")
+        } else {
+            // Some OEMs delay or drop onCompleted for a willContinue stroke. Do not leave the
+            // drag session stuck in "starting" if that callback never arrives.
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (continuation.isActive && pointerDragStroke === stroke) {
+                    Log.d(TAG, "beginPointerDrag: hold callback missing, assuming held")
+                    AppLogger.event(
+                        LogModule.OVERLAY, "pointer_drag_hold_assumed", LogLevel.WARN,
+                        fields = mapOf("holdMs" to holdDurationMs),
+                    )
+                    continuation.resume(true)
+                }
+            }, holdDurationMs + 250L)
         }
     }
 

@@ -1,6 +1,9 @@
 package io.github.lumiagg.gestureevo.pointer
 
 import android.util.Log
+import io.github.lumiagg.gestureevo.diagnostics.AppLogger
+import io.github.lumiagg.gestureevo.diagnostics.LogLevel
+import io.github.lumiagg.gestureevo.diagnostics.LogModule
 import io.github.lumiagg.gestureevo.gesture.GestureService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -73,7 +76,7 @@ class PointerDragSession(
         lastY = y
 
         if (!scope.isActive) {
-            finish()
+            finish("scope_inactive")
             return
         }
 
@@ -90,7 +93,7 @@ class PointerDragSession(
                     // The initial stroke may not have been dispatched yet.
                 }
             }
-            finish()
+            finish("start_timeout")
         }
 
         scope.launch {
@@ -104,9 +107,14 @@ class PointerDragSession(
             starting = false
 
             if (!accepted) {
-                finish()
+                finish("start_rejected")
                 return@launch
             }
+
+            AppLogger.event(
+                LogModule.OVERLAY, "pointer_drag_started", LogLevel.INFO,
+                fields = mapOf("holdMs" to initialHoldMs),
+            )
 
             if (!active) {
                 // The user ended the session while the initial hold was still being dispatched.
@@ -115,7 +123,7 @@ class PointerDragSession(
                 } catch (_: Throwable) {
                     // The gesture may already have been cancelled by the target.
                 }
-                finish()
+                finish("ended_during_start")
                 return@launch
             }
 
@@ -158,7 +166,7 @@ class PointerDragSession(
                     // The gesture may already have been cancelled by the target.
                 }
             }
-            finish()
+            finish("user_end")
         }
     }
 
@@ -179,7 +187,7 @@ class PointerDragSession(
                     }
                 }
                 if (!accepted) {
-                    end()
+                    finish("move_rejected")
                     return
                 }
                 lastX = targetX
@@ -209,15 +217,20 @@ class PointerDragSession(
                 }
             }
             if (!accepted) {
-                end()
+                finish("heartbeat_rejected")
                 return
             }
         }
     }
 
     @Synchronized
-    private fun finish() {
+    private fun finish(reason: String = "unknown") {
         if (finished) return
+        AppLogger.event(
+            LogModule.OVERLAY, "pointer_drag_finished", LogLevel.INFO,
+            fields = mapOf("reason" to reason, "active" to active, "busy" to busy),
+        )
+        Log.d(TAG, "finish: reason=$reason")
         startupJob?.cancel()
         startupJob = null
         finished = true

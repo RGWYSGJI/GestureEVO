@@ -407,7 +407,7 @@ class PointerFloating(
         const val MOUSE_DRAG_STEP_DP = 24f
         const val MOUSE_DRAG_REPEAT_DELAY_MS = 40L
         const val TEXT_SELECTION_START_DELAY_MS = 750L
-        const val DRAG_INITIAL_HOLD_MS = 16L
+        const val DRAG_INITIAL_HOLD_MS = 100L
         const val MOUSE_QUICK_SCROLL_STEPS = 30
         const val MOUSE_SCROLL_DISTANCE_RATIO = 0.35f
         const val MOUSE_WHEEL_MAX_OFFSET_DP = 56f
