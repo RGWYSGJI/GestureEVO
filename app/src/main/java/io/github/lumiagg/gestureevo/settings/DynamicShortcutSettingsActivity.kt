@@ -16,6 +16,9 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import io.github.lumiagg.gestureevo.R
 import io.github.lumiagg.gestureevo.databinding.ActivityDynamicShortcutSettingsBinding
 import io.github.lumiagg.gestureevo.db.DynamicShortcutModel
+import io.github.lumiagg.gestureevo.diagnostics.AppLogger
+import io.github.lumiagg.gestureevo.diagnostics.LogLevel
+import io.github.lumiagg.gestureevo.diagnostics.LogModule
 import io.github.lumiagg.gestureevo.gesture.config.GestureActionType
 import io.github.lumiagg.gestureevo.settings.ui.DynamicShortcutAdapter
 import io.github.lumiagg.gestureevo.settings.ui.ImportOption
@@ -42,7 +45,16 @@ class DynamicShortcutSettingsActivity : AppCompatActivity() {
             },
         )
     }
-    private val homePicker = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+    private val homePicker = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val allowed = DynamicShortcuts.hasPermission(this)
+        AppLogger.event(
+            LogModule.APP,
+            "dynamic_shortcut_home_result",
+            fields = mapOf("resultCode" to result.resultCode, "allowed" to allowed),
+        )
+        if (!allowed) {
+            ToastHelper.showInUIThread(this, getString(R.string.dynamic_shortcuts_home_not_granted))
+        }
         updatePermission()
     }
 
@@ -87,9 +99,12 @@ class DynamicShortcutSettingsActivity : AppCompatActivity() {
     private fun updatePermission() {
         val supported = Build.VERSION.SDK_INT >= 25
         val allowed = supported && DynamicShortcuts.hasPermission(this)
+        val roleHeld = Build.VERSION.SDK_INT >= 29 &&
+            getSystemService(RoleManager::class.java)?.isRoleHeld(RoleManager.ROLE_HOME) == true
         binding.permissionStatus.setText(when {
             !supported -> R.string.dynamic_shortcuts_unsupported
             allowed -> R.string.dynamic_shortcuts_permission_ready
+            roleHeld -> R.string.dynamic_shortcuts_permission_role_only
             else -> R.string.dynamic_shortcuts_permission_needed
         })
         binding.grantHome.isEnabled = supported && !allowed && !model.state.value.busy
@@ -98,21 +113,67 @@ class DynamicShortcutSettingsActivity : AppCompatActivity() {
     }
 
     private fun requestHome() {
-        val intent = if (Build.VERSION.SDK_INT >= 29) {
-            getSystemService(RoleManager::class.java).createRequestRoleIntent(RoleManager.ROLE_HOME)
+        val roleManager = if (Build.VERSION.SDK_INT >= 29) {
+            getSystemService(RoleManager::class.java)
         } else {
-            Intent(Settings.ACTION_HOME_SETTINGS)
+            null
+        }
+        val roleAvailable = roleManager?.isRoleAvailable(RoleManager.ROLE_HOME) == true
+        val roleHeld = roleManager?.isRoleHeld(RoleManager.ROLE_HOME) == true
+        val allowed = DynamicShortcuts.hasPermission(this)
+        AppLogger.event(
+            LogModule.APP,
+            "dynamic_shortcut_home_request",
+            fields = mapOf(
+                "sdk" to Build.VERSION.SDK_INT,
+                "roleAvailable" to roleAvailable,
+                "roleHeld" to roleHeld,
+                "allowed" to allowed,
+            ),
+        )
+
+        if (roleManager == null || !roleAvailable) {
+            ToastHelper.showInUIThread(this, getString(R.string.dynamic_shortcuts_home_unavailable))
+            openHomeSettings()
+            return
+        }
+        if (roleHeld) {
+            // The role is already ours but LauncherApps still denies shortcut access. Re-requesting
+            // the role would be a no-op, so send the user to the system home picker instead.
+            ToastHelper.showInUIThread(this, getString(R.string.dynamic_shortcuts_permission_role_only))
+            openHomeSettings()
+            return
+        }
+
+        val intent = roleManager.createRequestRoleIntent(RoleManager.ROLE_HOME)
+        if (intent.resolveActivity(packageManager) == null) {
+            ToastHelper.showInUIThread(this, getString(R.string.dynamic_shortcuts_home_unavailable))
+            openHomeSettings()
+            return
         }
         launchHomePicker(intent)
     }
 
-    private fun openHomeSettings() = launchHomePicker(Intent(Settings.ACTION_HOME_SETTINGS))
+    private fun openHomeSettings() {
+        try {
+            startActivity(Intent(Settings.ACTION_HOME_SETTINGS))
+        } catch (_: Exception) {
+            ToastHelper.showInUIThread(this, getString(R.string.dynamic_shortcuts_home_unavailable))
+        }
+    }
 
     private fun launchHomePicker(intent: Intent) {
         try {
             homePicker.launch(intent)
         } catch (_: android.content.ActivityNotFoundException) {
+            AppLogger.event(
+                LogModule.APP,
+                "dynamic_shortcut_home_intent_missing",
+                LogLevel.WARN,
+                fields = mapOf("action" to intent.action.orEmpty()),
+            )
             ToastHelper.showInUIThread(this, getString(R.string.dynamic_shortcuts_home_unavailable))
+            openHomeSettings()
         }
     }
 

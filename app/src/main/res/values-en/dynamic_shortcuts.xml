@@ -14,6 +14,12 @@
   <string name="dynamic_shortcuts_title">Dynamic shortcuts</string>
   <string name="dynamic_shortcuts_summary">Temporarily switch home apps to import app shortcuts for continued use</string>
   <string name="dynamic_shortcuts_home_label">GestureEVO shortcut import</string>
+  <string name="dynamic_shortcuts_home_title">GestureEVO temporary home</string>
+  <string name="dynamic_shortcuts_home_description">GestureEVO is temporarily your home app. Open the import screen to select shortcuts, then switch back to your usual home app. This screen stays as your home while importing, so the import screen is not restarted repeatedly.</string>
+  <string name="dynamic_shortcuts_home_open">Open shortcut import</string>
+  <string name="dynamic_shortcuts_home_restore">Switch back to usual home</string>
+  <string name="dynamic_shortcuts_home_not_granted">Default home permission was not granted. Please switch it manually in system settings.</string>
+  <string name="dynamic_shortcuts_permission_role_only">GestureEVO is the default home app, but the system has not granted shortcut read access yet. Switch back to your usual home app and try again, or restart the device.</string>
   <string name="dynamic_shortcuts_description">Temporarily set GestureEVO as your default home app, then select and import shortcuts published by your apps. Switch back to your usual home app afterwards and use imported shortcuts in Quick Search, gestures, or the wheel. Shortcuts may stop working if the app disables them or is uninstalled.</string>
   <string name="quick_search_dynamic_shortcut_label">%1$s · %2$s</string>
   <string name="dynamic_shortcuts_grant">1. Temporarily set as default home</string>
