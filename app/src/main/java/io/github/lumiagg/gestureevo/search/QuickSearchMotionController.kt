@@ -249,8 +249,7 @@ internal class QuickSearchMotionController(
 
     private fun finishEnterAnimationForIme() {
         if (!isEnteringVisibilityAnimation) return
-        val animator = visibilityAnimator ?: return
-        animator.cancel()
+        visibilityAnimator?.cancel()
         visibilityAnimator = null
         visibilityProgress = 1f
         isEnteringVisibilityAnimation = false
