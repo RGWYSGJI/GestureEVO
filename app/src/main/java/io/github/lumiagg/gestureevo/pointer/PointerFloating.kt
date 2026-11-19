@@ -336,16 +336,19 @@ class PointerFloating(
             basePadWidth
         }
         layoutParams.width = requestedPadWidth
-            .coerceAtMost(screenWidth - 20f.dp2px)
+            .coerceAtMost(screenWidth.toFloat())
             .toInt()
         layoutParams.height = ((screenHeight + screenStatusHeight) * touchViewScale).toInt()
 
-        val minDistanceFromEdge = 10f.dp2px
-        val minDistanceFromBottom = 20f.dp2px
+        // Keep a 20dp top guard for the status bar, but let the bottom and both sides
+        // sit flush with the screen edges in mouse mode.
+        val minDistanceFromTop = 20f.dp2px
+        val minDistanceFromEdge = 0f
+        val minDistanceFromBottom = 0f
 
         val minX = minDistanceFromEdge
         val maxX = screenWidth - layoutParams.width - minDistanceFromEdge
-        val minY = minDistanceFromBottom
+        val minY = minDistanceFromTop
         val maxY = screenHeight - layoutParams.height - minDistanceFromBottom
 
         val touchYRatio = (pointerManger.touchViewY / screenHeight).coerceIn(0f, 1f)
