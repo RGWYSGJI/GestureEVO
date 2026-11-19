@@ -15,7 +15,8 @@ import kotlin.math.abs
  * Drag it vertically: the ridges move under the finger and [onScroll] receives the raw
  * delta. [onRelease] receives the last vertical velocity (px/ms) so the owner can add
  * inertia. This view deliberately does not scroll anything by itself; the pointer overlay
- * decides whether to use accessibility scroll actions or a short swipe fallback.
+ * decides how far and how fast to scroll; it currently uses short swipe steps so the step
+ * size does not depend on how a target app interprets ACTION_SCROLL_*.
  */
 class MouseScrollWheelView(
     context: Context,
@@ -101,9 +102,14 @@ class MouseScrollWheelView(
             }
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                if (velocity != 0f) {
-                    onRelease(velocity)
+                // A pause before lifting means the wheel was held still, not flicked. Drop the
+                // stale velocity so releasing after a pause does not produce phantom inertia.
+                if (event.eventTime - lastEventTime > 80L) {
+                    velocity = 0f
                 }
+                // Always notify, including a stationary release. The owner uses this to stop
+                // the analog scroll loop; otherwise holding the wheel still would keep scrolling.
+                onRelease(velocity)
                 velocity = 0f
                 isPressed = false
                 invalidate()

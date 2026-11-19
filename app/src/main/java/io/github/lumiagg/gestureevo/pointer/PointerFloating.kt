@@ -14,8 +14,8 @@ import android.graphics.Paint
 import android.graphics.PointF
 import android.graphics.Rect
 import android.graphics.drawable.Drawable
-import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -86,6 +86,7 @@ import java.util.Collections
 import java.util.LinkedList
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.abs
+import kotlin.math.exp
 import kotlin.math.max
 import kotlin.math.min
 
@@ -139,8 +140,11 @@ class PointerFloating(
     private var mouseHoldDirection: MousePadOverlay.Direction? = null
     private var mouseDragNudgeJob: Job? = null
     private var mouseQuickScrollJob: Job? = null
-    private var mouseWheelAccumulator = 0f
-    private var mouseWheelInertiaJob: Job? = null
+    private var mouseWheelLoopJob: Job? = null
+    private var mouseWheelOffsetPx = 0f
+    private var mouseWheelDragging = false
+    private var mouseWheelInertiaSpeedPxPerSec = 0f
+    private var mouseWheelScrollRemainderPx = 0f
     private var mouseWheelFallbackJob: Job? = null
     private var pointerVisibleRequested = false
     private var hoverMenuEnabled = false
@@ -401,14 +405,14 @@ class PointerFloating(
         const val TEXT_SELECTION_START_DELAY_MS = 750L
         const val MOUSE_QUICK_SCROLL_STEPS = 30
         const val MOUSE_SCROLL_DISTANCE_RATIO = 0.35f
-        const val MOUSE_WHEEL_STEP_DP = 10f
-        const val MOUSE_WHEEL_LEGACY_STEP_DP = 32f
-        const val MOUSE_WHEEL_SCROLL_FRACTION = 0.10f
-        const val MOUSE_WHEEL_INERTIA_DECAY = 0.80f
-        const val MOUSE_WHEEL_MIN_VELOCITY = 0.08f
-        const val MOUSE_WHEEL_MAX_INERTIA_STEPS = 10
-        const val MOUSE_WHEEL_MAX_STEPS_PER_EVENT = 6
-        const val MOUSE_WHEEL_SWIPE_DISTANCE_DP = 56f
+        const val MOUSE_WHEEL_MAX_OFFSET_DP = 56f
+        const val MOUSE_WHEEL_DEAD_ZONE = 0.10f
+        const val MOUSE_WHEEL_MAX_SPEED_DP_PER_SEC = 500f
+        const val MOUSE_WHEEL_STEP_DISTANCE_DP = 24f
+        const val MOUSE_WHEEL_MAX_STEPS_PER_TICK = 2
+        const val MOUSE_WHEEL_INERTIA_DECAY_PER_SEC = 6.0f
+        const val MOUSE_WHEEL_MIN_SPEED_DP_PER_SEC = 36f
+        const val MOUSE_WHEEL_SWIPE_DISTANCE_DP = 24f
         const val MOUSE_WHEEL_SWIPE_DURATION_MS = 120L
     }
 
@@ -627,11 +631,14 @@ class PointerFloating(
         mousePadOverlay.setLongPressActive(false)
         mouseQuickScrollJob?.cancel()
         mouseQuickScrollJob = null
-        mouseWheelInertiaJob?.cancel()
-        mouseWheelInertiaJob = null
+        mouseWheelLoopJob?.cancel()
+        mouseWheelLoopJob = null
         mouseWheelFallbackJob?.cancel()
         mouseWheelFallbackJob = null
-        mouseWheelAccumulator = 0f
+        mouseWheelDragging = false
+        mouseWheelOffsetPx = 0f
+        mouseWheelInertiaSpeedPxPerSec = 0f
+        mouseWheelScrollRemainderPx = 0f
         pointerManger.stopMouseMode()
         mousePadOverlay.cancelDirectionHold()
         mousePadOverlay.visibility = View.GONE
@@ -738,11 +745,14 @@ class PointerFloating(
         mouseDragNudgeJob = null
         mouseQuickScrollJob?.cancel()
         mouseQuickScrollJob = null
-        mouseWheelInertiaJob?.cancel()
-        mouseWheelInertiaJob = null
+        mouseWheelLoopJob?.cancel()
+        mouseWheelLoopJob = null
         mouseWheelFallbackJob?.cancel()
         mouseWheelFallbackJob = null
-        mouseWheelAccumulator = 0f
+        mouseWheelDragging = false
+        mouseWheelOffsetPx = 0f
+        mouseWheelInertiaSpeedPxPerSec = 0f
+        mouseWheelScrollRemainderPx = 0f
 
         pointerManger.pulseClickFeedback()
         val point = pointerManger.pointerCenter()
@@ -778,104 +788,108 @@ class PointerFloating(
 
     private fun onMouseWheelScroll(deltaY: Float) {
         if (!mouseModeActive || textSelectionActive || deltaY == 0f) return
-        mouseWheelInertiaJob?.cancel()
-        mouseWheelAccumulator += deltaY
-
-        // Android 15+ can scroll a fraction of the viewport with
-        // ACTION_ARGUMENT_SCROLL_AMOUNT_FLOAT. Older platforms only have whole-page
-        // ACTION_SCROLL_FORWARD/BACKWARD, so require a much larger finger travel there.
-        val fineScrollSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM
-        val stepPx = if (fineScrollSupported) {
-            MOUSE_WHEEL_STEP_DP.dp2px
-        } else {
-            MOUSE_WHEEL_LEGACY_STEP_DP.dp2px
+        if (!mouseWheelDragging) {
+            mouseWheelOffsetPx = 0f
+            mouseWheelInertiaSpeedPxPerSec = 0f
+            mouseWheelScrollRemainderPx = 0f
+            mouseWheelDragging = true
+            mouseWheelFallbackJob?.cancel()
+            mouseWheelFallbackJob = null
         }
-        var steps = 0
-        while (abs(mouseWheelAccumulator) >= stepPx && steps < MOUSE_WHEEL_MAX_STEPS_PER_EVENT) {
-            val scrollUp = mouseWheelAccumulator < 0f
-            mouseWheelAccumulator -= if (scrollUp) -stepPx else stepPx
-            scrollWheelStep(scrollUp)
-            steps++
-        }
-        if (steps == MOUSE_WHEEL_MAX_STEPS_PER_EVENT) {
-            mouseWheelAccumulator = 0f
-        }
+        val maxOffset = MOUSE_WHEEL_MAX_OFFSET_DP.dp2px
+        mouseWheelOffsetPx = (mouseWheelOffsetPx + deltaY).coerceIn(-maxOffset, maxOffset)
+        ensureMouseWheelLoop()
     }
 
     private fun onMouseWheelRelease(velocity: Float) {
         if (!mouseModeActive) return
-        mouseWheelInertiaJob?.cancel()
-        if (abs(velocity) < MOUSE_WHEEL_MIN_VELOCITY) return
+        mouseWheelDragging = false
+        if (textSelectionActive) {
+            mouseWheelInertiaSpeedPxPerSec = 0f
+            return
+        }
+        val maxSpeed = MOUSE_WHEEL_MAX_SPEED_DP_PER_SEC.dp2px
+        val minSpeed = MOUSE_WHEEL_MIN_SPEED_DP_PER_SEC.dp2px
+        val inertia = (velocity * 1000f).coerceIn(-maxSpeed, maxSpeed)
+        mouseWheelInertiaSpeedPxPerSec = if (abs(inertia) < minSpeed) 0f else inertia
+        ensureMouseWheelLoop()
+    }
 
-        mouseWheelInertiaJob = context.launch {
-            var currentVelocity = velocity
-            var steps = 0
-            while (
-                isActive &&
-                mouseModeActive &&
-                abs(currentVelocity) >= MOUSE_WHEEL_MIN_VELOCITY &&
-                steps < MOUSE_WHEEL_MAX_INERTIA_STEPS
-            ) {
-                scrollWheelStep(currentVelocity < 0f)
-                currentVelocity *= MOUSE_WHEEL_INERTIA_DECAY
-                steps++
+    private fun ensureMouseWheelLoop() {
+        if (!mouseModeActive || textSelectionActive) return
+        if (mouseWheelLoopJob?.isActive == true) return
+        mouseWheelLoopJob = context.launch { mouseWheelLoop() }
+    }
+
+    /**
+     * The wheel is analog: the current displacement sets a target speed, and the loop emits
+     * small scroll steps at 60 Hz. After release the speed decays exponentially, so a light
+     * push stops almost immediately and a hard push coasts for a short distance.
+     */
+    private suspend fun mouseWheelLoop() {
+        var lastTime = SystemClock.uptimeMillis()
+        try {
+            while (isActive && mouseModeActive && !textSelectionActive) {
                 delay(16)
+                val now = SystemClock.uptimeMillis()
+                val dt = ((now - lastTime) / 1000f).coerceIn(0.001f, 0.05f)
+                lastTime = now
+
+                val speed = if (mouseWheelDragging) {
+                    wheelDragSpeedPxPerSec()
+                } else {
+                    mouseWheelInertiaSpeedPxPerSec
+                }
+                if (!mouseWheelDragging) {
+                    mouseWheelInertiaSpeedPxPerSec *= exp(
+                        -MOUSE_WHEEL_INERTIA_DECAY_PER_SEC * dt
+                    )
+                    if (abs(mouseWheelInertiaSpeedPxPerSec) <
+                        MOUSE_WHEEL_MIN_SPEED_DP_PER_SEC.dp2px
+                    ) {
+                        mouseWheelInertiaSpeedPxPerSec = 0f
+                        break
+                    }
+                }
+
+                if (abs(speed) < MOUSE_WHEEL_MIN_SPEED_DP_PER_SEC.dp2px) {
+                    continue
+                }
+
+                mouseWheelScrollRemainderPx += speed * dt
+                val stepPx = MOUSE_WHEEL_STEP_DISTANCE_DP.dp2px
+                var steps = 0
+                while (
+                    abs(mouseWheelScrollRemainderPx) >= stepPx &&
+                    steps < MOUSE_WHEEL_MAX_STEPS_PER_TICK
+                ) {
+                    val scrollUp = mouseWheelScrollRemainderPx < 0f
+                    mouseWheelScrollRemainderPx -= if (scrollUp) -stepPx else stepPx
+                    scrollWheelStep(scrollUp)
+                    steps++
+                }
             }
+        } finally {
+            mouseWheelLoopJob = null
         }
     }
 
-    private fun scrollWheelStep(scrollUp: Boolean) {
-        if (!mouseModeActive) return
-        val root = context.rootInActiveWindow
-        if (root == null) {
-            if (!pointerDragSession.isActive) scheduleWheelSwipe(scrollUp)
-            return
-        }
-        if (root.packageName == context.packageName) {
-            // The accessibility root can be one of our own overlay windows; fall back to a
-            // short swipe instead of silently doing nothing.
-            root.recycle()
-            if (!pointerDragSession.isActive) scheduleWheelSwipe(scrollUp)
-            return
-        }
+    private fun wheelDragSpeedPxPerSec(): Float {
+        val maxOffset = MOUSE_WHEEL_MAX_OFFSET_DP.dp2px
+        val normalized = (mouseWheelOffsetPx / maxOffset).coerceIn(-1f, 1f)
+        val magnitude = abs(normalized)
+        if (magnitude <= MOUSE_WHEEL_DEAD_ZONE) return 0f
+        val strength = (magnitude - MOUSE_WHEEL_DEAD_ZONE) / (1f - MOUSE_WHEEL_DEAD_ZONE)
+        val speed = strength * MOUSE_WHEEL_MAX_SPEED_DP_PER_SEC.dp2px
+        return if (normalized < 0f) -speed else speed
+    }
 
-        val point = pointerManger.pointerCenter()
-        val scrollable = findScrollableNodeAt(root, point.x.toInt(), point.y.toInt())
-        var handled = false
-        if (scrollable != null) {
-            val action = if (scrollUp) {
-                AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
-            } else {
-                AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
-            }
-            val amountArgs = if (
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM
-            ) {
-                Bundle().apply {
-                    putFloat(
-                        AccessibilityNodeInfo.ACTION_ARGUMENT_SCROLL_AMOUNT_FLOAT,
-                        MOUSE_WHEEL_SCROLL_FRACTION,
-                    )
-                }
-            } else {
-                null
-            }
-            handled = if (amountArgs != null) {
-                scrollable.performAction(action, amountArgs)
-            } else {
-                scrollable.performAction(action)
-            }
-            // Some apps ignore the fractional amount; keep the old whole-page behavior as a
-            // fallback instead of dropping the wheel event silently.
-            if (!handled && amountArgs != null) {
-                handled = scrollable.performAction(action)
-            }
-            scrollable.recycle()
-        }
-        if (scrollable !== root) {
-            root.recycle()
-        }
-        if (!handled && !pointerDragSession.isActive) {
+    private fun scrollWheelStep(scrollUp: Boolean) {
+        if (!mouseModeActive || textSelectionActive) return
+        // Do not use ACTION_SCROLL_* for the wheel: many apps treat it as a full page even
+        // when a fractional amount is supplied, which is exactly the "too fast" behavior.
+        // A short, slow swipe is app-independent and gives the wheel a predictable step.
+        if (!pointerDragSession.isActive) {
             scheduleWheelSwipe(scrollUp)
         }
     }
