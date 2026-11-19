@@ -555,6 +555,11 @@
     <string name="inspire_settings_pointer_touch_area_offset_dp">%1$d dp</string>
     <string name="inspire_settings_pointer_drag_mode">悬停指针后进入框选模式</string>
     <string name="inspire_settings_pointer_drag_mode_desc">进入框选模式后直接释放可以选择当前界面元素\n拖动后可以截取屏幕</string>
+    <string name="inspire_settings_touchpad_feel">触摸板手感</string>
+    <string name="inspire_settings_mouse_arrow_speed">箭头滚动速度</string>
+    <string name="inspire_settings_mouse_arrow_speed_desc">按住方向键时每次滚动的距离</string>
+    <string name="inspire_settings_mouse_wheel_speed">滚轮速度</string>
+    <string name="inspire_settings_mouse_wheel_speed_desc">推动滚轮时的滚动速度</string>
     <string name="inspire_settings_pin_pool_settings_title">Pin池设置</string>
     <string name="inspire_settings_pin_pool_settings_description">配置 Pin 池的显示方式与本地规则提取</string>
     <string name="inspire_settings_pin_pool_mode_title">Pin池显示模式</string>

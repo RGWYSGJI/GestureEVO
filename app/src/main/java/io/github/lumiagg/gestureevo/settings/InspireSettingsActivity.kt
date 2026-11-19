@@ -22,6 +22,7 @@ import io.github.lumiagg.gestureevo.utils.app.AShizuku
 import android.os.Bundle
 import android.provider.Settings
 import android.view.View
+import android.widget.SeekBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -48,6 +49,7 @@ import io.github.lumiagg.gestureevo.utils.saveKey
 import io.github.lumiagg.gestureevo.utils.settingsStore
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 class InspireSettingsActivity : AppCompatActivity() {
     private lateinit var binding: ActivityInspireSettingsBinding
@@ -87,6 +89,8 @@ class InspireSettingsActivity : AppCompatActivity() {
 
         const val KEY_POINTER_TOUCH_AREA_OFFSET_DP = "key_pointer_touch_area_offset_dp"
         const val KEY_ENABLE_POINTER_DRAG_MODE = "key_enable_pointer_drag_mode"
+        const val KEY_MOUSE_ARROW_SPEED = "key_mouse_arrow_speed"
+        const val KEY_MOUSE_WHEEL_SPEED = "key_mouse_wheel_speed"
         const val KEY_POINTER_HOVER_MENU = "key_pointer_hover_menu"
         const val KEY_PIN_POOL_DISPLAY_MODE = "key_pin_pool_display_mode"
         const val KEY_PIN_POOL_LOCAL_RULE_EXTRACTION = "key_pin_pool_local_rule_extraction"
@@ -207,6 +211,14 @@ class InspireSettingsActivity : AppCompatActivity() {
 
         binding.pointerDragModeSwitch.isChecked =
             settingsStore.readKey(KEY_ENABLE_POINTER_DRAG_MODE, false)
+        val arrowSpeed = settingsStore.readKey(KEY_MOUSE_ARROW_SPEED, 1.0f)
+            .coerceIn(0.5f, 2.0f)
+        binding.mouseArrowSpeedSeek.progress = ((arrowSpeed - 0.5f) * 10f).roundToInt()
+        binding.mouseArrowSpeedValue.text = formatMouseSpeed(arrowSpeed)
+        val wheelSpeed = settingsStore.readKey(KEY_MOUSE_WHEEL_SPEED, 1.0f)
+            .coerceIn(0.5f, 3.0f)
+        binding.mouseWheelSpeedSeek.progress = ((wheelSpeed - 0.5f) * 10f).roundToInt()
+        binding.mouseWheelSpeedValue.text = formatMouseSpeed(wheelSpeed)
         binding.pointerHoverMenuSwitch.isChecked = settingsStore.readKey(KEY_POINTER_HOVER_MENU, false)
         updatePointerHoverMenuSetting(binding.pointerHoverMenuSwitch.isChecked)
 
@@ -513,6 +525,20 @@ class InspireSettingsActivity : AppCompatActivity() {
                 settingsStore.saveKey(KEY_ENABLE_POINTER_DRAG_MODE, isChecked)
             }
         }
+        bindMouseSpeedSlider(
+            binding.mouseArrowSpeedSeek,
+            binding.mouseArrowSpeedValue,
+            KEY_MOUSE_ARROW_SPEED,
+            min = 0.5f,
+            max = 2.0f,
+        )
+        bindMouseSpeedSlider(
+            binding.mouseWheelSpeedSeek,
+            binding.mouseWheelSpeedValue,
+            KEY_MOUSE_WHEEL_SPEED,
+            min = 0.5f,
+            max = 3.0f,
+        )
 
         binding.screenContentLinkRadarSwitch.setOnCheckedChangeListener { _, isChecked ->
             lifecycleScope.launch { settingsStore.saveKey(KEY_SCREEN_CONTENT_LINK_RADAR, isChecked) }
@@ -1064,4 +1090,30 @@ class InspireSettingsActivity : AppCompatActivity() {
             getString(R.string.inspire_settings_notification_display_time_seconds, seconds)
         }
     }
+    private fun bindMouseSpeedSlider(
+        seekBar: SeekBar,
+        valueView: TextView,
+        key: String,
+        min: Float,
+        max: Float,
+    ) {
+        seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                valueView.text = formatMouseSpeed((min + progress * 0.1f).coerceAtMost(max))
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
+
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                val speed = (min + (seekBar?.progress ?: 0) * 0.1f).coerceIn(min, max)
+                valueView.text = formatMouseSpeed(speed)
+                lifecycleScope.launch {
+                    settingsStore.saveKey(key, speed)
+                }
+            }
+        })
+    }
+
+    private fun formatMouseSpeed(speed: Float): String = "%.1fx".format(speed)
+
 }

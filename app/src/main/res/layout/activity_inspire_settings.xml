@@ -126,6 +126,112 @@
                     <io.github.lumiagg.gestureevo.settings.ui.SettingsSwitchRow android:id="@+id/pointer_drag_mode_row" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" app:settingsRowTitle="@string/inspire_settings_pointer_drag_mode" app:settingsRowSummary="@string/inspire_settings_pointer_drag_mode_desc">
                         <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/pointerDragModeSwitch" android:checked="false" android:layout_width="wrap_content" android:layout_height="wrap_content" />
                     </io.github.lumiagg.gestureevo.settings.ui.SettingsSwitchRow>
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:paddingHorizontal="14dp"
+                        android:text="@string/inspire_settings_touchpad_feel"
+                        android:textAppearance="?attr/textAppearanceTitleSmall"
+                        android:textColor="?attr/colorOnSurface" />
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/bg_settings_tile"
+                        android:orientation="vertical"
+                        android:paddingHorizontal="14dp"
+                        android:paddingTop="10dp"
+                        android:paddingBottom="4dp">
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/inspire_settings_mouse_arrow_speed"
+                                    android:textAppearance="?attr/textAppearanceTitleSmall" />
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:text="@string/inspire_settings_mouse_arrow_speed_desc"
+                                    android:textAppearance="?attr/textAppearanceBodySmall"
+                                    android:textColor="?attr/colorOnSurfaceVariant" />
+                            </LinearLayout>
+                            <TextView
+                                android:id="@+id/mouseArrowSpeedValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="12dp"
+                                android:text="1.0x"
+                                android:textAppearance="?attr/textAppearanceLabelLarge"
+                                android:textColor="?attr/colorPrimary" />
+                        </LinearLayout>
+                        <SeekBar
+                            android:id="@+id/mouseArrowSpeedSeek"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:max="15"
+                            android:progress="5"
+                            android:paddingHorizontal="0dp" />
+                    </LinearLayout>
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/bg_settings_tile"
+                        android:orientation="vertical"
+                        android:paddingHorizontal="14dp"
+                        android:paddingTop="10dp"
+                        android:paddingBottom="4dp">
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/inspire_settings_mouse_wheel_speed"
+                                    android:textAppearance="?attr/textAppearanceTitleSmall" />
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:text="@string/inspire_settings_mouse_wheel_speed_desc"
+                                    android:textAppearance="?attr/textAppearanceBodySmall"
+                                    android:textColor="?attr/colorOnSurfaceVariant" />
+                            </LinearLayout>
+                            <TextView
+                                android:id="@+id/mouseWheelSpeedValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="12dp"
+                                android:text="1.0x"
+                                android:textAppearance="?attr/textAppearanceLabelLarge"
+                                android:textColor="?attr/colorPrimary" />
+                        </LinearLayout>
+                        <SeekBar
+                            android:id="@+id/mouseWheelSpeedSeek"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:max="25"
+                            android:progress="5"
+                            android:paddingHorizontal="0dp" />
+                    </LinearLayout>
                 </LinearLayout>
             </io.github.lumiagg.gestureevo.settings.ui.SettingsSectionCard>
             <io.github.lumiagg.gestureevo.settings.ui.SettingsSectionCard android:id="@+id/pinPoolCard" android:layout_width="match_parent" android:layout_marginTop="@dimen/settings_card_spacing" app:settingsCardTitle="@string/inspire_settings_pin_pool_settings_title" app:settingsCardSummary="@string/inspire_settings_pin_pool_settings_description" app:settingsCardExpanded="false" android:layout_height="wrap_content">

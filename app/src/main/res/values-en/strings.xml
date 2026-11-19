@@ -494,6 +494,11 @@
     <string name="inspire_settings_show_pointer_trail_desc">Show the pointer movement path for easier hover and drag tracking</string>
     <string name="inspire_settings_pointer_drag_mode">Enter frame selection mode after hovering pointer</string>
     <string name="inspire_settings_pointer_drag_mode_desc">After entering frame selection mode, directly releasing can select current interface elements\nDragging can capture screen</string>
+    <string name="inspire_settings_touchpad_feel">Touchpad feel</string>
+    <string name="inspire_settings_mouse_arrow_speed">Arrow scroll speed</string>
+    <string name="inspire_settings_mouse_arrow_speed_desc">Scroll distance per step while holding a direction button</string>
+    <string name="inspire_settings_mouse_wheel_speed">Wheel speed</string>
+    <string name="inspire_settings_mouse_wheel_speed_desc">Scroll speed when pushing the wheel</string>
     <string name="inspire_settings_pin_pool_settings_title">Pin Pool Settings</string>
     <string name="inspire_settings_pin_pool_mode_title">Pin Pool Display Mode</string>
     <string name="inspire_settings_pin_pool_mode_desc">Choose fullscreen, left sidebar, right sidebar, or follow the trigger side</string>

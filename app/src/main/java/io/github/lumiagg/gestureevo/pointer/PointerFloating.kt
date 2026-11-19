@@ -56,6 +56,8 @@ import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.K
 import io.github.lumiagg.gestureevo.pointer.radar.LinkRegion
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_MOUSE_ARROW_SPEED
+import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_MOUSE_WHEEL_SPEED
 import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_POINTER_TOUCH_AREA_OFFSET_DP
 import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_SHOW_POINTER_TRAIL
 import io.github.lumiagg.gestureevo.utils.DynamicColorUtils
@@ -126,6 +128,8 @@ class PointerFloating(
     private var enterMouseAfterShow = false
     private var touchAreaOffsetDp = 0
     private var mouseModeActive = false
+    private var mouseArrowSpeed = 1.0f
+    private var mouseWheelSpeed = 1.0f
     private var mouseHoldScrollJob: Job? = null
     private var mouseHoldDirection: MousePadOverlay.Direction? = null
     private var mouseQuickScrollJob: Job? = null
@@ -425,6 +429,10 @@ class PointerFloating(
         pointerVisibleRequested = true
         ensureViewsAttached()
         updateTouchAreaConfig()
+        mouseArrowSpeed = context.settingsStore.readKey(KEY_MOUSE_ARROW_SPEED, 1.0f)
+            .coerceIn(0.5f, 2.0f)
+        mouseWheelSpeed = context.settingsStore.readKey(KEY_MOUSE_WHEEL_SPEED, 1.0f)
+            .coerceIn(0.5f, 3.0f)
         hoverMenuEnabled = context.settingsStore.readKey(KEY_POINTER_HOVER_MENU, false)
         hoverMenu.reset()
         pointerManger.resetMenuMapping()
@@ -647,7 +655,7 @@ class PointerFloating(
         val screenWidth = pointerFloatingView.width.coerceAtLeast(1).toFloat()
         val screenHeight = pointerFloatingView.height.coerceAtLeast(1).toFloat()
         val center = pointerManger.pointerCenter()
-        val distance = minOf(screenWidth, screenHeight) * MOUSE_SCROLL_DISTANCE_RATIO
+        val distance = minOf(screenWidth, screenHeight) * MOUSE_SCROLL_DISTANCE_RATIO * mouseArrowSpeed
         val half = distance / 2f
         val (startX, startY, endX, endY) = when (direction) {
             MousePadOverlay.Direction.UP -> listOf(
@@ -705,7 +713,7 @@ class PointerFloating(
     private fun onMouseWheelRelease(velocity: Float) {
         if (!mouseModeActive) return
         mouseWheelDragging = false
-        val maxSpeed = MOUSE_WHEEL_MAX_SPEED_DP_PER_SEC.dp2px
+        val maxSpeed = MOUSE_WHEEL_MAX_SPEED_DP_PER_SEC.dp2px * mouseWheelSpeed
         val minSpeed = MOUSE_WHEEL_MIN_SPEED_DP_PER_SEC.dp2px
         val inertia = (velocity * 1000f).coerceIn(-maxSpeed, maxSpeed)
         mouseWheelInertiaSpeedPxPerSec = if (abs(inertia) < minSpeed) 0f else inertia
@@ -777,7 +785,7 @@ class PointerFloating(
         val magnitude = abs(normalized)
         if (magnitude <= MOUSE_WHEEL_DEAD_ZONE) return 0f
         val strength = (magnitude - MOUSE_WHEEL_DEAD_ZONE) / (1f - MOUSE_WHEEL_DEAD_ZONE)
-        val speed = strength * MOUSE_WHEEL_MAX_SPEED_DP_PER_SEC.dp2px
+        val speed = strength * MOUSE_WHEEL_MAX_SPEED_DP_PER_SEC.dp2px * mouseWheelSpeed
         return if (normalized < 0f) -speed else speed
     }
 
