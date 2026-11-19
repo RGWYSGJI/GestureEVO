@@ -88,6 +88,8 @@ class InspireSettingsActivity : AppCompatActivity() {
         const val KEY_SHOW_POINTER_TRAIL = "key_show_pointer_trail"
 
         const val KEY_POINTER_TOUCH_AREA_OFFSET_DP = "key_pointer_touch_area_offset_dp"
+        const val KEY_POINTER_TOUCH_AREA_HORIZONTAL_OFFSET_DP =
+            "key_pointer_touch_area_horizontal_offset_dp"
         const val KEY_ENABLE_POINTER_DRAG_MODE = "key_enable_pointer_drag_mode"
         const val KEY_MOUSE_ARROW_SPEED = "key_mouse_arrow_speed"
         const val KEY_MOUSE_WHEEL_SPEED = "key_mouse_wheel_speed"
@@ -208,6 +210,9 @@ class InspireSettingsActivity : AppCompatActivity() {
             settingsStore.readKey(KEY_SHOW_POINTER_TRAIL, false)
 
         updatePointerTouchAreaOffsetText(settingsStore.readKey(KEY_POINTER_TOUCH_AREA_OFFSET_DP, 0))
+        updatePointerTouchAreaHorizontalOffsetText(
+            settingsStore.readKey(KEY_POINTER_TOUCH_AREA_HORIZONTAL_OFFSET_DP, 0)
+        )
 
         binding.pointerDragModeSwitch.isChecked =
             settingsStore.readKey(KEY_ENABLE_POINTER_DRAG_MODE, false)
@@ -518,6 +523,9 @@ class InspireSettingsActivity : AppCompatActivity() {
 
         binding.pointerTouchAreaOffsetRow.setOnClickListener {
             showPointerTouchAreaOffsetBottomSheet()
+        }
+        binding.pointerTouchAreaHorizontalOffsetRow.setOnClickListener {
+            showPointerTouchAreaHorizontalOffsetBottomSheet()
         }
 
         binding.pointerDragModeSwitch.setOnCheckedChangeListener { _, isChecked ->
@@ -1024,7 +1032,8 @@ class InspireSettingsActivity : AppCompatActivity() {
         lifecycleScope.launch {
             PointerTouchAreaOffsetBottomSheet(
                 activity = this@InspireSettingsActivity,
-                initialOffsetDp = settingsStore.readKey(KEY_POINTER_TOUCH_AREA_OFFSET_DP, 0)
+                initialOffsetDp = settingsStore.readKey(KEY_POINTER_TOUCH_AREA_OFFSET_DP, 0),
+                titleRes = R.string.inspire_settings_pointer_touch_area_offset,
             ) { selectedOffsetDp ->
                 lifecycleScope.launch {
                     settingsStore.saveKey(KEY_POINTER_TOUCH_AREA_OFFSET_DP, selectedOffsetDp)
@@ -1032,6 +1041,34 @@ class InspireSettingsActivity : AppCompatActivity() {
                 }
             }.show()
         }
+    }
+
+    private fun showPointerTouchAreaHorizontalOffsetBottomSheet() {
+        lifecycleScope.launch {
+            PointerTouchAreaOffsetBottomSheet(
+                activity = this@InspireSettingsActivity,
+                initialOffsetDp = settingsStore.readKey(
+                    KEY_POINTER_TOUCH_AREA_HORIZONTAL_OFFSET_DP,
+                    0
+                ),
+                titleRes = R.string.inspire_settings_pointer_touch_area_horizontal_offset,
+            ) { selectedOffsetDp ->
+                lifecycleScope.launch {
+                    settingsStore.saveKey(
+                        KEY_POINTER_TOUCH_AREA_HORIZONTAL_OFFSET_DP,
+                        selectedOffsetDp
+                    )
+                    updatePointerTouchAreaHorizontalOffsetText(selectedOffsetDp)
+                }
+            }.show()
+        }
+    }
+
+    private fun updatePointerTouchAreaHorizontalOffsetText(offsetDp: Int) {
+        binding.selectedPointerTouchAreaHorizontalOffsetText.text = getString(
+            R.string.inspire_settings_pointer_touch_area_offset_dp,
+            offsetDp.coerceIn(-150, 150)
+        )
     }
 
     private fun updatePointerHoverMenuSetting(enabled: Boolean) {

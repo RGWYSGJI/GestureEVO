@@ -58,6 +58,7 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_MOUSE_ARROW_SPEED
 import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_MOUSE_WHEEL_SPEED
+import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_POINTER_TOUCH_AREA_HORIZONTAL_OFFSET_DP
 import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_POINTER_TOUCH_AREA_OFFSET_DP
 import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_SHOW_POINTER_TRAIL
 import io.github.lumiagg.gestureevo.utils.DynamicColorUtils
@@ -127,6 +128,7 @@ class PointerFloating(
     var needShowTouchView = false
     private var enterMouseAfterShow = false
     private var touchAreaOffsetDp = 0
+    private var touchAreaHorizontalOffsetDp = 0
     private var mouseModeActive = false
     private var mouseArrowSpeed = 1.0f
     private var mouseWheelSpeed = 1.0f
@@ -345,7 +347,9 @@ class PointerFloating(
         val touchYRatio = (pointerManger.touchViewY / screenHeight).coerceIn(0f, 1f)
         val amplifiedTouchYRatio = ((touchYRatio - 0.5f) * 1.5f + 0.5f).coerceIn(0f, 1f)
 
-        layoutParams.x = (pointerManger.touchViewX - layoutParams.width / 2).toInt()
+        val baseX = (pointerManger.touchViewX - layoutParams.width / 2).toInt()
+            .coerceIn(minX.toInt(), maxX.toInt())
+        layoutParams.x = (baseX + touchAreaHorizontalOffsetDp.dp2px).toInt()
             .coerceIn(minX.toInt(), maxX.toInt())
         layoutParams.y = (minY + (maxY - minY) * amplifiedTouchYRatio + touchAreaOffsetDp.dp2px).toInt()
             .coerceIn(minY.toInt(), maxY.toInt())
@@ -555,6 +559,10 @@ class PointerFloating(
     private suspend fun updateTouchAreaConfig() = withContext(Dispatchers.IO) {
         touchAreaOffsetDp = context.settingsStore.readKey(
             KEY_POINTER_TOUCH_AREA_OFFSET_DP,
+            0
+        ).coerceIn(-150, 150)
+        touchAreaHorizontalOffsetDp = context.settingsStore.readKey(
+            KEY_POINTER_TOUCH_AREA_HORIZONTAL_OFFSET_DP,
             0
         ).coerceIn(-150, 150)
     }

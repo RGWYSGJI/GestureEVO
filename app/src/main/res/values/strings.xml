@@ -553,6 +553,8 @@
     <string name="inspire_settings_pointer_touch_area_offset">触摸区域上下偏移</string>
     <string name="inspire_settings_pointer_touch_area_offset_desc">调整指针触摸区域的显示位置，负数向上，正数向下</string>
     <string name="inspire_settings_pointer_touch_area_offset_dp">%1$d dp</string>
+    <string name="inspire_settings_pointer_touch_area_horizontal_offset">触摸区域左右偏移</string>
+    <string name="inspire_settings_pointer_touch_area_horizontal_offset_desc">调整指针触摸区域的左右位置，负数向左，正数向右</string>
     <string name="inspire_settings_pointer_drag_mode">悬停指针后进入框选模式</string>
     <string name="inspire_settings_pointer_drag_mode_desc">进入框选模式后直接释放可以选择当前界面元素\n拖动后可以截取屏幕</string>
     <string name="inspire_settings_touchpad_feel">触摸板手感</string>

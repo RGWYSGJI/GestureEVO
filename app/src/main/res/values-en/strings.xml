@@ -1198,6 +1198,8 @@
     <string name="inspire_settings_pointer_touch_area_offset">Vertical touch area offset</string>
     <string name="inspire_settings_pointer_touch_area_offset_desc">Move the touch area up with a negative value or down with a positive value</string>
     <string name="inspire_settings_pointer_touch_area_offset_dp">%1$d dp</string>
+    <string name="inspire_settings_pointer_touch_area_horizontal_offset">Touch area horizontal offset</string>
+    <string name="inspire_settings_pointer_touch_area_horizontal_offset_desc">Adjust the left/right position of the pointer touch area; negative moves left, positive moves right</string>
     <string name="inspire_settings_pin_pool_settings_description">Configure pin pool display and local rule extraction</string>
     <string name="inspire_settings_notification_settings_description">Manage notification icons, allowed apps and display duration</string>
     <string name="inspire_settings_keyboard_settings_description">Choose a keyboard layout and adjust input options</string>
