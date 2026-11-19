@@ -416,6 +416,27 @@ class ActionProxy(private val context: Context, linkString: String) {
         }
     }
 
+    /**
+     * Re-applying freeform options to a task that is already in the foreground can resize
+     * the user's fullscreen app. Only apply freeform when the target is not the current
+     * foreground package (or when the caller explicitly asks for a new window).
+     */
+    private fun shouldUseFreeform(targetPackage: String?): Boolean {
+        if (!freeform || newWindow) return freeform
+        val currentPackage = CurrentPackageProvider.resolveCurrentPackageName()
+        if (!targetPackage.isNullOrEmpty() && targetPackage == currentPackage) {
+            AppLogger.event(
+                LogModule.ACTION,
+                "freeform_skipped_foreground",
+                LogLevel.DEBUG,
+                trace,
+                fields = mapOf("package" to targetPackage),
+            )
+            return false
+        }
+        return true
+    }
+
     /** Shared ROM dispatch for normal links, app activities and system-owned shortcuts. */
     private suspend fun launchWithWindowRouting(
         targetIntent: Intent? = null,
@@ -425,9 +446,13 @@ class ActionProxy(private val context: Context, linkString: String) {
         options: Bundle? = null,
         launchDirect: suspend (Bundle?) -> Boolean,
     ): Boolean {
-        val rom = if (freeform) getFreeFormCode(context) else 0
-        val route = if (continued && freeform) ActionWindowRoute.SYSTEM_FREEFORM else actionWindowRoute(
-            freeform, rom == RomFreeFormCode.VIVO.code, rom == RomFreeFormCode.NUBIA.code,
+        val routeTarget = targetPackage
+            ?: targetIntent?.component?.packageName
+            ?: targetIntent?.`package`
+        val useFreeform = shouldUseFreeform(routeTarget)
+        val rom = if (useFreeform) getFreeFormCode(context) else 0
+        val route = if (continued && useFreeform) ActionWindowRoute.SYSTEM_FREEFORM else actionWindowRoute(
+            useFreeform, rom == RomFreeFormCode.VIVO.code, rom == RomFreeFormCode.NUBIA.code,
         )
         AppLogger.event(LogModule.ACTION, "window_launch_route", LogLevel.DEBUG, trace,
             fields = mapOf("route" to route.name, "systemShortcut" to (shortcutUri != null)))
@@ -566,11 +591,12 @@ class ActionProxy(private val context: Context, linkString: String) {
                 }
                 AppLogger.event(LogModule.ACTION, "launch_requested", trace = trace,
                     fields = mapOf("method" to "work_profile", "component" to componentName?.flattenToShortString()))
+                val useFreeform = shouldUseFreeform(componentName?.packageName)
                 launcherApps.startMainActivity(
                     componentName,
                     targetUser,
                     null,
-                    if (freeform) getActivityOptions().toBundle() else null
+                    if (useFreeform) getActivityOptions().toBundle() else null
                 )
                 AppLogger.event(LogModule.ACTION, "launch_request_submitted", trace = trace,
                     fields = mapOf("method" to "work_profile"))
