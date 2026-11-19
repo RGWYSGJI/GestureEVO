@@ -664,7 +664,12 @@ class PointerFloating(
         pointerManger.pulseClickFeedback()
         val point = pointerManger.pointerCenter()
         context.launch {
-            performPointerClick(point.x, point.y, MOUSE_LONG_PRESS_DURATION_MS)
+            performPointerClick(
+                point.x,
+                point.y,
+                MOUSE_LONG_PRESS_DURATION_MS,
+                isValid = { mouseModeActive },
+            )
         }
     }
 
@@ -716,7 +721,10 @@ class PointerFloating(
             return
         }
         if (root.packageName == context.packageName) {
+            // The accessibility root can be one of our own overlay windows; fall back to a
+            // short swipe instead of silently doing nothing.
             root.recycle()
+            scheduleWheelSwipe(scrollUp)
             return
         }
 
