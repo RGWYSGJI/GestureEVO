@@ -864,7 +864,7 @@ class PointerFloating(
     }
 
     private fun onMouseWheelRelease(velocity: Float) {
-        if (!mouseModeActive) return
+        if (!mouseModeActive || mouseDragButtonActive) return
         mouseWheelDragging = false
         if (textSelectionActive) {
             mouseWheelInertiaSpeedPxPerSec = 0f
@@ -947,7 +947,7 @@ class PointerFloating(
     }
 
     private fun scrollWheelStep(scrollUp: Boolean) {
-        if (!mouseModeActive || textSelectionActive) return
+        if (!mouseModeActive || textSelectionActive || mouseDragButtonActive) return
         // Do not use ACTION_SCROLL_* for the wheel: many apps treat it as a full page even
         // when a fractional amount is supplied, which is exactly the "too fast" behavior.
         // A short, slow swipe is app-independent and gives the wheel a predictable step.
