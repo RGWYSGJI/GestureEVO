@@ -139,6 +139,7 @@ class PointerFloating(
     private var touchAreaOffsetDp = 0
     private var mouseModeActive = false
     private var mouseDragButtonActive = false
+    private var pendingDragAfterSelectionStop = false
     private var mouseHoldScrollJob: Job? = null
     private var mouseHoldDirection: MousePadOverlay.Direction? = null
     private var mouseDragNudgeJob: Job? = null
@@ -633,6 +634,7 @@ class PointerFloating(
         mouseDragNudgeJob = null
         pointerDragSession.end()
         mouseDragButtonActive = false
+        pendingDragAfterSelectionStop = false
         mousePadOverlay.setLongPressActive(false)
         mousePadOverlay.setDragActive(false)
         mouseQuickScrollJob?.cancel()
@@ -673,6 +675,10 @@ class PointerFloating(
                 mouseDragButtonActive = false
                 mousePadOverlay.setLongPressActive(false)
                 mousePadOverlay.setDragActive(false)
+                if (pendingDragAfterSelectionStop && mouseModeActive) {
+                    pendingDragAfterSelectionStop = false
+                    onMouseDragToggle()
+                }
             }
         }
     }
@@ -762,11 +768,17 @@ class PointerFloating(
         }
         if (textSelectionActive) {
             stopTextSelectionSession()
+            if (pointerDragSession.isBusy) {
+                pendingDragAfterSelectionStop = true
+                Log.d("PointerFloating", "drag_toggle_pending_selection_stop")
+                return
+            }
         }
         if (pointerDragSession.isBusy) {
             Log.d("PointerFloating", "drag_toggle_ignored_busy")
             return
         }
+        pendingDragAfterSelectionStop = false
 
         mouseHoldScrollJob?.cancel()
         mouseHoldScrollJob = null
