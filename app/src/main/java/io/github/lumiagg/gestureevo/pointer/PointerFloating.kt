@@ -73,6 +73,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
@@ -829,7 +830,7 @@ class PointerFloating(
     private suspend fun mouseWheelLoop() {
         var lastTime = SystemClock.uptimeMillis()
         try {
-            while (isActive && mouseModeActive && !textSelectionActive) {
+            while (currentCoroutineContext().isActive && mouseModeActive && !textSelectionActive) {
                 delay(16)
                 val now = SystemClock.uptimeMillis()
                 val dt = ((now - lastTime) / 1000f).coerceIn(0.001f, 0.05f)
