@@ -212,12 +212,12 @@ class InspireSettingsActivity : AppCompatActivity() {
         binding.pointerDragModeSwitch.isChecked =
             settingsStore.readKey(KEY_ENABLE_POINTER_DRAG_MODE, false)
         val arrowSpeed = settingsStore.readKey(KEY_MOUSE_ARROW_SPEED, 1.0f)
-            .coerceIn(0.5f, 2.0f)
-        binding.mouseArrowSpeedSeek.progress = ((arrowSpeed - 0.5f) * 10f).roundToInt()
+            .coerceIn(0.1f, 2.0f)
+        binding.mouseArrowSpeedSeek.progress = ((arrowSpeed - 0.1f) * 10f).roundToInt()
         binding.mouseArrowSpeedValue.text = formatMouseSpeed(arrowSpeed)
         val wheelSpeed = settingsStore.readKey(KEY_MOUSE_WHEEL_SPEED, 1.0f)
-            .coerceIn(0.5f, 3.0f)
-        binding.mouseWheelSpeedSeek.progress = ((wheelSpeed - 0.5f) * 10f).roundToInt()
+            .coerceIn(0.1f, 3.0f)
+        binding.mouseWheelSpeedSeek.progress = ((wheelSpeed - 0.1f) * 10f).roundToInt()
         binding.mouseWheelSpeedValue.text = formatMouseSpeed(wheelSpeed)
         binding.pointerHoverMenuSwitch.isChecked = settingsStore.readKey(KEY_POINTER_HOVER_MENU, false)
         updatePointerHoverMenuSetting(binding.pointerHoverMenuSwitch.isChecked)
@@ -529,14 +529,14 @@ class InspireSettingsActivity : AppCompatActivity() {
             binding.mouseArrowSpeedSeek,
             binding.mouseArrowSpeedValue,
             KEY_MOUSE_ARROW_SPEED,
-            min = 0.5f,
+            min = 0.1f,
             max = 2.0f,
         )
         bindMouseSpeedSlider(
             binding.mouseWheelSpeedSeek,
             binding.mouseWheelSpeedValue,
             KEY_MOUSE_WHEEL_SPEED,
-            min = 0.5f,
+            min = 0.1f,
             max = 3.0f,
         )
 
