@@ -711,6 +711,8 @@ class PointerFloating(
         if (!mouseModeActive) return
         if (pointerDragSession.isActive) {
             pointerDragSession.end()
+            mouseDragNudgeJob?.cancel()
+            mouseDragNudgeJob = null
             return
         }
         if (pointerDragSession.isBusy) return

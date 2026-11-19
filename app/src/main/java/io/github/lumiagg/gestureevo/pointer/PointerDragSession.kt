@@ -67,10 +67,17 @@ class PointerDragSession(
         lastX = x
         lastY = y
 
+        if (!scope.isActive) {
+            finish()
+            return
+        }
+
         scope.launch {
-            val accepted = runCatching {
+            val accepted = try {
                 service.beginPointerDrag(x, y, INITIAL_HOLD_MS)
-            }.getOrDefault(false)
+            } catch (_: Throwable) {
+                false
+            }
             starting = false
 
             if (!accepted) {
@@ -80,7 +87,11 @@ class PointerDragSession(
 
             if (!active) {
                 // The user ended the session while the initial hold was still being dispatched.
-                runCatching { service.endPointerDrag() }
+                try {
+                    service.endPointerDrag()
+                } catch (_: Throwable) {
+                    // The gesture may already have been cancelled by the target.
+                }
                 finish()
                 return@launch
             }
@@ -100,7 +111,9 @@ class PointerDragSession(
     /** Lifts the injected finger. Safe to call repeatedly. */
     fun end() {
         if (finished) return
-        if (!busy) return
+        // end() can be called from several paths (close, destroy, button, failure). Once the
+        // session is no longer active, do not launch a second final lift.
+        if (!active) return
         active = false
         // The initial hold cannot be continued before dispatchGesture reports completion.
         // The start coroutine sees active == false and ends it as soon as the hold callback
@@ -116,7 +129,11 @@ class PointerDragSession(
             move?.cancelAndJoinQuietly()
             heartbeat?.cancelAndJoinQuietly()
             mutex.withLock {
-                runCatching { service.endPointerDrag() }
+                try {
+                    service.endPointerDrag()
+                } catch (_: Throwable) {
+                    // The gesture may already have been cancelled by the target.
+                }
             }
             finish()
         }
@@ -131,9 +148,11 @@ class PointerDragSession(
                     if (!active) {
                         false
                     } else {
-                        runCatching {
+                        try {
                             service.continuePointerDrag(targetX, targetY, MOVE_DURATION_MS)
-                        }.getOrDefault(false)
+                        } catch (_: Throwable) {
+                            false
+                        }
                     }
                 }
                 if (!accepted) {
@@ -159,9 +178,11 @@ class PointerDragSession(
                 if (!active) {
                     false
                 } else {
-                    runCatching {
+                    try {
                         service.continuePointerDrag(lastX, lastY, HEARTBEAT_DURATION_MS)
-                    }.getOrDefault(false)
+                    } catch (_: Throwable) {
+                        false
+                    }
                 }
             }
             if (!accepted) {
@@ -171,9 +192,11 @@ class PointerDragSession(
         }
     }
 
+    @Synchronized
     private fun finish() {
         if (finished) return
         finished = true
+        starting = false
         busy = false
         active = false
         onStopped()
@@ -181,7 +204,11 @@ class PointerDragSession(
 
     private suspend fun Job.cancelAndJoinQuietly() {
         cancel()
-        runCatching { join() }
+        try {
+            join()
+        } catch (_: Throwable) {
+            // The job may already be cancelled by the service scope.
+        }
     }
 
     private companion object {

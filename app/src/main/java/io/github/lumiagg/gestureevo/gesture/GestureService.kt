@@ -477,6 +477,12 @@ class GestureService : AccessibilityService(), CoroutineScope {
             if (continuation.isActive) continuation.resume(false)
             return@suspendCancellableCoroutine
         }
+        if (next == null) {
+            Log.d(TAG, "continuePointerDrag: continueStroke returned null")
+            pointerDragStroke = null
+            if (continuation.isActive) continuation.resume(false)
+            return@suspendCancellableCoroutine
+        }
 
         pointerDragStroke = next
         pointerDragLastX = x
@@ -518,6 +524,12 @@ class GestureService : AccessibilityService(), CoroutineScope {
             previous.continueStroke(path, 0L, 1L, false)
         } catch (error: Throwable) {
             Log.d(TAG, "endPointerDrag: cannot end, ${error.message}")
+            pointerDragStroke = null
+            if (continuation.isActive) continuation.resume(false)
+            return@suspendCancellableCoroutine
+        }
+        if (last == null) {
+            Log.d(TAG, "endPointerDrag: continueStroke returned null")
             pointerDragStroke = null
             if (continuation.isActive) continuation.resume(false)
             return@suspendCancellableCoroutine
