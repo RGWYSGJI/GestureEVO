@@ -51,6 +51,7 @@ class MousePadOverlay(
 
     private val buttons = linkedMapOf<Direction, TextView>()
     private lateinit var wheelView: MouseScrollWheelView
+    private lateinit var bottomSpacer: View
     private lateinit var quickTopButton: TextView
     private lateinit var quickBottomButton: TextView
     private lateinit var closeButton: TextView
@@ -91,7 +92,7 @@ class MousePadOverlay(
         topBar.addView(
             wheelView,
             LinearLayout.LayoutParams(
-                46f.dp2px.toInt(),
+                WHEEL_WIDTH_DP.dp2px.toInt(),
                 LinearLayout.LayoutParams.MATCH_PARENT,
             ).apply {
                 val margin = 2f.dp2px.toInt()
@@ -125,9 +126,25 @@ class MousePadOverlay(
         addDirectionButton(Direction.LEFT, "←")
         addDirectionButton(Direction.RIGHT, "→")
 
-        // Bottom short edge: quick bottom and close. U+21D1/U+21D3 live in the
-        // ordinary Arrows block, which is much more widely covered than Supplemental
-        // Arrows-B; keep a plain-arrow fallback for ROMs that still lack them.
+        // Bottom short edge: leave the same slot as the wheel on the left, so
+        // quick-bottom and close sit directly under quick-top and long-press.
+        // U+21D1/U+21D3 live in the ordinary Arrows block, which is much more widely
+        // covered than Supplemental Arrows-B; keep a plain-arrow fallback for ROMs
+        // that still lack them.
+        bottomSpacer = View(context).apply {
+            isClickable = false
+            importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
+        bottomBar.addView(
+            bottomSpacer,
+            LinearLayout.LayoutParams(
+                WHEEL_WIDTH_DP.dp2px.toInt(),
+                LinearLayout.LayoutParams.MATCH_PARENT,
+            ).apply {
+                val margin = 2f.dp2px.toInt()
+                setMargins(margin, margin, margin, margin)
+            },
+        )
         quickBottomButton = addActionButton(
             bottomBar,
             edgeArrowLabel(up = false),
@@ -279,10 +296,10 @@ class MousePadOverlay(
         if (!::wheelView.isInitialized) return
         if (touchPadOnLeft) {
             arrangeBar(topBar, longPressButton, quickTopButton, wheelView)
-            arrangeBar(bottomBar, closeButton, quickBottomButton)
+            arrangeBar(bottomBar, closeButton, quickBottomButton, bottomSpacer)
         } else {
             arrangeBar(topBar, wheelView, quickTopButton, longPressButton)
-            arrangeBar(bottomBar, quickBottomButton, closeButton)
+            arrangeBar(bottomBar, bottomSpacer, quickBottomButton, closeButton)
         }
     }
 
@@ -317,6 +334,7 @@ class MousePadOverlay(
 
     private companion object {
         const val STRIP_WIDTH_DP = 48f
+        const val WHEEL_WIDTH_DP = 46f
         const val TOP_BAR_HEIGHT_DP = 96f
         const val BOTTOM_BAR_HEIGHT_DP = 48f
         const val BUTTON_OFF_COLOR = 0x66000000
