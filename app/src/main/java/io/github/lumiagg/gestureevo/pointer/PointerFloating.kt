@@ -130,6 +130,10 @@ class PointerFloating(
     private var touchAreaOffsetDp = 0
     private var touchAreaHorizontalOffsetDp = 0
     private var mouseModeActive = false
+    private var mouseLongPressHoldActive = false
+    private val pointerHoldSession by lazy {
+        PointerDragSession(context, context) { onPointerHoldStopped() }
+    }
     private var mouseArrowSpeed = 1.0f
     private var mouseWheelSpeed = 1.0f
     private var mouseHoldScrollJob: Job? = null
@@ -643,13 +647,16 @@ class PointerFloating(
         mouseWheelOffsetPx = 0f
         mouseWheelInertiaSpeedPxPerSec = 0f
         mouseWheelScrollRemainderPx = 0f
+        mouseLongPressHoldActive = false
+        pointerHoldSession.end()
+        mousePadOverlay.setLongPressActive(false)
         pointerManger.stopMouseMode()
         mousePadOverlay.cancelDirectionHold()
         mousePadOverlay.visibility = View.GONE
     }
 
     private fun onMouseDirectionPress(direction: MousePadOverlay.Direction) {
-        if (!mouseModeActive) return
+        if (!mouseModeActive || mouseLongPressHoldActive) return
         mouseHoldDirection = direction
         mouseHoldScrollJob?.cancel()
         mouseHoldScrollJob = null
@@ -700,20 +707,39 @@ class PointerFloating(
 
     private fun onMouseLongPress() {
         if (!mouseModeActive) return
+        if (mouseLongPressHoldActive) {
+            mouseLongPressHoldActive = false
+            mousePadOverlay.setLongPressActive(false)
+            pointerHoldSession.end()
+            return
+        }
+        if (pointerHoldSession.isBusy) return
+
+        mouseHoldScrollJob?.cancel()
+        mouseHoldScrollJob = null
+        mouseQuickScrollJob?.cancel()
+        mouseQuickScrollJob = null
+        mouseWheelLoopJob?.cancel()
+        mouseWheelLoopJob = null
+
+        mouseLongPressHoldActive = true
+        mousePadOverlay.setLongPressActive(true)
         pointerManger.pulseClickFeedback()
         val point = pointerManger.pointerCenter()
-        context.launch {
-            performPointerClick(
-                point.x,
-                point.y,
-                MOUSE_LONG_PRESS_DURATION_MS,
-                isValid = { mouseModeActive },
-            )
+        pointerHoldSession.start(point.x, point.y, MOUSE_LONG_PRESS_DURATION_MS)
+    }
+
+    private fun onPointerHoldStopped() {
+        context.postOnMain {
+            if (pointerHoldSession.isActive) return@postOnMain
+            if (!mouseLongPressHoldActive) return@postOnMain
+            mouseLongPressHoldActive = false
+            mousePadOverlay.setLongPressActive(false)
         }
     }
 
     private fun onMouseWheelScroll(deltaY: Float) {
-        if (!mouseModeActive || deltaY == 0f) return
+        if (!mouseModeActive || mouseLongPressHoldActive || deltaY == 0f) return
         if (!mouseWheelDragging) {
             mouseWheelOffsetPx = 0f
             mouseWheelInertiaSpeedPxPerSec = 0f
@@ -728,7 +754,7 @@ class PointerFloating(
     }
 
     private fun onMouseWheelRelease(velocity: Float) {
-        if (!mouseModeActive) return
+        if (!mouseModeActive || mouseLongPressHoldActive) return
         mouseWheelDragging = false
         val maxSpeed = MOUSE_WHEEL_MAX_SPEED_DP_PER_SEC.dp2px * mouseWheelSpeed
         val minSpeed = MOUSE_WHEEL_MIN_SPEED_DP_PER_SEC.dp2px
@@ -843,7 +869,7 @@ class PointerFloating(
     }
 
     private fun onMouseQuickScroll(toTop: Boolean) {
-        if (!mouseModeActive || mouseQuickScrollJob?.isActive == true) return
+        if (!mouseModeActive || mouseLongPressHoldActive || mouseQuickScrollJob?.isActive == true) return
         val point = pointerManger.pointerCenter()
         mouseQuickScrollJob = context.launch {
             try {
@@ -1364,9 +1390,13 @@ class PointerFloating(
                 (center.y + dy).coerceIn(halfHeight, screenHeight - halfHeight),
             )
             placePointer(target)
+            if (mouseLongPressHoldActive) {
+                pointerHoldSession.moveTo(target.x, target.y)
+            }
         }
 
         private fun handleMouseTap() {
+            if (mouseLongPressHoldActive) return
             pulseClickFeedback()
             val point = pointerCenter()
             // Match the normal pointer's tap path: click immediately after release, no

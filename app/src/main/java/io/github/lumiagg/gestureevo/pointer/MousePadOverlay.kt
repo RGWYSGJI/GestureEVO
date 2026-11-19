@@ -51,6 +51,7 @@ class MousePadOverlay(
 
     private val buttons = linkedMapOf<Direction, TextView>()
     private lateinit var closeButton: TextView
+    private lateinit var longPressButton: TextView
     private var activeDirection: Direction? = null
     private var closeArmed = false
     private var lastCloseTapAt = 0L
@@ -102,7 +103,7 @@ class MousePadOverlay(
         ) {
             onQuickScroll(true)
         }
-        val longPressButton = addActionButton(topBar, "长按", vertical = false) {
+        longPressButton = addActionButton(topBar, "长按", vertical = false) {
             onLongPress()
         }
         // Only the wheel grows downward into the 96dp top bar; keep the two
@@ -251,6 +252,11 @@ class MousePadOverlay(
         lastCloseTapAt = now
         removeCallbacks(closeReset)
         postDelayed(closeReset, CLOSE_DOUBLE_TAP_MS)
+    }
+
+    fun setLongPressActive(active: Boolean) {
+        longPressButton.text = if (active) "结束" else "长按"
+        setButtonColor(longPressButton, if (active) BUTTON_ON_COLOR else BUTTON_OFF_COLOR)
     }
 
     /** [touchPadOnLeft] is true when the pad itself occupies the left side of the screen. */
