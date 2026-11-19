@@ -429,10 +429,6 @@ class PointerFloating(
         pointerVisibleRequested = true
         ensureViewsAttached()
         updateTouchAreaConfig()
-        mouseArrowSpeed = context.settingsStore.readKey(KEY_MOUSE_ARROW_SPEED, 1.0f)
-            .coerceIn(0.5f, 2.0f)
-        mouseWheelSpeed = context.settingsStore.readKey(KEY_MOUSE_WHEEL_SPEED, 1.0f)
-            .coerceIn(0.5f, 3.0f)
         hoverMenuEnabled = context.settingsStore.readKey(KEY_POINTER_HOVER_MENU, false)
         hoverMenu.reset()
         pointerManger.resetMenuMapping()
@@ -449,6 +445,10 @@ class PointerFloating(
         pointerManger.viewPositionMonitor.start()
         trailView.updateTrailConfig()
         if (enterMouseAfterShow) {
+            mouseArrowSpeed = context.settingsStore.readKey(KEY_MOUSE_ARROW_SPEED, 1.0f)
+                .coerceIn(0.5f, 2.0f)
+            mouseWheelSpeed = context.settingsStore.readKey(KEY_MOUSE_WHEEL_SPEED, 1.0f)
+                .coerceIn(0.5f, 3.0f)
             enterMouseAfterShow = false
             enterMouseMode()
         }

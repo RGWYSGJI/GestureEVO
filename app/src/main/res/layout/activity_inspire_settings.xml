@@ -180,8 +180,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="48dp"
                             android:max="15"
-                            android:progress="5"
-                            android:paddingHorizontal="0dp" />
+                            android:progress="5" />
                     </LinearLayout>
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -229,8 +228,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="48dp"
                             android:max="25"
-                            android:progress="5"
-                            android:paddingHorizontal="0dp" />
+                            android:progress="5" />
                     </LinearLayout>
                 </LinearLayout>
             </io.github.lumiagg.gestureevo.settings.ui.SettingsSectionCard>
