@@ -17,8 +17,8 @@ import io.github.lumiagg.gestureevo.utils.dp2px
  * Action overlay shown only while the pointer is in mouse mode.
  *
  * The touch pad is a rectangle: the four direction buttons stay on its inner long edge (the
- * "x" edge, left or right), a scroll wheel, long-press button and drag button share the top
- * short edge, and the three page/navigation buttons sit on the bottom short edge.
+ * "x" edge, left or right), a scroll wheel and the long-press button share the top short
+ * edge, and the three page/navigation buttons sit on the bottom short edge.
  */
 class MousePadOverlay(
     context: Context,
@@ -27,7 +27,6 @@ class MousePadOverlay(
     private val onWheelScroll: (Float) -> Unit,
     private val onWheelRelease: (Float) -> Unit,
     private val onLongPress: () -> Unit,
-    private val onDragToggle: () -> Unit,
     private val onQuickScroll: (Boolean) -> Unit,
     private val onClose: () -> Unit,
 ) : FrameLayout(context) {
@@ -51,8 +50,6 @@ class MousePadOverlay(
     }
 
     private val buttons = linkedMapOf<Direction, TextView>()
-    private lateinit var longPressButton: TextView
-    private lateinit var dragButton: TextView
     private lateinit var closeButton: TextView
     private var activeDirection: Direction? = null
     private var closeArmed = false
@@ -86,34 +83,21 @@ class MousePadOverlay(
             },
         )
 
-        // Top short edge: wheel, long press, drag. The wheel gets the largest share so it
-        // remains usable inside the narrow touch pad; the two latches share the rest.
+        // Top short edge: the wheel takes the old double-click slot; the long-press
+        // button keeps its original right-hand slot.
         topBar.addView(
             MouseScrollWheelView(context, onWheelScroll, onWheelRelease),
             LinearLayout.LayoutParams(
                 0,
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                2f,
+                1f,
             ).apply {
                 val margin = 2f.dp2px.toInt()
                 setMargins(margin, margin, margin, margin)
             },
         )
-        longPressButton = addActionButton(
-            topBar,
-            "长按",
-            vertical = false,
-            weight = 1.4f,
-        ) {
+        addActionButton(topBar, "长按", vertical = false) {
             onLongPress()
-        }
-        dragButton = addActionButton(
-            topBar,
-            "拖拽",
-            vertical = false,
-            weight = 1.4f,
-        ) {
-            onDragToggle()
         }
 
         // Inner long edge: the existing four directions, unchanged in order.
@@ -187,7 +171,6 @@ class MousePadOverlay(
         parent: LinearLayout,
         label: String,
         vertical: Boolean,
-        weight: Float = 1f,
         action: () -> Unit,
     ): TextView {
         val button = TextView(context).apply {
@@ -204,13 +187,13 @@ class MousePadOverlay(
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 0,
-                weight,
+                1f,
             )
         } else {
             LinearLayout.LayoutParams(
                 0,
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                weight,
+                1f,
             )
         }.apply {
             val margin = 2f.dp2px.toInt()
@@ -234,29 +217,6 @@ class MousePadOverlay(
         setButtonColor(closeButton, BUTTON_ARMED_COLOR)
         removeCallbacks(closeReset)
         postDelayed(closeReset, CLOSE_DOUBLE_TAP_MS)
-    }
-
-    /**
-     * Marks the long-press button as a toggle while a drag session is held down. Tapping it
-     * again ends the session and lifts the injected finger.
-     */
-    fun setLongPressActive(active: Boolean) {
-        if (!::longPressButton.isInitialized) return
-        longPressButton.text = if (active) "结束" else "长按"
-        setButtonColor(
-            longPressButton,
-            if (active) BUTTON_ON_COLOR else BUTTON_OFF_COLOR,
-        )
-    }
-
-    /** Marks the drag latch while the injected finger is held down. */
-    fun setDragActive(active: Boolean) {
-        if (!::dragButton.isInitialized) return
-        dragButton.text = if (active) "松开" else "拖拽"
-        setButtonColor(
-            dragButton,
-            if (active) BUTTON_ON_COLOR else BUTTON_OFF_COLOR,
-        )
     }
 
     /** [touchPadOnLeft] is true when the pad itself occupies the left side of the screen. */
