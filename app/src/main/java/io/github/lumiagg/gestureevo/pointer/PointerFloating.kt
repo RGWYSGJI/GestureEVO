@@ -471,13 +471,9 @@ class PointerFloating(
         }
     }
 
-    /** Starts or exits touchpad mode for the TOUCHPAD action. */
+    /** Starts touchpad mode for the TOUCHPAD action. Repeated invocations are ignored. */
     fun enterMouseModeFromAction() {
-        if (mouseModeActive) {
-            // A second invocation of the same action leaves mouse mode.
-            enable = false
-            return
-        }
+        if (mouseModeActive) return
         enterMouseAfterShow = true
         needShowTouchView = true
         enable = true
