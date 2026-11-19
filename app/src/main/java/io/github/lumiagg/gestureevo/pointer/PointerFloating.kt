@@ -13,6 +13,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.drawable.Drawable
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -404,12 +405,14 @@ class PointerFloating(
         const val MOUSE_QUICK_SCROLL_STEPS = 30
         const val MOUSE_SCROLL_DISTANCE_RATIO = 0.35f
         const val MOUSE_WHEEL_STEP_DP = 10f
-        const val MOUSE_WHEEL_INERTIA_DECAY = 0.86f
-        const val MOUSE_WHEEL_MIN_VELOCITY = 0.04f
-        const val MOUSE_WHEEL_MAX_INERTIA_STEPS = 24
+        const val MOUSE_WHEEL_LEGACY_STEP_DP = 32f
+        const val MOUSE_WHEEL_SCROLL_FRACTION = 0.10f
+        const val MOUSE_WHEEL_INERTIA_DECAY = 0.80f
+        const val MOUSE_WHEEL_MIN_VELOCITY = 0.08f
+        const val MOUSE_WHEEL_MAX_INERTIA_STEPS = 10
         const val MOUSE_WHEEL_MAX_STEPS_PER_EVENT = 6
         const val MOUSE_WHEEL_SWIPE_DISTANCE_DP = 56f
-        const val MOUSE_WHEEL_SWIPE_DURATION_MS = 90L
+        const val MOUSE_WHEEL_SWIPE_DURATION_MS = 120L
     }
 
     var enable = false
@@ -740,7 +743,15 @@ class PointerFloating(
         mouseWheelInertiaJob?.cancel()
         mouseWheelAccumulator += deltaY
 
-        val stepPx = MOUSE_WHEEL_STEP_DP.dp2px
+        // Android 15+ can scroll a fraction of the viewport with
+        // ACTION_ARGUMENT_SCROLL_AMOUNT_FLOAT. Older platforms only have whole-page
+        // ACTION_SCROLL_FORWARD/BACKWARD, so require a much larger finger travel there.
+        val fineScrollSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM
+        val stepPx = if (fineScrollSupported) {
+            MOUSE_WHEEL_STEP_DP.dp2px
+        } else {
+            MOUSE_WHEEL_LEGACY_STEP_DP.dp2px
+        }
         var steps = 0
         while (abs(mouseWheelAccumulator) >= stepPx && steps < MOUSE_WHEEL_MAX_STEPS_PER_EVENT) {
             val scrollUp = mouseWheelAccumulator < 0f
@@ -799,7 +810,28 @@ class PointerFloating(
             } else {
                 AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
             }
-            handled = scrollable.performAction(action)
+            val amountArgs = if (
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM
+            ) {
+                Bundle().apply {
+                    putFloat(
+                        AccessibilityNodeInfo.ACTION_ARGUMENT_SCROLL_AMOUNT_FLOAT,
+                        MOUSE_WHEEL_SCROLL_FRACTION,
+                    )
+                }
+            } else {
+                null
+            }
+            handled = if (amountArgs != null) {
+                scrollable.performAction(action, amountArgs)
+            } else {
+                scrollable.performAction(action)
+            }
+            // Some apps ignore the fractional amount; keep the old whole-page behavior as a
+            // fallback instead of dropping the wheel event silently.
+            if (!handled && amountArgs != null) {
+                handled = scrollable.performAction(action)
+            }
             scrollable.recycle()
         }
         if (scrollable !== root) {
