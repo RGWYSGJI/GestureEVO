@@ -646,9 +646,20 @@ class PointerFloating(
     }
 
     private fun onDragSessionStopped() {
+        Log.d(
+            "PointerFloating",
+            "drag_session_stopped selection=$textSelectionActive busy=${pointerDragSession.isBusy}",
+        )
+        // Once character selection is active, the selection is driven by accessibility
+        // actions rather than the injected touch. Some apps cancel the held gesture as soon
+        // as the native selection handles appear; that must not end the selection mode or
+        // reset the long-press button.
+        if (textSelectionActive) {
+            Log.d("PointerFloating", "drag_session_stopped_selection_active")
+            return
+        }
         textSelectionStartJob?.cancel()
         textSelectionStartJob = null
-        textSelectionActive = false
         textSelectionController.stop()
         pointerFloatingView.post {
             if (!pointerDragSession.isBusy) {
@@ -782,6 +793,7 @@ class PointerFloating(
         textSelectionStartJob = null
         textSelectionActive = false
         textSelectionController.stop()
+        mousePadOverlay.setLongPressActive(false)
         pointerDragSession.end()
         mouseDragNudgeJob?.cancel()
         mouseDragNudgeJob = null
