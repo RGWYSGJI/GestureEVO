@@ -50,6 +50,9 @@ class MousePadOverlay(
     }
 
     private val buttons = linkedMapOf<Direction, TextView>()
+    private lateinit var wheelView: MouseScrollWheelView
+    private lateinit var quickTopButton: TextView
+    private lateinit var quickBottomButton: TextView
     private lateinit var closeButton: TextView
     private lateinit var longPressButton: TextView
     private var activeDirection: Direction? = null
@@ -82,10 +85,11 @@ class MousePadOverlay(
             },
         )
 
-        // Top short edge: the wheel is taller than the other controls and grows down;
-        // quick-top sits immediately left of the long-press button.
+        // Top short edge: canonical order is wheel, quick-top, long-press.
+        // setTouchPadSide() mirrors this order when the pad is on the left.
+        wheelView = MouseScrollWheelView(context, onWheelScroll, onWheelRelease)
         topBar.addView(
-            MouseScrollWheelView(context, onWheelScroll, onWheelRelease),
+            wheelView,
             LinearLayout.LayoutParams(
                 0,
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -95,7 +99,7 @@ class MousePadOverlay(
                 setMargins(margin, margin, margin, margin)
             },
         )
-        val quickTopButton = addActionButton(
+        quickTopButton = addActionButton(
             topBar,
             edgeArrowLabel(up = true),
             vertical = false,
@@ -125,7 +129,7 @@ class MousePadOverlay(
         // Bottom short edge: quick bottom and close. U+21D1/U+21D3 live in the
         // ordinary Arrows block, which is much more widely covered than Supplemental
         // Arrows-B; keep a plain-arrow fallback for ROMs that still lack them.
-        addActionButton(
+        quickBottomButton = addActionButton(
             bottomBar,
             edgeArrowLabel(up = false),
             vertical = false,
@@ -143,6 +147,7 @@ class MousePadOverlay(
         }
 
         visibility = View.GONE
+        applySideLayout(touchPadOnLeft = false)
     }
 
     private fun addDirectionButton(direction: Direction, label: String) {
@@ -264,6 +269,36 @@ class MousePadOverlay(
         val params = directionStrip.layoutParams as LayoutParams
         params.gravity = if (touchPadOnLeft) Gravity.END else Gravity.START
         directionStrip.layoutParams = params
+        applySideLayout(touchPadOnLeft)
+    }
+
+    /**
+     * The right-side pad is the canonical layout. The left-side pad is its horizontal mirror:
+     * the wheel joins the direction strip on the right/inner edge, and the bottom actions swap.
+     */
+    private fun applySideLayout(touchPadOnLeft: Boolean) {
+        if (!::wheelView.isInitialized) return
+        if (touchPadOnLeft) {
+            arrangeBar(topBar, longPressButton, quickTopButton, wheelView)
+            arrangeBar(bottomBar, closeButton, quickBottomButton)
+        } else {
+            arrangeBar(topBar, wheelView, quickTopButton, longPressButton)
+            arrangeBar(bottomBar, quickBottomButton, closeButton)
+        }
+    }
+
+    private fun arrangeBar(bar: LinearLayout, vararg children: View) {
+        val params = children.map { it.layoutParams as? LinearLayout.LayoutParams }
+        bar.removeAllViews()
+        children.forEachIndexed { index, child ->
+            (child.parent as? android.view.ViewGroup)?.removeView(child)
+            val childParams = params[index]
+            if (childParams != null) {
+                bar.addView(child, childParams)
+            } else {
+                bar.addView(child)
+            }
+        }
     }
 
     override fun onDetachedFromWindow() {
