@@ -53,10 +53,12 @@ class PointerDragSession(
         get() = busy || active
 
     /**
-     * Starts the initial long-press hold. Pointer updates arriving during the initial 600 ms are
-     * coalesced into [latestX]/[latestY] and applied as soon as the hold is established.
+     * Starts the initial hold. [initialHoldMs] is the long-press duration for the long-press
+     * button, or a very short hold for the immediate drag latch. Pointer updates arriving
+     * during the initial hold are coalesced into [latestX]/[latestY] and applied as soon as
+     * the hold is established.
      */
-    fun start(x: Float, y: Float) {
+    fun start(x: Float, y: Float, initialHoldMs: Long = INITIAL_HOLD_MS) {
         if (busy || active) return
         active = true
         busy = true
@@ -74,7 +76,7 @@ class PointerDragSession(
 
         scope.launch {
             val accepted = try {
-                service.beginPointerDrag(x, y, INITIAL_HOLD_MS)
+                service.beginPointerDrag(x, y, initialHoldMs)
             } catch (_: Throwable) {
                 false
             }

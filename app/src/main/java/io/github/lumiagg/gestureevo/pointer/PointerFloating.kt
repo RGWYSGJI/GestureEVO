@@ -109,6 +109,7 @@ class PointerFloating(
             onWheelScroll = { delta -> onMouseWheelScroll(delta) },
             onWheelRelease = { velocity -> onMouseWheelRelease(velocity) },
             onLongPress = { onMouseLongPress() },
+            onDragToggle = { onMouseDragToggle() },
             onQuickScroll = { toTop -> onMouseQuickScroll(toTop) },
             onClose = {
                 Log.d("PointerFloating", "mousePad close button double tap")
@@ -137,6 +138,7 @@ class PointerFloating(
     private var enterMouseAfterShow = false
     private var touchAreaOffsetDp = 0
     private var mouseModeActive = false
+    private var mouseDragButtonActive = false
     private var mouseHoldScrollJob: Job? = null
     private var mouseHoldDirection: MousePadOverlay.Direction? = null
     private var mouseDragNudgeJob: Job? = null
@@ -404,6 +406,7 @@ class PointerFloating(
         const val MOUSE_DRAG_STEP_DP = 24f
         const val MOUSE_DRAG_REPEAT_DELAY_MS = 40L
         const val TEXT_SELECTION_START_DELAY_MS = 750L
+        const val DRAG_INITIAL_HOLD_MS = 16L
         const val MOUSE_QUICK_SCROLL_STEPS = 30
         const val MOUSE_SCROLL_DISTANCE_RATIO = 0.35f
         const val MOUSE_WHEEL_MAX_OFFSET_DP = 56f
@@ -629,7 +632,9 @@ class PointerFloating(
         mouseDragNudgeJob?.cancel()
         mouseDragNudgeJob = null
         pointerDragSession.end()
+        mouseDragButtonActive = false
         mousePadOverlay.setLongPressActive(false)
+        mousePadOverlay.setDragActive(false)
         mouseQuickScrollJob?.cancel()
         mouseQuickScrollJob = null
         mouseWheelLoopJob?.cancel()
@@ -648,7 +653,7 @@ class PointerFloating(
     private fun onDragSessionStopped() {
         Log.d(
             "PointerFloating",
-            "drag_session_stopped selection=$textSelectionActive busy=${pointerDragSession.isBusy}",
+            "drag_session_stopped selection=$textSelectionActive drag=$mouseDragButtonActive busy=${pointerDragSession.isBusy}",
         )
         // Once character selection is active, the selection is driven by accessibility
         // actions rather than the injected touch. Some apps cancel the held gesture as soon
@@ -663,7 +668,9 @@ class PointerFloating(
         textSelectionController.stop()
         pointerFloatingView.post {
             if (!pointerDragSession.isBusy) {
+                mouseDragButtonActive = false
                 mousePadOverlay.setLongPressActive(false)
+                mousePadOverlay.setDragActive(false)
             }
         }
     }
@@ -743,8 +750,50 @@ class PointerFloating(
         )
     }
 
+    private fun onMouseDragToggle() {
+        if (!mouseModeActive) return
+        if (mouseDragButtonActive) {
+            mouseDragButtonActive = false
+            mousePadOverlay.setDragActive(false)
+            pointerDragSession.end()
+            return
+        }
+        if (textSelectionActive) {
+            stopTextSelectionSession()
+        }
+        if (pointerDragSession.isBusy) {
+            Log.d("PointerFloating", "drag_toggle_ignored_busy")
+            return
+        }
+
+        mouseHoldScrollJob?.cancel()
+        mouseHoldScrollJob = null
+        mouseDragNudgeJob?.cancel()
+        mouseDragNudgeJob = null
+        mouseQuickScrollJob?.cancel()
+        mouseQuickScrollJob = null
+        mouseWheelLoopJob?.cancel()
+        mouseWheelLoopJob = null
+        mouseWheelFallbackJob?.cancel()
+        mouseWheelFallbackJob = null
+        mouseWheelDragging = false
+        mouseWheelOffsetPx = 0f
+        mouseWheelInertiaSpeedPxPerSec = 0f
+        mouseWheelScrollRemainderPx = 0f
+
+        pointerManger.pulseClickFeedback()
+        val point = pointerManger.pointerCenter()
+        mouseDragButtonActive = true
+        mousePadOverlay.setDragActive(true)
+        pointerDragSession.start(point.x, point.y, DRAG_INITIAL_HOLD_MS)
+    }
+
     private fun onMouseLongPress() {
         if (!mouseModeActive) return
+        if (mouseDragButtonActive) {
+            Log.d("PointerFloating", "long_press_ignored_drag_active")
+            return
+        }
         if (pointerDragSession.isActive || textSelectionActive) {
             stopTextSelectionSession()
             return
@@ -800,7 +849,7 @@ class PointerFloating(
     }
 
     private fun onMouseWheelScroll(deltaY: Float) {
-        if (!mouseModeActive || textSelectionActive || deltaY == 0f) return
+        if (!mouseModeActive || textSelectionActive || mouseDragButtonActive || deltaY == 0f) return
         if (!mouseWheelDragging) {
             mouseWheelOffsetPx = 0f
             mouseWheelInertiaSpeedPxPerSec = 0f
@@ -936,7 +985,14 @@ class PointerFloating(
     }
 
     private fun onMouseQuickScroll(toTop: Boolean) {
-        if (!mouseModeActive || pointerDragSession.isBusy || mouseQuickScrollJob?.isActive == true) return
+        if (
+            !mouseModeActive ||
+            mouseDragButtonActive ||
+            pointerDragSession.isBusy ||
+            mouseQuickScrollJob?.isActive == true
+        ) {
+            return
+        }
         val point = pointerManger.pointerCenter()
         mouseQuickScrollJob = context.launch {
             try {
