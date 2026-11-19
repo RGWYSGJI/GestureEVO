@@ -18,7 +18,7 @@ import io.github.lumiagg.gestureevo.utils.dp2px
  *
  * The touch pad is a rectangle: the four direction buttons stay on its inner long edge (the
  * "x" edge, left or right), a scroll wheel and the long-press button share the top short
- * edge, and the three page/navigation buttons sit on the bottom short edge.
+ * edge, and the quick-bottom and close buttons sit on the bottom short edge.
  */
 class MousePadOverlay(
     context: Context,
@@ -57,45 +57,51 @@ class MousePadOverlay(
     private val closeReset = Runnable {
         closeArmed = false
         lastCloseTapAt = 0L
-        if (::closeButton.isInitialized) {
-            setButtonColor(closeButton, BUTTON_OFF_COLOR)
-        }
     }
 
     init {
         isClickable = false
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
 
-        val barHeight = BAR_HEIGHT_DP.dp2px.toInt()
+        val topBarHeight = TOP_BAR_HEIGHT_DP.dp2px.toInt()
+        val bottomBarHeight = BOTTOM_BAR_HEIGHT_DP.dp2px.toInt()
         addView(
             topBar,
-            LayoutParams(LayoutParams.MATCH_PARENT, barHeight, Gravity.TOP),
+            LayoutParams(LayoutParams.MATCH_PARENT, topBarHeight, Gravity.TOP),
         )
         addView(
             bottomBar,
-            LayoutParams(LayoutParams.MATCH_PARENT, barHeight, Gravity.BOTTOM),
+            LayoutParams(LayoutParams.MATCH_PARENT, bottomBarHeight, Gravity.BOTTOM),
         )
         addView(
             directionStrip,
             LayoutParams(STRIP_WIDTH_DP.dp2px.toInt(), LayoutParams.MATCH_PARENT, Gravity.END).apply {
-                topMargin = barHeight
-                bottomMargin = barHeight
+                topMargin = topBarHeight
+                bottomMargin = bottomBarHeight
             },
         )
 
-        // Top short edge: the wheel takes the old double-click slot; the long-press
-        // button keeps its original right-hand slot.
+        // Top short edge: the wheel is taller than the other controls and grows down;
+        // quick-top sits immediately left of the long-press button.
         topBar.addView(
             MouseScrollWheelView(context, onWheelScroll, onWheelRelease),
             LinearLayout.LayoutParams(
                 0,
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                1f,
+                2f,
             ).apply {
                 val margin = 2f.dp2px.toInt()
                 setMargins(margin, margin, margin, margin)
             },
         )
+        addActionButton(
+            topBar,
+            edgeArrowLabel(up = true),
+            vertical = false,
+            pressedColor = BUTTON_ON_COLOR,
+        ) {
+            onQuickScroll(true)
+        }
         addActionButton(topBar, "长按", vertical = false) {
             onLongPress()
         }
@@ -106,16 +112,23 @@ class MousePadOverlay(
         addDirectionButton(Direction.LEFT, "←")
         addDirectionButton(Direction.RIGHT, "→")
 
-        // Bottom short edge: quick top, quick bottom, close. U+21D1/U+21D3 live in the
+        // Bottom short edge: quick bottom and close. U+21D1/U+21D3 live in the
         // ordinary Arrows block, which is much more widely covered than Supplemental
         // Arrows-B; keep a plain-arrow fallback for ROMs that still lack them.
-        addActionButton(bottomBar, edgeArrowLabel(up = true), vertical = false) {
-            onQuickScroll(true)
-        }
-        addActionButton(bottomBar, edgeArrowLabel(up = false), vertical = false) {
+        addActionButton(
+            bottomBar,
+            edgeArrowLabel(up = false),
+            vertical = false,
+            pressedColor = BUTTON_ON_COLOR,
+        ) {
             onQuickScroll(false)
         }
-        closeButton = addActionButton(bottomBar, "关闭", vertical = false) {
+        closeButton = addActionButton(
+            bottomBar,
+            "关闭",
+            vertical = false,
+            pressedColor = BUTTON_ARMED_COLOR,
+        ) {
             handleCloseTap()
         }
 
@@ -171,6 +184,7 @@ class MousePadOverlay(
         parent: LinearLayout,
         label: String,
         vertical: Boolean,
+        pressedColor: Int? = null,
         action: () -> Unit,
     ): TextView {
         val button = TextView(context).apply {
@@ -182,6 +196,17 @@ class MousePadOverlay(
             isFocusable = false
             background = buttonBackground(BUTTON_OFF_COLOR)
             setOnClickListener { action() }
+            if (pressedColor != null) {
+                setOnTouchListener { view, event ->
+                    when (event.actionMasked) {
+                        MotionEvent.ACTION_DOWN ->
+                            setButtonColor(view as TextView, pressedColor)
+                        MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
+                            setButtonColor(view as TextView, BUTTON_OFF_COLOR)
+                    }
+                    false
+                }
+            }
         }
         val params = if (vertical) {
             LinearLayout.LayoutParams(
@@ -214,7 +239,6 @@ class MousePadOverlay(
         }
         closeArmed = true
         lastCloseTapAt = now
-        setButtonColor(closeButton, BUTTON_ARMED_COLOR)
         removeCallbacks(closeReset)
         postDelayed(closeReset, CLOSE_DOUBLE_TAP_MS)
     }
@@ -243,7 +267,8 @@ class MousePadOverlay(
 
     private companion object {
         const val STRIP_WIDTH_DP = 48f
-        const val BAR_HEIGHT_DP = 48f
+        const val TOP_BAR_HEIGHT_DP = 96f
+        const val BOTTOM_BAR_HEIGHT_DP = 48f
         const val BUTTON_OFF_COLOR = 0x66000000
         val BUTTON_ON_COLOR = 0xCC4CAF50.toInt()
         val BUTTON_ARMED_COLOR = 0xCCD32F2F.toInt()

@@ -323,7 +323,15 @@ class PointerFloating(
         if (screenWidth <= 0 || screenHeight <= 0) return
 
         val layoutParams = touchView.layoutParams as WindowManager.LayoutParams
-        layoutParams.width = (screenWidth * touchViewScale + 20f.dp2px).toInt()
+        val basePadWidth = screenWidth * touchViewScale + 20f.dp2px
+        val requestedPadWidth = if (mouseModeActive) {
+            basePadWidth * MOUSE_PAD_WIDTH_MULTIPLIER
+        } else {
+            basePadWidth
+        }
+        layoutParams.width = requestedPadWidth
+            .coerceAtMost(screenWidth - 20f.dp2px)
+            .toInt()
         layoutParams.height = ((screenHeight + screenStatusHeight) * touchViewScale).toInt()
 
         val minDistanceFromEdge = 10f.dp2px
@@ -396,6 +404,7 @@ class PointerFloating(
         const val MOUSE_SCROLL_REPEAT_DELAY_MS = 40L
         const val MOUSE_QUICK_SCROLL_STEPS = 30
         const val MOUSE_SCROLL_DISTANCE_RATIO = 0.35f
+        const val MOUSE_PAD_WIDTH_MULTIPLIER = 2f
         const val MOUSE_WHEEL_MAX_OFFSET_DP = 56f
         const val MOUSE_WHEEL_DEAD_ZONE = 0.10f
         const val MOUSE_WHEEL_MAX_SPEED_DP_PER_SEC = 500f
