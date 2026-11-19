@@ -1341,7 +1341,7 @@ class SearchResultManager(
             GestureActionType.SCREEN_SEARCH -> R.drawable.search_24px
             GestureActionType.PIN_POOL -> R.drawable.pinboard_24px
             GestureActionType.POINTER -> R.drawable.baseline_control_point_24
-            GestureActionType.TOUCHPAD -> R.drawable.baseline_control_point_24
+            GestureActionType.TOUCHPAD -> R.drawable.baseline_keyboard_24
             GestureActionType.KEYBOARD -> R.drawable.baseline_keyboard_24
             GestureActionType.FREEFORM_FOREGROUND -> R.drawable.ic_little_window
             GestureActionType.TEMP_DND -> R.drawable.do_not_disturb_on_24px
