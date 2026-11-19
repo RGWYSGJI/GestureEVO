@@ -249,6 +249,17 @@ class ActionProxy(private val context: Context, linkString: String) {
                 producePointerEvent(PointerEvent(enable = true, needShowTouchView = !timeout, side = TriggerSide.peek()))
             }
 
+            GestureActionType.TOUCHPAD -> {
+                producePointerEvent(
+                    PointerEvent(
+                        enable = true,
+                        needShowTouchView = true,
+                        side = TriggerSide.peek(),
+                        mouseMode = true,
+                    )
+                )
+            }
+
             GestureActionType.PIN_POOL -> {
                 producePinPoolEvent(PinPoolEvent(show = true, side = TriggerSide.take()))
             }

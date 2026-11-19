@@ -113,9 +113,6 @@
                     <io.github.lumiagg.gestureevo.settings.ui.SettingsSwitchRow android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" app:settingsRowTitle="@string/inspire_settings_show_pointer_trail" app:settingsRowSummary="@string/inspire_settings_show_pointer_trail_desc">
                         <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/pointerTrailSwitch" android:checked="false" android:layout_width="wrap_content" android:layout_height="wrap_content" />
                     </io.github.lumiagg.gestureevo.settings.ui.SettingsSwitchRow>
-                    <io.github.lumiagg.gestureevo.settings.ui.SettingsSwitchRow android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" app:settingsRowTitle="@string/inspire_settings_always_show_pointer_touch_area" app:settingsRowSummary="@string/inspire_settings_always_show_pointer_touch_area_desc">
-                        <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/pointerTouchAreaSwitch" android:checked="false" android:layout_width="wrap_content" android:layout_height="wrap_content" />
-                    </io.github.lumiagg.gestureevo.settings.ui.SettingsSwitchRow>
                     <io.github.lumiagg.gestureevo.settings.ui.SettingsNavRow android:id="@+id/pointer_touch_area_offset_row" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" app:settingsRowTitle="@string/inspire_settings_pointer_touch_area_offset" app:settingsRowSummary="@string/inspire_settings_pointer_touch_area_offset_desc">
                         <TextView android:id="@+id/selected_pointer_touch_area_offset_text" android:layout_width="wrap_content" android:layout_height="wrap_content" />
                     </io.github.lumiagg.gestureevo.settings.ui.SettingsNavRow>

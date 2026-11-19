@@ -548,8 +548,6 @@
     <string name="inspire_settings_pointer_settings_description">调整指针轨迹、触摸区域和拖动行为</string>
     <string name="inspire_settings_show_pointer_trail">显示指针轨迹</string>
     <string name="inspire_settings_show_pointer_trail_desc">显示指针移动路径，便于观察悬停和拖动轨迹</string>
-    <string name="inspire_settings_always_show_pointer_touch_area">模拟鼠标（触摸区域）</string>
-    <string name="inspire_settings_always_show_pointer_touch_area_desc">开启后，触发指针功能会直接进入模拟鼠标模式，并始终显示触摸区域</string>
     <string name="inspire_settings_pointer_touch_area_offset">触摸区域上下偏移</string>
     <string name="inspire_settings_pointer_touch_area_offset_desc">调整指针触摸区域的显示位置，负数向上，正数向下</string>
     <string name="inspire_settings_pointer_touch_area_offset_dp">%1$d dp</string>
@@ -1104,6 +1102,7 @@
     <string name="gesture_action_other_shortcut">其他应用的快捷方式</string>
     <string name="gesture_action_freeform_foreground">小窗前台应用</string>
     <string name="gesture_action_pointer">指针</string>
+    <string name="gesture_action_touchpad">触摸板</string>
     <string name="gesture_action_none">无</string>
     <string name="gesture_action_click_through">模拟点击当前位置</string>
     <string name="gesture_action_acc_action">无障碍功能（返回，控制中心等）</string>

@@ -152,7 +152,7 @@ class GestureActionItem {
 
 
 enum class GestureActionType {
-    SHOW_ACTION_VIEW, CLICK_THROUGH, SCREEN_CONTENT, SCREEN_CONTENT_FULLSCREEN, SCREEN_SEARCH, SEARCH, PIN_POOL, POINTER, KEYBOARD, OPEN_APP, OTHER_SHORTCUT, OTHER_LINK, CLIPBOARD_ACTION, ACC_ACTION,
+    SHOW_ACTION_VIEW, CLICK_THROUGH, SCREEN_CONTENT, SCREEN_CONTENT_FULLSCREEN, SCREEN_SEARCH, SEARCH, PIN_POOL, POINTER, TOUCHPAD, KEYBOARD, OPEN_APP, OTHER_SHORTCUT, OTHER_LINK, CLIPBOARD_ACTION, ACC_ACTION,
     RECENT_APP, OPEN_ACTIVITY, FREEZE_APP, FREEFORM_FOREGROUND, OPEN_SHELL, TEMP_DND,
     PAUSE_GESTURE,
     NONE;
@@ -173,6 +173,7 @@ enum class GestureActionType {
             OTHER_SHORTCUT -> context.getString(R.string.gesture_action_other_shortcut)
             FREEFORM_FOREGROUND -> context.getString(R.string.gesture_action_freeform_foreground)
             POINTER -> context.getString(R.string.gesture_action_pointer)
+            TOUCHPAD -> context.getString(R.string.gesture_action_touchpad)
             NONE -> context.getString(R.string.gesture_action_none)
             CLICK_THROUGH -> context.getString(R.string.gesture_action_click_through)
             ACC_ACTION -> context.getString(R.string.gesture_action_acc_action)
@@ -202,6 +203,7 @@ enum class GestureActionType {
             SCREEN_SEARCH,
             PIN_POOL,
             POINTER,
+            TOUCHPAD,
             KEYBOARD,
             TEMP_DND
         )

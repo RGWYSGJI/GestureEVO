@@ -46,7 +46,12 @@ data class InspireEvent(
     val side: String? = null
 )
 
-data class PointerEvent(val enable: Boolean, val needShowTouchView: Boolean = false, val side: String? = null)
+data class PointerEvent(
+    val enable: Boolean,
+    val needShowTouchView: Boolean = false,
+    val side: String? = null,
+    val mouseMode: Boolean = false,
+)
 
 data class AccessibilityActionEvent(
     val action: Int

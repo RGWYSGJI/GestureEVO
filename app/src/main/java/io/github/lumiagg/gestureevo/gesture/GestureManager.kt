@@ -273,10 +273,14 @@ class GestureManager(
                         linkRadarFloatingLazy.isInitialized() &&
                             linkRadarFloating.onPointerTapRequested()
                     }
-                    pointerFloating.enable = it.enable
                     pointerFloating.needShowTouchView = it.needShowTouchView
                     if (it.enable && it.side != null) {
                         pointerFloating.triggerSide = it.side
+                    }
+                    if (it.enable && it.mouseMode) {
+                        pointerFloating.enterMouseModeFromAction()
+                    } else {
+                        pointerFloating.enable = it.enable
                     }
                 }
                 // 链接雷达跟随指针会话，开关位于链接分发设置。

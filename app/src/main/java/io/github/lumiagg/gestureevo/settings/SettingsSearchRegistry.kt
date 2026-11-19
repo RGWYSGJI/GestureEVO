@@ -773,14 +773,6 @@ object SettingsSearchRegistry {
             keywords = listOf("指针轨迹", "pointer trail")
         ),
         entry(
-            id = "inspire_pointer_touch_area",
-            titleResId = R.string.inspire_settings_always_show_pointer_touch_area,
-            pageTitleResId = R.string.inspire_settings_title,
-            targetActivity = InspireSettingsActivity::class.java,
-            targetViewId = R.id.PointerCard,
-            keywords = listOf("触摸区域", "指针触摸区域", "touch area", "pointer touch")
-        ),
-        entry(
             id = "inspire_pointer_touch_area_offset",
             titleResId = R.string.inspire_settings_pointer_touch_area_offset,
             pageTitleResId = R.string.inspire_settings_title,

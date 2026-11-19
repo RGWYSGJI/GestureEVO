@@ -85,7 +85,6 @@ class InspireSettingsActivity : AppCompatActivity() {
             "key_notification_image_display_seconds"
         const val KEY_SHOW_POINTER_TRAIL = "key_show_pointer_trail"
 
-        const val KEY_ALWAYS_SHOW_POINTER_TOUCH_AREA = "key_always_show_pointer_touch_area"
         const val KEY_POINTER_TOUCH_AREA_OFFSET_DP = "key_pointer_touch_area_offset_dp"
         const val KEY_ENABLE_POINTER_DRAG_MODE = "key_enable_pointer_drag_mode"
         const val KEY_POINTER_HOVER_MENU = "key_pointer_hover_menu"
@@ -204,8 +203,6 @@ class InspireSettingsActivity : AppCompatActivity() {
         binding.pointerTrailSwitch.isChecked =
             settingsStore.readKey(KEY_SHOW_POINTER_TRAIL, false)
 
-        binding.pointerTouchAreaSwitch.isChecked =
-            settingsStore.readKey(KEY_ALWAYS_SHOW_POINTER_TOUCH_AREA, false)
         updatePointerTouchAreaOffsetText(settingsStore.readKey(KEY_POINTER_TOUCH_AREA_OFFSET_DP, 0))
 
         binding.pointerDragModeSwitch.isChecked =
@@ -504,12 +501,6 @@ class InspireSettingsActivity : AppCompatActivity() {
         binding.pointerTrailSwitch.setOnCheckedChangeListener { _, isChecked ->
             lifecycleScope.launch {
                 settingsStore.saveKey(KEY_SHOW_POINTER_TRAIL, isChecked)
-            }
-        }
-
-        binding.pointerTouchAreaSwitch.setOnCheckedChangeListener { _, isChecked ->
-            lifecycleScope.launch {
-                settingsStore.saveKey(KEY_ALWAYS_SHOW_POINTER_TOUCH_AREA, isChecked)
             }
         }
 

@@ -96,6 +96,7 @@ internal fun showActionSelectBottomSheet(
                         GestureActionType.SCREEN_CONTENT, GestureActionType.SCREEN_CONTENT_FULLSCREEN -> R.drawable.ic_screen_content_fullscreen_text_24
                         GestureActionType.KEYBOARD -> R.drawable.baseline_keyboard_24
                         GestureActionType.PIN_POOL -> R.drawable.baseline_push_pin_24
+                        GestureActionType.TOUCHPAD -> R.drawable.baseline_control_point_24
                         GestureActionType.OTHER_LINK -> R.drawable.ic_baseline_insert_link_24
                         GestureActionType.CLIPBOARD_ACTION -> R.drawable.ic_baseline_content_copy_24
                         GestureActionType.SHOW_ACTION_VIEW -> R.drawable.baseline_menu_24
@@ -167,7 +168,8 @@ internal fun actionCategories(
         R.string.quick_setup_category_tools to listOf(
             simple(GestureActionType.SEARCH), simple(GestureActionType.SCREEN_SEARCH),
             simple(GestureActionType.SCREEN_CONTENT), simple(GestureActionType.SCREEN_CONTENT_FULLSCREEN),
-            simple(GestureActionType.PIN_POOL), simple(GestureActionType.POINTER), simple(GestureActionType.KEYBOARD)
+            simple(GestureActionType.PIN_POOL), simple(GestureActionType.POINTER),
+            simple(GestureActionType.TOUCHPAD), simple(GestureActionType.KEYBOARD)
         ),
         R.string.quick_setup_category_apps to listOf(
             ActionChoice(GestureActionType.OPEN_APP), ActionChoice(GestureActionType.OPEN_ACTIVITY),

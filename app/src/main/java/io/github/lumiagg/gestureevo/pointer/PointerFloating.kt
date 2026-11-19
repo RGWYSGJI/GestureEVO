@@ -51,7 +51,6 @@ import io.github.lumiagg.gestureevo.settings.AppearanceSettingsActivity.Companio
 import io.github.lumiagg.gestureevo.settings.AppearanceSettingsActivity.Companion.POINTER_SIZE_DEFAULT
 import io.github.lumiagg.gestureevo.settings.AppearanceSettingsActivity.Companion.POINTER_SIZE_MAX
 import io.github.lumiagg.gestureevo.settings.AppearanceSettingsActivity.Companion.POINTER_SIZE_MIN
-import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_ALWAYS_SHOW_POINTER_TOUCH_AREA
 import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_ENABLE_POINTER_DRAG_MODE
 import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_POINTER_HOVER_MENU
 import io.github.lumiagg.gestureevo.pointer.radar.LinkRegion
@@ -129,7 +128,7 @@ class PointerFloating(
     private val highlightRectView = HighlightRectView(context)
     val pointerManger = PointerManger()
     var needShowTouchView = false
-    private var alwaysShowTouchArea = false
+    private var enterMouseAfterShow = false
     private var touchAreaOffsetDp = 0
     private var mouseModeActive = false
     private var mouseHoldScrollJob: Job? = null
@@ -277,13 +276,6 @@ class PointerFloating(
             title = "GestureEVO:PointerFloating:Touch",
         )
         touchView.setOnTouchListener { _, event ->
-            // Once the simulated-mouse setting is on, the first touch must enter mouse mode
-            // instead of falling through to the normal pointer's ACTION_UP hide path.
-            if (alwaysShowTouchArea && !mouseModeActive && event.actionMasked == MotionEvent.ACTION_DOWN) {
-                // Do not re-attach the pad from inside its own touch dispatch; the normal entry
-                // path (show()) has already put it above the pointer layer.
-                enterMouseMode(bringPadToFront = false)
-            }
             pointerManger.onTouchEvent(event, fromTouchView = true)
             // Consume the event while mouse mode owns the session. Otherwise the touch can
             // fall through to the full-screen pointer layer, whose outside-tap handler exits.
@@ -355,7 +347,7 @@ class PointerFloating(
     }
 
     private fun shouldShowTouchArea() =
-        mouseModeActive || needShowTouchView || alwaysShowTouchArea
+        mouseModeActive || needShowTouchView
 
     private companion object {
         const val POINTER_SHOW_ANIMATION_DURATION = 140L
@@ -452,9 +444,22 @@ class PointerFloating(
         pointerManger.showPointer()
         pointerManger.viewPositionMonitor.start()
         trailView.updateTrailConfig()
-        if (alwaysShowTouchArea) {
+        if (enterMouseAfterShow) {
+            enterMouseAfterShow = false
             enterMouseMode()
         }
+    }
+
+    /** Starts or exits touchpad mode for the TOUCHPAD action. */
+    fun enterMouseModeFromAction() {
+        if (mouseModeActive) {
+            // A second invocation of the same action leaves mouse mode.
+            enable = false
+            return
+        }
+        enterMouseAfterShow = true
+        needShowTouchView = true
+        enable = true
     }
 
     fun hide() = context.postOnMain {
@@ -535,10 +540,6 @@ class PointerFloating(
     }
 
     private suspend fun updateTouchAreaConfig() = withContext(Dispatchers.IO) {
-        alwaysShowTouchArea = context.settingsStore.readKey(
-            KEY_ALWAYS_SHOW_POINTER_TOUCH_AREA,
-            false
-        )
         touchAreaOffsetDp = context.settingsStore.readKey(
             KEY_POINTER_TOUCH_AREA_OFFSET_DP,
             0
@@ -1246,11 +1247,8 @@ class PointerFloating(
         }
 
         fun onTouchEvent(event: MotionEvent, fromTouchView: Boolean = false) {
-            if (fromTouchView && alwaysShowTouchArea) {
-                // The pad is a mouse surface while the setting is on. Never let its
-                // ACTION_UP fall through to the normal pointer path, which hides the pad.
-                if (!mouseMode) enterMouseMode(bringPadToFront = false)
-                if (mouseMode) handleMouseTouch(event)
+            if (fromTouchView && mouseMode) {
+                handleMouseTouch(event)
                 return
             }
             if (mouseMode) {
@@ -1267,7 +1265,7 @@ class PointerFloating(
                     resetMenuMapping()
                     pendingHoverLongPress = false
                     pendingHoverPoint = null
-                    if (enable && fromTouchView && touchView.alpha == 1f && !alwaysShowTouchArea) {
+                    if (enable && fromTouchView && touchView.alpha == 1f) {
                         touchView.alpha = 0f
                     }
                 }
