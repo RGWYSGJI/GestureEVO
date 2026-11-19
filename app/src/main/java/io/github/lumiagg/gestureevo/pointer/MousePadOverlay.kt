@@ -93,7 +93,7 @@ class MousePadOverlay(
             LinearLayout.LayoutParams(
                 0,
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                2f,
+                1f,
             ).apply {
                 val margin = 2f.dp2px.toInt()
                 setMargins(margin, margin, margin, margin)
