@@ -556,7 +556,7 @@ class PointerFloating(
         touchAreaOffsetDp = context.settingsStore.readKey(
             KEY_POINTER_TOUCH_AREA_OFFSET_DP,
             0
-        ).coerceIn(-100, 100)
+        ).coerceIn(-150, 150)
     }
 
     private fun enterMouseMode(bringPadToFront: Boolean = true) {

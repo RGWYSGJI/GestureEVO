@@ -1044,7 +1044,7 @@ class InspireSettingsActivity : AppCompatActivity() {
     private fun updatePointerTouchAreaOffsetText(offsetDp: Int) {
         binding.selectedPointerTouchAreaOffsetText.text = getString(
             R.string.inspire_settings_pointer_touch_area_offset_dp,
-            offsetDp.coerceIn(-100, 100)
+            offsetDp.coerceIn(-150, 150)
         )
     }
 

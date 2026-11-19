@@ -72,6 +72,6 @@ class PointerTouchAreaOffsetBottomSheet(
     }
 
     private fun bindCurrentValue() {
-        binding.touchAreaOffsetSlider.value = initialOffsetDp.coerceIn(-100, 100).toFloat()
+        binding.touchAreaOffsetSlider.value = initialOffsetDp.coerceIn(-150, 150).toFloat()
     }
 }
