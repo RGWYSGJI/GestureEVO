@@ -11,6 +11,7 @@ import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.PointF
 import android.graphics.Rect
 import android.graphics.drawable.Drawable
 import android.os.Build
@@ -120,6 +121,9 @@ class PointerFloating(
             onStopped = { onDragSessionStopped() },
         )
     }
+    private val textSelectionController by lazy { TextSelectionController(context) }
+    private var textSelectionStartJob: Job? = null
+    private var textSelectionActive = false
     private val pointerLayoutParams = WindowManager.LayoutParams()
     private val touchLayoutParams = WindowManager.LayoutParams()
     private var touchViewScale = 0.35
@@ -394,6 +398,7 @@ class PointerFloating(
         const val MOUSE_SCROLL_REPEAT_DELAY_MS = 40L
         const val MOUSE_DRAG_STEP_DP = 24f
         const val MOUSE_DRAG_REPEAT_DELAY_MS = 40L
+        const val TEXT_SELECTION_START_DELAY_MS = 750L
         const val MOUSE_QUICK_SCROLL_STEPS = 30
         const val MOUSE_SCROLL_DISTANCE_RATIO = 0.35f
         const val MOUSE_WHEEL_STEP_DP = 10f
@@ -609,6 +614,10 @@ class PointerFloating(
     /** Clears mouse-mode-only state. Safe to call repeatedly. */
     private fun resetMouseModeState() {
         mouseModeActive = false
+        textSelectionStartJob?.cancel()
+        textSelectionStartJob = null
+        textSelectionActive = false
+        textSelectionController.stop()
         mouseHoldDirection = null
         mouseHoldScrollJob?.cancel()
         mouseHoldScrollJob = null
@@ -629,6 +638,10 @@ class PointerFloating(
     }
 
     private fun onDragSessionStopped() {
+        textSelectionStartJob?.cancel()
+        textSelectionStartJob = null
+        textSelectionActive = false
+        textSelectionController.stop()
         pointerFloatingView.post {
             if (!pointerDragSession.isBusy) {
                 mousePadOverlay.setLongPressActive(false)
@@ -713,10 +726,8 @@ class PointerFloating(
 
     private fun onMouseLongPress() {
         if (!mouseModeActive) return
-        if (pointerDragSession.isActive) {
-            pointerDragSession.end()
-            mouseDragNudgeJob?.cancel()
-            mouseDragNudgeJob = null
+        if (pointerDragSession.isActive || textSelectionActive) {
+            stopTextSelectionSession()
             return
         }
         if (pointerDragSession.isBusy) return
@@ -735,12 +746,38 @@ class PointerFloating(
 
         pointerManger.pulseClickFeedback()
         val point = pointerManger.pointerCenter()
+        textSelectionActive = false
+        textSelectionController.stop()
         mousePadOverlay.setLongPressActive(true)
         pointerDragSession.start(point.x, point.y)
+
+        textSelectionStartJob?.cancel()
+        textSelectionStartJob = context.launch {
+            delay(TEXT_SELECTION_START_DELAY_MS)
+            if (!mouseModeActive || !pointerDragSession.isActive) return@launch
+            textSelectionActive = withContext(Dispatchers.Main.immediate) {
+                textSelectionController.startAt(PointF(point.x, point.y))
+            }
+            if (!textSelectionActive) {
+                // Many custom/Compose surfaces do not expose character rectangles. Keep the
+                // native held drag as a fallback instead of cancelling the long press.
+                Log.d("PointerFloating", "text_selection_unavailable")
+            }
+        }
+    }
+
+    private fun stopTextSelectionSession() {
+        textSelectionStartJob?.cancel()
+        textSelectionStartJob = null
+        textSelectionActive = false
+        textSelectionController.stop()
+        pointerDragSession.end()
+        mouseDragNudgeJob?.cancel()
+        mouseDragNudgeJob = null
     }
 
     private fun onMouseWheelScroll(deltaY: Float) {
-        if (!mouseModeActive || deltaY == 0f) return
+        if (!mouseModeActive || textSelectionActive || deltaY == 0f) return
         mouseWheelInertiaJob?.cancel()
         mouseWheelAccumulator += deltaY
 
@@ -1393,8 +1430,11 @@ class PointerFloating(
                 (center.y + dy).coerceIn(halfHeight, screenHeight - halfHeight),
             )
             placePointer(target)
-            if (pointerDragSession.isActive) {
-                pointerDragSession.moveTo(target.x, target.y)
+            when {
+                textSelectionActive -> textSelectionController.updateSelection(
+                    PointF(target.x, target.y)
+                )
+                pointerDragSession.isActive -> pointerDragSession.moveTo(target.x, target.y)
             }
         }
 
