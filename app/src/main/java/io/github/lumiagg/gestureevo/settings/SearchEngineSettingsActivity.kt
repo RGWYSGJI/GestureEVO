@@ -65,6 +65,7 @@ class SearchEngineSettingsActivity : AppCompatActivity() {
         const val KEY_SEARCH_SMS = "search_sms"
         private const val REQUEST_SMS_PERMISSION = 3
         const val KEY_SEARCH_SETTINGS_SHORTCUTS = "search_settings_shortcuts"
+        const val KEY_SEARCH_DYNAMIC_SHORTCUTS = "search_dynamic_shortcuts"
         const val KEY_ENTER_FIRST_RESULT = "search_enter_first_result"
         const val KEY_KEEP_LAST_SEARCH_RESULT = "search_keep_last_search_result"
         const val MIN_ROW_COUNT = EngineLayoutPreferences.MIN_ROW_COUNT
@@ -274,6 +275,14 @@ class SearchEngineSettingsActivity : AppCompatActivity() {
         binding.searchSettingsShortcutsSwitch.setOnCheckedChangeListener { _, isChecked ->
             lifecycleScope.launch {
                 settingsStore.saveKey(KEY_SEARCH_SETTINGS_SHORTCUTS, isChecked)
+            }
+        }
+
+        binding.searchDynamicShortcutsSwitch.isChecked =
+            settingsStore.readKey(KEY_SEARCH_DYNAMIC_SHORTCUTS, true)
+        binding.searchDynamicShortcutsSwitch.setOnCheckedChangeListener { _, isChecked ->
+            lifecycleScope.launch {
+                settingsStore.saveKey(KEY_SEARCH_DYNAMIC_SHORTCUTS, isChecked)
             }
         }
 

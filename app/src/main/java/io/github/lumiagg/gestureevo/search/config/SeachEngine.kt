@@ -3,7 +3,6 @@ package io.github.lumiagg.gestureevo.search.config
 import android.net.Uri
 import io.github.lumiagg.gestureevo.db.APPModel
 import io.github.lumiagg.gestureevo.db.ContactModel
-import io.github.lumiagg.gestureevo.db.ShortcutModel
 import io.github.lumiagg.gestureevo.gesture.config.GestureActionDataManager.buildTag
 import io.github.lumiagg.gestureevo.gesture.config.GestureActionType
 import io.github.lumiagg.gestureevo.gesture.config.IconType
@@ -166,7 +165,12 @@ sealed class SearchResult {
         val date: Long,
     ) : SearchResult()
 
-    data class ShortcutResult(val shortcut: ShortcutModel) : SearchResult()
+    data class ShortcutResult(
+        val title: String,
+        val uri: String?,
+        val settingsRowId: Int? = null,
+        val dynamicPackage: String? = null,
+    ) : SearchResult()
 
     data class HistoryResult(val text: String) : SearchResult()
 

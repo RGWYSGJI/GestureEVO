@@ -17,8 +17,8 @@ android {
         applicationId = "io.github.lumiagg.gestureevo"
         minSdk = 24
         targetSdk = 36
-        versionCode = 261118001
-        versionName = "2.2-1118001"
+        versionCode = 261119002
+        versionName = "2.2-1119002"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -80,6 +80,9 @@ android {
         }
     }
     sourceSets {
+        getByName("androidTest") {
+            assets.srcDir("schemas")
+        }
         getByName("main") {
             aidl.srcDirs("src/main/aidl")
             assets.srcDir(layout.buildDirectory.dir("generated/ocrModelAssets"))
