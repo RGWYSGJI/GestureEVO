@@ -663,6 +663,8 @@ class PointerFloating(
             Log.d("PointerFloating", "drag_session_stopped_selection_active")
             return
         }
+        mouseDragNudgeJob?.cancel()
+        mouseDragNudgeJob = null
         textSelectionStartJob?.cancel()
         textSelectionStartJob = null
         textSelectionController.stop()
@@ -683,9 +685,9 @@ class PointerFloating(
         mouseDragNudgeJob?.cancel()
         mouseDragNudgeJob = null
 
-        if (pointerDragSession.isActive) {
-            // While a long press is held, the direction buttons move the held pointer instead
-            // of scrolling the page. The wheel still scrolls.
+        if (pointerDragSession.isActive || textSelectionActive) {
+            // While a long press or text selection is held, the direction buttons move the
+            // held pointer and update the selection instead of scrolling the page.
             mouseDragNudgeJob = context.launch {
                 while (isActive && mouseModeActive && mouseHoldDirection == direction) {
                     val step = MOUSE_DRAG_STEP_DP.dp2px
@@ -864,7 +866,11 @@ class PointerFloating(
     }
 
     private fun onMouseWheelRelease(velocity: Float) {
-        if (!mouseModeActive || mouseDragButtonActive) return
+        if (!mouseModeActive) return
+        if (mouseDragButtonActive) {
+            mouseWheelDragging = false
+            return
+        }
         mouseWheelDragging = false
         if (textSelectionActive) {
             mouseWheelInertiaSpeedPxPerSec = 0f
@@ -988,6 +994,7 @@ class PointerFloating(
         if (
             !mouseModeActive ||
             mouseDragButtonActive ||
+            textSelectionActive ||
             pointerDragSession.isBusy ||
             mouseQuickScrollJob?.isActive == true
         ) {
