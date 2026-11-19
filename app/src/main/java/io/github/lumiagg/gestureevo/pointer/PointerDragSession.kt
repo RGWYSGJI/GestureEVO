@@ -1,5 +1,6 @@
 package io.github.lumiagg.gestureevo.pointer
 
+import android.util.Log
 import io.github.lumiagg.gestureevo.gesture.GestureService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -8,6 +9,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.abs
 
 /**
@@ -45,6 +47,7 @@ class PointerDragSession(
     private var lastY = 0f
     private var moveJob: Job? = null
     private var heartbeatJob: Job? = null
+    private var startupJob: Job? = null
 
     val isActive: Boolean
         get() = active
@@ -74,12 +77,30 @@ class PointerDragSession(
             return
         }
 
+        startupJob = scope.launch {
+            delay(START_TIMEOUT_MS)
+            if (!starting) return@launch
+            Log.d(TAG, "start timeout, resetting")
+            starting = false
+            active = false
+            withTimeoutOrNull(300L) {
+                try {
+                    service.endPointerDrag()
+                } catch (_: Throwable) {
+                    // The initial stroke may not have been dispatched yet.
+                }
+            }
+            finish()
+        }
+
         scope.launch {
             val accepted = try {
                 service.beginPointerDrag(x, y, initialHoldMs)
             } catch (_: Throwable) {
                 false
             }
+            startupJob?.cancel()
+            startupJob = null
             starting = false
 
             if (!accepted) {
@@ -197,6 +218,8 @@ class PointerDragSession(
     @Synchronized
     private fun finish() {
         if (finished) return
+        startupJob?.cancel()
+        startupJob = null
         finished = true
         starting = false
         busy = false
@@ -214,6 +237,8 @@ class PointerDragSession(
     }
 
     private companion object {
+        const val TAG = "PointerDragSession"
+        const val START_TIMEOUT_MS = 1_800L
         const val INITIAL_HOLD_MS = 600L
         const val MOVE_INTERVAL_MS = 16L
         const val MOVE_DURATION_MS = 16L
