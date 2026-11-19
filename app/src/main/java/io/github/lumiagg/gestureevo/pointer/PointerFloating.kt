@@ -336,15 +336,19 @@ class PointerFloating(
             basePadWidth
         }
         layoutParams.width = requestedPadWidth
-            .coerceAtMost(screenWidth.toFloat())
+            .coerceAtMost(
+                if (mouseModeActive) screenWidth.toFloat()
+                else screenWidth - 20f.dp2px
+            )
             .toInt()
         layoutParams.height = ((screenHeight + screenStatusHeight) * touchViewScale).toInt()
 
-        // Keep a 20dp top guard for the status bar, but let the bottom and both sides
-        // sit flush with the screen edges in mouse mode.
+        // Keep a 20dp top guard for the status bar. In mouse mode the pad sits flush with
+        // the bottom and both sides; the transient normal pointer pad keeps its old margins.
+        val flushToEdges = mouseModeActive
         val minDistanceFromTop = 20f.dp2px
-        val minDistanceFromEdge = 0f
-        val minDistanceFromBottom = 0f
+        val minDistanceFromEdge = if (flushToEdges) 0f else 10f.dp2px
+        val minDistanceFromBottom = if (flushToEdges) 0f else 20f.dp2px
 
         val minX = minDistanceFromEdge
         val maxX = screenWidth - layoutParams.width - minDistanceFromEdge
