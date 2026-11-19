@@ -50,7 +50,7 @@ internal class QuickSearchMotionController(
         get() = motionTimeline.hiddenBottomOffset
 
     val keyboardInsetPixels: Int
-        get() = if (keyboardFollowAnimationEnabled) keyboardInset.roundToInt() else 0
+        get() = keyboardInset.roundToInt()
 
     private var visibilityProgress = 0f
     private var keyboardInset = 0f
@@ -86,13 +86,14 @@ internal class QuickSearchMotionController(
         applyStaticCardBackgrounds()
         motionStrategy.captureBaseLayout()
         baseBottomPadding = binding.root.paddingBottom
-        // Intercept IME insets only when follow animation is enabled; otherwise allow native system adjustResize.
+        // Always intercept IME insets: the window uses adjustNothing and never resizes.
+        // The setting below only controls whether the IME animation callback is used.
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
+            applySystemBarInsets(insets)
+            updateKeyboardState(insets, fromAnimation = false)
+            insets
+        }
         if (keyboardFollowAnimationEnabled) {
-            ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
-                applySystemBarInsets(insets)
-                updateKeyboardState(insets, fromAnimation = false)
-                insets
-            }
             ViewCompat.setWindowInsetsAnimationCallback(
                 binding.root,
                 object : WindowInsetsAnimationCompat.Callback(DISPATCH_MODE_CONTINUE_ON_SUBTREE) {
@@ -219,18 +220,20 @@ internal class QuickSearchMotionController(
         val imeBottom = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
         baseBottomPadding = maxOf(baseBottomPadding, binding.root.paddingBottom)
         val targetInset = (imeBottom - baseBottomPadding).coerceAtLeast(0).toFloat()
-        if (fromAnimation) {
-            deferredKeyboardInset = null
-            applyKeyboardInset(targetInset)
-            return
-        }
-        if (isImeAnimationRunning) {
-            deferredKeyboardInset = targetInset
-            return
-        }
-        if (awaitingImeAnimationAfterShow && targetInset > keyboardInset) {
-            deferredKeyboardInset = targetInset
-            return
+        if (keyboardFollowAnimationEnabled) {
+            if (fromAnimation) {
+                deferredKeyboardInset = null
+                applyKeyboardInset(targetInset)
+                return
+            }
+            if (isImeAnimationRunning) {
+                deferredKeyboardInset = targetInset
+                return
+            }
+            if (awaitingImeAnimationAfterShow && targetInset > keyboardInset) {
+                deferredKeyboardInset = targetInset
+                return
+            }
         }
         deferredKeyboardInset = null
         applyKeyboardInset(targetInset)
@@ -276,11 +279,13 @@ internal class QuickSearchMotionController(
         if (!binding.searchInput.isFocused) {
             binding.searchInput.requestFocus()
         }
-        awaitingImeAnimationAfterShow = true
+        awaitingImeAnimationAfterShow = keyboardFollowAnimationEnabled
         isImeAnimationRunning = false
         deferredKeyboardInset = null
         binding.root.removeCallbacks(imeAnimationFallbackRunnable)
-        binding.root.postDelayed(imeAnimationFallbackRunnable, 220L)
+        if (keyboardFollowAnimationEnabled) {
+            binding.root.postDelayed(imeAnimationFallbackRunnable, 220L)
+        }
         pendingShowKeyboard = false
         val imm = activity.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
         val shown =
@@ -307,16 +312,10 @@ internal class QuickSearchMotionController(
         )
 
         binding.searchContainer.setBackgroundColor(backgroundColor)
-        // Keep status bar transparent in edge-to-edge mode to avoid tint stacking issues obscuring blur.
-        window.statusBarColor = if (keyboardFollowAnimationEnabled) {
-            Color.TRANSPARENT
-        } else {
-            backgroundColor
-        }
+        // The page is always edge-to-edge; keep the status bar transparent to avoid tint stacking.
+        window.statusBarColor = Color.TRANSPARENT
 
-        motionStrategy.applyKeyboardLinkedLayout(
-            if (keyboardFollowAnimationEnabled) keyboardInset.roundToInt() else 0
-        )
+        motionStrategy.applyKeyboardLinkedLayout(keyboardInset.roundToInt())
 
         if (bottomInputLayoutEnabled) {
             binding.topSearchCard.alpha = topCardAlphaProgress

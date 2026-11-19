@@ -20,7 +20,6 @@ import android.view.KeyEvent
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
-import android.view.WindowManager
 import android.widget.EditText
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
@@ -268,24 +267,17 @@ class QuickSearchActivity : AppCompatActivity() {
 
     private fun createSearchContent(preferences: Preferences) {
         keyboardFollowAnimationEnabled = preferences.readKey(KEY_KEYBOARD_FOLLOW_ANIMATION, false)
-        // When keyboard follow animation is disabled, let the system window handle resizing (adjustResize);
-        // when enabled, switch to edge-to-edge and manage system bar and keyboard insets manually.
-        WindowCompat.setDecorFitsSystemWindows(window, !keyboardFollowAnimationEnabled)
+        // Always use edge-to-edge layout and manage system bar and IME insets manually.
+        // Switching windowSoftInputMode after the window is attached can race with the IME and
+        // shift the search content for one frame.
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = android.graphics.Color.TRANSPARENT
         window.navigationBarColor = android.graphics.Color.TRANSPARENT
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             window.isStatusBarContrastEnforced = false
             window.isNavigationBarContrastEnforced = false
         }
-        window.setSoftInputMode(
-            if (keyboardFollowAnimationEnabled) {
-                WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING or
-                    WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE
-            } else {
-                WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE or
-                    WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE
-            }
-        )
+        // IME mode is fixed by the manifest (adjustNothing); no runtime soft-input-mode switch.
         bottomInputLayoutEnabled = preferences.readKey(KEY_BOTTOM_INPUT_LAYOUT, false)
         val layoutRes = if (bottomInputLayoutEnabled) {
             R.layout.activity_quick_search_bottom_input
@@ -307,8 +299,8 @@ class QuickSearchActivity : AppCompatActivity() {
         // installs the configured style.
         binding.topSearchCard.alpha = 0f
         binding.bottomEngineCard.alpha = 0f
-        // Match decorFitsSystemWindows direction to avoid lost top margins and system inset handling.
-        binding.root.fitsSystemWindows = !keyboardFollowAnimationEnabled
+        // The motion controller applies system-bar and IME insets manually.
+        binding.root.fitsSystemWindows = false
         binding.topSearchCard.clipToOutline = true
         setContentView(binding.root)
 
