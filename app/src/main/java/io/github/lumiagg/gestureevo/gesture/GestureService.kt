@@ -65,6 +65,9 @@ class GestureService : AccessibilityService(), CoroutineScope {
     private val gestureBroadcastReceiver = GestureBroadcastReceiver()
     var gestureManager: GestureManager? = null
         private set
+    private var pointerDragStroke: GestureDescription.StrokeDescription? = null
+    private var pointerDragLastX = 0f
+    private var pointerDragLastY = 0f
     private var lastNightMode = Configuration.UI_MODE_NIGHT_UNDEFINED
     private var externalDropFloating: ExternalDropFloating? = null
     private var externalDropSettingsJob: Job? = null
@@ -386,6 +389,156 @@ class GestureService : AccessibilityService(), CoroutineScope {
             },
             null
         )
+    }
+
+    /**
+     * Dispatches an initial stationary stroke with `willContinue = true`. The callback fires
+     * after [holdDurationMs], but the injected finger remains down until [continuePointerDrag]
+     * is continued with `willContinue = false`.
+     */
+    suspend fun beginPointerDrag(
+        x: Float,
+        y: Float,
+        holdDurationMs: Long = 600L,
+    ): Boolean = suspendCancellableCoroutine { continuation ->
+        if (
+            pointerDragStroke != null ||
+            !x.isFinite() ||
+            !y.isFinite() ||
+            x < 0f ||
+            y < 0f ||
+            holdDurationMs <= 0L
+        ) {
+            if (continuation.isActive) continuation.resume(false)
+            return@suspendCancellableCoroutine
+        }
+
+        val path = Path().apply { moveTo(x, y) }
+        val stroke = try {
+            GestureDescription.StrokeDescription(path, 0L, holdDurationMs, true)
+        } catch (error: Throwable) {
+            Log.d(TAG, "beginPointerDrag: invalid stroke, ${error.message}")
+            if (continuation.isActive) continuation.resume(false)
+            return@suspendCancellableCoroutine
+        }
+
+        pointerDragStroke = stroke
+        pointerDragLastX = x
+        pointerDragLastY = y
+        Log.d(TAG, "beginPointerDrag: start hold at ($x,$y), duration=${holdDurationMs}ms")
+
+        val accepted = dispatchGesture(
+            GestureDescription.Builder().addStroke(stroke).build(),
+            object : GestureResultCallback() {
+                override fun onCompleted(gestureDescription: GestureDescription?) {
+                    Log.d(TAG, "beginPointerDrag: hold completed, finger still down")
+                    if (continuation.isActive) continuation.resume(true)
+                }
+
+                override fun onCancelled(gestureDescription: GestureDescription?) {
+                    Log.d(TAG, "beginPointerDrag: hold cancelled")
+                    pointerDragStroke = null
+                    if (continuation.isActive) continuation.resume(false)
+                }
+            },
+            null,
+        )
+        if (!accepted) {
+            pointerDragStroke = null
+            Log.d(TAG, "beginPointerDrag: dispatch rejected")
+            if (continuation.isActive) continuation.resume(false)
+        }
+    }
+
+    /**
+     * Continues the active drag stroke from [pointerDragLastX]/[pointerDragLastY] to the new
+     * point. Must be serialized by the caller so only one continuation is in flight.
+     */
+    suspend fun continuePointerDrag(
+        x: Float,
+        y: Float,
+        durationMs: Long = 16L,
+    ): Boolean = suspendCancellableCoroutine { continuation ->
+        val previous = pointerDragStroke
+        if (previous == null || !x.isFinite() || !y.isFinite()) {
+            if (continuation.isActive) continuation.resume(false)
+            return@suspendCancellableCoroutine
+        }
+
+        val path = Path().apply {
+            moveTo(pointerDragLastX, pointerDragLastY)
+            lineTo(x, y)
+        }
+        val next = try {
+            previous.continueStroke(path, 0L, durationMs.coerceAtLeast(1L), true)
+        } catch (error: Throwable) {
+            Log.d(TAG, "continuePointerDrag: cannot continue, ${error.message}")
+            pointerDragStroke = null
+            if (continuation.isActive) continuation.resume(false)
+            return@suspendCancellableCoroutine
+        }
+
+        pointerDragStroke = next
+        pointerDragLastX = x
+        pointerDragLastY = y
+        val accepted = dispatchGesture(
+            GestureDescription.Builder().addStroke(next).build(),
+            object : GestureResultCallback() {
+                override fun onCompleted(gestureDescription: GestureDescription?) {
+                    if (continuation.isActive) continuation.resume(true)
+                }
+
+                override fun onCancelled(gestureDescription: GestureDescription?) {
+                    Log.d(TAG, "continuePointerDrag: cancelled")
+                    pointerDragStroke = null
+                    if (continuation.isActive) continuation.resume(false)
+                }
+            },
+            null,
+        )
+        if (!accepted) {
+            pointerDragStroke = null
+            if (continuation.isActive) continuation.resume(false)
+        }
+    }
+
+    /** Lifts the held finger with a final `willContinue = false` continuation. */
+    suspend fun endPointerDrag(): Boolean = suspendCancellableCoroutine { continuation ->
+        val previous = pointerDragStroke
+        if (previous == null) {
+            if (continuation.isActive) continuation.resume(false)
+            return@suspendCancellableCoroutine
+        }
+
+        val path = Path().apply {
+            moveTo(pointerDragLastX, pointerDragLastY)
+            lineTo(pointerDragLastX, pointerDragLastY)
+        }
+        val last = try {
+            previous.continueStroke(path, 0L, 1L, false)
+        } catch (error: Throwable) {
+            Log.d(TAG, "endPointerDrag: cannot end, ${error.message}")
+            pointerDragStroke = null
+            if (continuation.isActive) continuation.resume(false)
+            return@suspendCancellableCoroutine
+        }
+
+        pointerDragStroke = null
+        Log.d(TAG, "endPointerDrag: lift at ($pointerDragLastX,$pointerDragLastY)")
+        val accepted = dispatchGesture(
+            GestureDescription.Builder().addStroke(last).build(),
+            object : GestureResultCallback() {
+                override fun onCompleted(gestureDescription: GestureDescription?) {
+                    if (continuation.isActive) continuation.resume(true)
+                }
+
+                override fun onCancelled(gestureDescription: GestureDescription?) {
+                    if (continuation.isActive) continuation.resume(false)
+                }
+            },
+            null,
+        )
+        if (!accepted && continuation.isActive) continuation.resume(false)
     }
 
     /**

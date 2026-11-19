@@ -113,6 +113,13 @@ class PointerFloating(
             },
         )
     }
+    private val pointerDragSession: PointerDragSession by lazy {
+        PointerDragSession(
+            service = context,
+            scope = context,
+            onStopped = { onDragSessionStopped() },
+        )
+    }
     private val pointerLayoutParams = WindowManager.LayoutParams()
     private val touchLayoutParams = WindowManager.LayoutParams()
     private var touchViewScale = 0.35
@@ -126,6 +133,7 @@ class PointerFloating(
     private var mouseModeActive = false
     private var mouseHoldScrollJob: Job? = null
     private var mouseHoldDirection: MousePadOverlay.Direction? = null
+    private var mouseDragNudgeJob: Job? = null
     private var mouseQuickScrollJob: Job? = null
     private var mouseWheelAccumulator = 0f
     private var mouseWheelInertiaJob: Job? = null
@@ -391,9 +399,10 @@ class PointerFloating(
         /** Simulated mouse mode. */
         const val MOUSE_SCROLL_DURATION_MS = 260L
         const val MOUSE_SCROLL_REPEAT_DELAY_MS = 40L
+        const val MOUSE_DRAG_STEP_DP = 24f
+        const val MOUSE_DRAG_REPEAT_DELAY_MS = 40L
         const val MOUSE_QUICK_SCROLL_STEPS = 30
         const val MOUSE_SCROLL_DISTANCE_RATIO = 0.35f
-        const val MOUSE_LONG_PRESS_DURATION_MS = 600L
         const val MOUSE_WHEEL_STEP_DP = 10f
         const val MOUSE_WHEEL_INERTIA_DECAY = 0.86f
         const val MOUSE_WHEEL_MIN_VELOCITY = 0.04f
@@ -599,6 +608,10 @@ class PointerFloating(
         mouseHoldDirection = null
         mouseHoldScrollJob?.cancel()
         mouseHoldScrollJob = null
+        mouseDragNudgeJob?.cancel()
+        mouseDragNudgeJob = null
+        pointerDragSession.end()
+        mousePadOverlay.setLongPressActive(false)
         mouseQuickScrollJob?.cancel()
         mouseQuickScrollJob = null
         mouseWheelInertiaJob?.cancel()
@@ -611,10 +624,43 @@ class PointerFloating(
         mousePadOverlay.visibility = View.GONE
     }
 
+    private fun onDragSessionStopped() {
+        pointerFloatingView.post {
+            if (!pointerDragSession.isBusy) {
+                mousePadOverlay.setLongPressActive(false)
+            }
+        }
+    }
+
     private fun onMouseDirectionPress(direction: MousePadOverlay.Direction) {
         if (!mouseModeActive) return
         mouseHoldDirection = direction
         mouseHoldScrollJob?.cancel()
+        mouseHoldScrollJob = null
+        mouseDragNudgeJob?.cancel()
+        mouseDragNudgeJob = null
+
+        if (pointerDragSession.isActive) {
+            // While a long press is held, the direction buttons move the held pointer instead
+            // of scrolling the page. The wheel still scrolls.
+            mouseDragNudgeJob = context.launch {
+                while (isActive && mouseModeActive && mouseHoldDirection == direction) {
+                    val step = MOUSE_DRAG_STEP_DP.dp2px
+                    val (dx, dy) = when (direction) {
+                        MousePadOverlay.Direction.UP -> 0f to -step
+                        MousePadOverlay.Direction.DOWN -> 0f to step
+                        MousePadOverlay.Direction.LEFT -> -step to 0f
+                        MousePadOverlay.Direction.RIGHT -> step to 0f
+                    }
+                    pointerManger.nudgePointer(dx, dy)
+                    delay(MOUSE_DRAG_REPEAT_DELAY_MS)
+                }
+            }
+            return
+        }
+
+        if (pointerDragSession.isBusy) return
+
         mouseHoldScrollJob = context.launch {
             while (isActive && mouseModeActive && mouseHoldDirection == direction) {
                 performMouseScrollStep(direction)
@@ -627,6 +673,8 @@ class PointerFloating(
         mouseHoldDirection = null
         mouseHoldScrollJob?.cancel()
         mouseHoldScrollJob = null
+        mouseDragNudgeJob?.cancel()
+        mouseDragNudgeJob = null
     }
 
     private suspend fun performMouseScrollStep(direction: MousePadOverlay.Direction) {
@@ -661,16 +709,28 @@ class PointerFloating(
 
     private fun onMouseLongPress() {
         if (!mouseModeActive) return
+        if (pointerDragSession.isActive) {
+            pointerDragSession.end()
+            return
+        }
+        if (pointerDragSession.isBusy) return
+
+        mouseHoldScrollJob?.cancel()
+        mouseHoldScrollJob = null
+        mouseDragNudgeJob?.cancel()
+        mouseDragNudgeJob = null
+        mouseQuickScrollJob?.cancel()
+        mouseQuickScrollJob = null
+        mouseWheelInertiaJob?.cancel()
+        mouseWheelInertiaJob = null
+        mouseWheelFallbackJob?.cancel()
+        mouseWheelFallbackJob = null
+        mouseWheelAccumulator = 0f
+
         pointerManger.pulseClickFeedback()
         val point = pointerManger.pointerCenter()
-        context.launch {
-            performPointerClick(
-                point.x,
-                point.y,
-                MOUSE_LONG_PRESS_DURATION_MS,
-                isValid = { mouseModeActive },
-            )
-        }
+        mousePadOverlay.setLongPressActive(true)
+        pointerDragSession.start(point.x, point.y)
     }
 
     private fun onMouseWheelScroll(deltaY: Float) {
@@ -717,14 +777,14 @@ class PointerFloating(
         if (!mouseModeActive) return
         val root = context.rootInActiveWindow
         if (root == null) {
-            scheduleWheelSwipe(scrollUp)
+            if (!pointerDragSession.isActive) scheduleWheelSwipe(scrollUp)
             return
         }
         if (root.packageName == context.packageName) {
             // The accessibility root can be one of our own overlay windows; fall back to a
             // short swipe instead of silently doing nothing.
             root.recycle()
-            scheduleWheelSwipe(scrollUp)
+            if (!pointerDragSession.isActive) scheduleWheelSwipe(scrollUp)
             return
         }
 
@@ -743,7 +803,7 @@ class PointerFloating(
         if (scrollable !== root) {
             root.recycle()
         }
-        if (!handled) {
+        if (!handled && !pointerDragSession.isActive) {
             scheduleWheelSwipe(scrollUp)
         }
     }
@@ -777,7 +837,7 @@ class PointerFloating(
     }
 
     private fun onMouseQuickScroll(toTop: Boolean) {
-        if (!mouseModeActive || mouseQuickScrollJob?.isActive == true) return
+        if (!mouseModeActive || pointerDragSession.isBusy || mouseQuickScrollJob?.isActive == true) return
         val point = pointerManger.pointerCenter()
         mouseQuickScrollJob = context.launch {
             try {
@@ -1301,9 +1361,17 @@ class PointerFloating(
                 (center.y + dy).coerceIn(halfHeight, screenHeight - halfHeight),
             )
             placePointer(target)
+            if (pointerDragSession.isActive) {
+                pointerDragSession.moveTo(target.x, target.y)
+            }
+        }
+
+        fun nudgePointer(dx: Float, dy: Float) {
+            if (mouseMode) movePointerBy(dx, dy)
         }
 
         private fun handleMouseTap() {
+            if (pointerDragSession.isBusy) return
             pulseClickFeedback()
             val point = pointerCenter()
             // Match the normal pointer's tap path: click immediately after release, no

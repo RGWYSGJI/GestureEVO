@@ -50,6 +50,7 @@ class MousePadOverlay(
     }
 
     private val buttons = linkedMapOf<Direction, TextView>()
+    private lateinit var longPressButton: TextView
     private lateinit var closeButton: TextView
     private var activeDirection: Direction? = null
     private var closeArmed = false
@@ -96,7 +97,7 @@ class MousePadOverlay(
                 setMargins(margin, margin, margin, margin)
             },
         )
-        addActionButton(topBar, "长按", vertical = false) {
+        longPressButton = addActionButton(topBar, "长按", vertical = false) {
             onLongPress()
         }
 
@@ -217,6 +218,19 @@ class MousePadOverlay(
         setButtonColor(closeButton, BUTTON_ARMED_COLOR)
         removeCallbacks(closeReset)
         postDelayed(closeReset, CLOSE_DOUBLE_TAP_MS)
+    }
+
+    /**
+     * Marks the long-press button as a toggle while a drag session is held down. Tapping it
+     * again ends the session and lifts the injected finger.
+     */
+    fun setLongPressActive(active: Boolean) {
+        if (!::longPressButton.isInitialized) return
+        longPressButton.text = if (active) "结束" else "长按"
+        setButtonColor(
+            longPressButton,
+            if (active) BUTTON_ON_COLOR else BUTTON_OFF_COLOR,
+        )
     }
 
     /** [touchPadOnLeft] is true when the pad itself occupies the left side of the screen. */
