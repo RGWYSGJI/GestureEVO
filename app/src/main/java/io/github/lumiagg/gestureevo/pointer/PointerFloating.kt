@@ -84,6 +84,7 @@ import java.lang.ref.WeakReference
 import java.util.Collections
 import java.util.LinkedList
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
@@ -102,8 +103,8 @@ class PointerFloating(
             context = context,
             onDirectionPress = { direction -> onMouseDirectionPress(direction) },
             onDirectionRelease = { onMouseDirectionRelease() },
-            onDoubleClick = { onMouseDoubleClick() },
-            onLongPress = { onMouseLongPress() },
+            onWheelScroll = { delta -> onMouseWheelScroll(delta) },
+            onWheelRelease = { velocity -> onMouseWheelRelease(velocity) },
             onQuickScroll = { toTop -> onMouseQuickScroll(toTop) },
             onClose = {
                 Log.d("PointerFloating", "mousePad close button double tap")
@@ -125,6 +126,9 @@ class PointerFloating(
     private var mouseHoldScrollJob: Job? = null
     private var mouseHoldDirection: MousePadOverlay.Direction? = null
     private var mouseQuickScrollJob: Job? = null
+    private var mouseWheelAccumulator = 0f
+    private var mouseWheelInertiaJob: Job? = null
+    private var mouseWheelFallbackJob: Job? = null
     private var pointerVisibleRequested = false
     private var hoverMenuEnabled = false
     var captureLinks: suspend () -> List<LinkRegion> = { emptyList() }
@@ -384,12 +388,17 @@ class PointerFloating(
         const val TRAIL_STENCIL_GROWTH_DP = 10f
 
         /** Simulated mouse mode. */
-        const val MOUSE_CLICK_DURATION_MS = 50L
-        const val MOUSE_LONG_PRESS_DURATION_MS = 600L
         const val MOUSE_SCROLL_DURATION_MS = 260L
         const val MOUSE_SCROLL_REPEAT_DELAY_MS = 40L
         const val MOUSE_QUICK_SCROLL_STEPS = 30
         const val MOUSE_SCROLL_DISTANCE_RATIO = 0.35f
+        const val MOUSE_WHEEL_STEP_DP = 10f
+        const val MOUSE_WHEEL_INERTIA_DECAY = 0.86f
+        const val MOUSE_WHEEL_MIN_VELOCITY = 0.04f
+        const val MOUSE_WHEEL_MAX_INERTIA_STEPS = 24
+        const val MOUSE_WHEEL_MAX_STEPS_PER_EVENT = 6
+        const val MOUSE_WHEEL_SWIPE_DISTANCE_DP = 56f
+        const val MOUSE_WHEEL_SWIPE_DURATION_MS = 90L
     }
 
     var enable = false
@@ -590,6 +599,11 @@ class PointerFloating(
         mouseHoldScrollJob = null
         mouseQuickScrollJob?.cancel()
         mouseQuickScrollJob = null
+        mouseWheelInertiaJob?.cancel()
+        mouseWheelInertiaJob = null
+        mouseWheelFallbackJob?.cancel()
+        mouseWheelFallbackJob = null
+        mouseWheelAccumulator = 0f
         pointerManger.stopMouseMode()
         mousePadOverlay.cancelDirectionHold()
         mousePadOverlay.visibility = View.GONE
@@ -643,27 +657,104 @@ class PointerFloating(
         )
     }
 
-    private fun onMouseDoubleClick() {
-        if (!mouseModeActive) return
-        pointerManger.pulseClickFeedback()
-        val point = pointerManger.pointerCenter()
-        context.launch {
-            performPointerClick(
-                point.x,
-                point.y,
-                MOUSE_CLICK_DURATION_MS,
-                clickCount = 2,
-            )
+    private fun onMouseWheelScroll(deltaY: Float) {
+        if (!mouseModeActive || deltaY == 0f) return
+        mouseWheelInertiaJob?.cancel()
+        mouseWheelAccumulator += deltaY
+
+        val stepPx = MOUSE_WHEEL_STEP_DP.dp2px
+        var steps = 0
+        while (abs(mouseWheelAccumulator) >= stepPx && steps < MOUSE_WHEEL_MAX_STEPS_PER_EVENT) {
+            val scrollUp = mouseWheelAccumulator < 0f
+            mouseWheelAccumulator -= if (scrollUp) -stepPx else stepPx
+            scrollWheelStep(scrollUp)
+            steps++
+        }
+        if (steps == MOUSE_WHEEL_MAX_STEPS_PER_EVENT) {
+            mouseWheelAccumulator = 0f
         }
     }
 
-    private fun onMouseLongPress() {
+    private fun onMouseWheelRelease(velocity: Float) {
         if (!mouseModeActive) return
-        pointerManger.pulseClickFeedback()
-        val point = pointerManger.pointerCenter()
-        context.launch {
-            performPointerClick(point.x, point.y, MOUSE_LONG_PRESS_DURATION_MS)
+        mouseWheelInertiaJob?.cancel()
+        if (abs(velocity) < MOUSE_WHEEL_MIN_VELOCITY) return
+
+        mouseWheelInertiaJob = context.launch {
+            var currentVelocity = velocity
+            var steps = 0
+            while (
+                isActive &&
+                mouseModeActive &&
+                abs(currentVelocity) >= MOUSE_WHEEL_MIN_VELOCITY &&
+                steps < MOUSE_WHEEL_MAX_INERTIA_STEPS
+            ) {
+                scrollWheelStep(currentVelocity < 0f)
+                currentVelocity *= MOUSE_WHEEL_INERTIA_DECAY
+                steps++
+                delay(16)
+            }
         }
+    }
+
+    private fun scrollWheelStep(scrollUp: Boolean) {
+        if (!mouseModeActive) return
+        val root = context.rootInActiveWindow
+        if (root == null) {
+            scheduleWheelSwipe(scrollUp)
+            return
+        }
+        if (root.packageName == context.packageName) {
+            root.recycle()
+            return
+        }
+
+        val point = pointerManger.pointerCenter()
+        val scrollable = findScrollableNodeAt(root, point.x.toInt(), point.y.toInt())
+        var handled = false
+        if (scrollable != null) {
+            val action = if (scrollUp) {
+                AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
+            } else {
+                AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
+            }
+            handled = scrollable.performAction(action)
+            scrollable.recycle()
+        }
+        if (scrollable !== root) {
+            root.recycle()
+        }
+        if (!handled) {
+            scheduleWheelSwipe(scrollUp)
+        }
+    }
+
+    private fun scheduleWheelSwipe(scrollUp: Boolean) {
+        if (mouseWheelFallbackJob?.isActive == true) return
+        mouseWheelFallbackJob = context.launch {
+            try {
+                swipeWheel(scrollUp)
+            } finally {
+                mouseWheelFallbackJob = null
+            }
+        }
+    }
+
+    private suspend fun swipeWheel(scrollUp: Boolean) {
+        val screenWidth = pointerFloatingView.width.coerceAtLeast(1).toFloat()
+        val screenHeight = pointerFloatingView.height.coerceAtLeast(1).toFloat()
+        val center = pointerManger.pointerCenter()
+        val half = MOUSE_WHEEL_SWIPE_DISTANCE_DP.dp2px / 2f
+        val startY = if (scrollUp) center.y - half else center.y + half
+        val endY = if (scrollUp) center.y + half else center.y - half
+        context.performSwipeAsync(
+            center.x.coerceIn(1f, screenWidth - 1f),
+            startY.coerceIn(1f, screenHeight - 1f),
+            center.x.coerceIn(1f, screenWidth - 1f),
+            endY.coerceIn(1f, screenHeight - 1f),
+            duration = MOUSE_WHEEL_SWIPE_DURATION_MS,
+            useDecelerationCurve = false,
+        )
     }
 
     private fun onMouseQuickScroll(toTop: Boolean) {

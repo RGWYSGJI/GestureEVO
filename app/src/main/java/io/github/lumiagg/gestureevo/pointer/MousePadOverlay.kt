@@ -17,16 +17,15 @@ import io.github.lumiagg.gestureevo.utils.dp2px
  * Action overlay shown only while the pointer is in mouse mode.
  *
  * The touch pad is a rectangle: the four direction buttons stay on its inner long edge (the
- * "x" edge, left or right), while the two gesture buttons sit on the top short edge and the
- * three page/navigation buttons sit on the bottom short edge. That keeps the new actions off
- * the same side as the arrows without changing the pad's existing width/position.
+ * "x" edge, left or right), a scroll wheel runs along the top short edge, and the three
+ * page/navigation buttons sit on the bottom short edge.
  */
 class MousePadOverlay(
     context: Context,
     private val onDirectionPress: (Direction) -> Unit,
     private val onDirectionRelease: () -> Unit,
-    private val onDoubleClick: () -> Unit,
-    private val onLongPress: () -> Unit,
+    private val onWheelScroll: (Float) -> Unit,
+    private val onWheelRelease: (Float) -> Unit,
     private val onQuickScroll: (Boolean) -> Unit,
     private val onClose: () -> Unit,
 ) : FrameLayout(context) {
@@ -83,11 +82,18 @@ class MousePadOverlay(
             },
         )
 
-        // Top short edge: double-click, then long-press.
-        addActionButton(topBar, "双击", vertical = false) { onDoubleClick() }
-        addActionButton(topBar, "长按", vertical = false) {
-            onLongPress()
-        }
+        // Top short edge: one scroll wheel, spanning the area that used to hold the two
+        // gesture buttons.
+        topBar.addView(
+            MouseScrollWheelView(context, onWheelScroll, onWheelRelease),
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.MATCH_PARENT,
+            ).apply {
+                val margin = 2f.dp2px.toInt()
+                setMargins(margin, margin, margin, margin)
+            },
+        )
 
         // Inner long edge: the existing four directions, unchanged in order.
         addDirectionButton(Direction.UP, "↑")
