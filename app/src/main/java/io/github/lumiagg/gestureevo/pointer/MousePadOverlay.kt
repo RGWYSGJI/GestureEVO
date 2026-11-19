@@ -94,7 +94,7 @@ class MousePadOverlay(
                 setMargins(margin, margin, margin, margin)
             },
         )
-        addActionButton(
+        val quickTopButton = addActionButton(
             topBar,
             edgeArrowLabel(up = true),
             vertical = false,
@@ -102,8 +102,17 @@ class MousePadOverlay(
         ) {
             onQuickScroll(true)
         }
-        addActionButton(topBar, "长按", vertical = false) {
+        val longPressButton = addActionButton(topBar, "长按", vertical = false) {
             onLongPress()
+        }
+        // Only the wheel grows downward into the 96dp top bar; keep the two
+        // adjacent actions at the normal 48dp height so they do not become
+        // oversized touch targets.
+        listOf(quickTopButton, longPressButton).forEach { button ->
+            button.layoutParams = (button.layoutParams as LinearLayout.LayoutParams).apply {
+                height = 48f.dp2px.toInt()
+                gravity = Gravity.TOP
+            }
         }
 
         // Inner long edge: the existing four directions, unchanged in order.
@@ -220,7 +229,8 @@ class MousePadOverlay(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 1f,
             )
-        }.apply {
+        }
+        params.apply {
             val margin = 2f.dp2px.toInt()
             setMargins(margin, margin, margin, margin)
         }
