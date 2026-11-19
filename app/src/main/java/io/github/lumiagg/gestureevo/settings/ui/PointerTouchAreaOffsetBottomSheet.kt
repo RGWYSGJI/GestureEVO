@@ -15,7 +15,6 @@ import io.github.lumiagg.gestureevo.utils.DynamicColorUtils
 class PointerTouchAreaOffsetBottomSheet(
     private val activity: Activity,
     private val initialOffsetDp: Int,
-    private val titleRes: Int,
     private val onValueChanged: (Int) -> Unit
 ) {
     private lateinit var bottomSheetDialog: BottomSheetDialog
@@ -35,7 +34,7 @@ class PointerTouchAreaOffsetBottomSheet(
         bottomSheetDialog =
             BottomSheetDialog(themedContext, R.style.ThemeOverlay_BottomSheetDialog_Scrollable)
         bottomSheetDialog.setContentView(binding.root)
-        binding.titleText.setText(titleRes)
+        binding.titleText.setText(R.string.inspire_settings_pointer_touch_area_offset)
 
         binding.touchAreaOffsetSlider.setLabelFormatter(
             LabelFormatter { value ->

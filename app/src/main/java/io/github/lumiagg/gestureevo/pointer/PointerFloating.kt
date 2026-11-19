@@ -58,7 +58,6 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_MOUSE_ARROW_SPEED
 import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_MOUSE_WHEEL_SPEED
-import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_POINTER_TOUCH_AREA_HORIZONTAL_OFFSET_DP
 import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_POINTER_TOUCH_AREA_OFFSET_DP
 import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_SHOW_POINTER_TRAIL
 import io.github.lumiagg.gestureevo.utils.DynamicColorUtils
@@ -128,7 +127,6 @@ class PointerFloating(
     var needShowTouchView = false
     private var enterMouseAfterShow = false
     private var touchAreaOffsetDp = 0
-    private var touchAreaHorizontalOffsetDp = 0
     private var mouseModeActive = false
     private var mouseLongPressHoldActive = false
     private val pointerHoldSession by lazy {
@@ -363,8 +361,8 @@ class PointerFloating(
 
         val baseX = (pointerManger.touchViewX - layoutParams.width / 2).toInt()
             .coerceIn(minX.toInt(), maxX.toInt())
-        layoutParams.x = (baseX + touchAreaHorizontalOffsetDp.dp2px).toInt()
-            .coerceIn(minX.toInt(), maxX.toInt())
+        layoutParams.x = baseX
+
         layoutParams.y = (minY + (maxY - minY) * amplifiedTouchYRatio + touchAreaOffsetDp.dp2px).toInt()
             .coerceIn(minY.toInt(), maxY.toInt())
 
@@ -568,10 +566,6 @@ class PointerFloating(
     private suspend fun updateTouchAreaConfig() = withContext(Dispatchers.IO) {
         touchAreaOffsetDp = context.settingsStore.readKey(
             KEY_POINTER_TOUCH_AREA_OFFSET_DP,
-            0
-        ).coerceIn(-150, 150)
-        touchAreaHorizontalOffsetDp = context.settingsStore.readKey(
-            KEY_POINTER_TOUCH_AREA_HORIZONTAL_OFFSET_DP,
             0
         ).coerceIn(-150, 150)
     }
