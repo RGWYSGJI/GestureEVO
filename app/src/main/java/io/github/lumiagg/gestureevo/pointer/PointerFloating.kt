@@ -120,7 +120,7 @@ class PointerFloating(
     }
     private val pointerLayoutParams = WindowManager.LayoutParams()
     private val touchLayoutParams = WindowManager.LayoutParams()
-    private var touchViewScale = 0.35
+    private var touchViewScale = 0.35f
     var screenStatusHeight = ScreenUtil.getStatusBarHeight(context)
     private val trailView = TrailView(context)
     private val highlightRectView = HighlightRectView(context)
