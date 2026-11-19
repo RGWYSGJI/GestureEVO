@@ -465,9 +465,19 @@ class GestureService : AccessibilityService(), CoroutineScope {
             return@suspendCancellableCoroutine
         }
 
+        // A heartbeat repeats the last point. Some OEM gesture implementations reject a
+        // zero-length continuation, so give it a tiny non-zero segment.
+        val endX = if (
+            kotlin.math.abs(x - pointerDragLastX) < 0.01f &&
+            kotlin.math.abs(y - pointerDragLastY) < 0.01f
+        ) {
+            x + 0.01f
+        } else {
+            x
+        }
         val path = Path().apply {
             moveTo(pointerDragLastX, pointerDragLastY)
-            lineTo(x, y)
+            lineTo(endX, y)
         }
         val next = try {
             previous.continueStroke(path, 0L, durationMs.coerceAtLeast(1L), true)
@@ -485,7 +495,7 @@ class GestureService : AccessibilityService(), CoroutineScope {
         }
 
         pointerDragStroke = next
-        pointerDragLastX = x
+        pointerDragLastX = endX
         pointerDragLastY = y
         val accepted = dispatchGesture(
             GestureDescription.Builder().addStroke(next).build(),
@@ -518,7 +528,7 @@ class GestureService : AccessibilityService(), CoroutineScope {
 
         val path = Path().apply {
             moveTo(pointerDragLastX, pointerDragLastY)
-            lineTo(pointerDragLastX, pointerDragLastY)
+            lineTo(pointerDragLastX + 0.01f, pointerDragLastY)
         }
         val last = try {
             previous.continueStroke(path, 0L, 1L, false)
