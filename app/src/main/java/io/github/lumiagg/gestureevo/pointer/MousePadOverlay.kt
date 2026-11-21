@@ -1,7 +1,6 @@
 package io.github.lumiagg.gestureevo.pointer
 
 import android.content.Context
-import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.drawable.GradientDrawable
 import android.os.SystemClock
@@ -210,7 +209,7 @@ class MousePadOverlay(
             text = label
             textSize = if (label.length > 1) 14f else 18f
             gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
+            setTextColor(BUTTON_TEXT_COLOR)
             isClickable = true
             isFocusable = false
             background = buttonBackground(BUTTON_OFF_COLOR)
@@ -340,6 +339,9 @@ class MousePadOverlay(
     private fun buttonBackground(color: Int): GradientDrawable = GradientDrawable().apply {
         cornerRadius = 10f.dp2px
         setColor(color)
+        if (color == BUTTON_OFF_COLOR) {
+            setStroke(1f.dp2px.toInt(), BUTTON_BORDER_COLOR)
+        }
     }
 
     private companion object {
@@ -350,9 +352,11 @@ class MousePadOverlay(
         // The bottom buttons carry 2dp top/bottom margins. A 48dp bar gives them
         // the same 44dp content height as the top quick-top and long-press buttons.
         const val BOTTOM_BAR_HEIGHT_DP = 48f
-        const val BUTTON_OFF_COLOR = 0x66000000
-        val BUTTON_ON_COLOR = 0xCC4CAF50.toInt()
-        val BUTTON_ARMED_COLOR = 0xCCD32F2F.toInt()
+        const val BUTTON_OFF_COLOR = 0x26000000
+        val BUTTON_BORDER_COLOR = 0x1FFFFFFF
+        val BUTTON_TEXT_COLOR = 0xF2FFFFFF.toInt()
+        val BUTTON_ON_COLOR = 0xB34CAF50.toInt()
+        val BUTTON_ARMED_COLOR = 0xB3D32F2F.toInt()
         const val CLOSE_DOUBLE_TAP_MS = 300L
     }
 }

@@ -35,6 +35,11 @@ class MouseScrollWheelView(
         color = CENTER_COLOR
         strokeWidth = 1.5f.dp2px
     }
+    private val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = BORDER_COLOR
+        style = Paint.Style.STROKE
+        strokeWidth = 1f.dp2px
+    }
 
     private var wheelOffset = 0f
     private var lastY = 0f
@@ -57,6 +62,13 @@ class MouseScrollWheelView(
         bodyPaint.color = if (isPressed) BODY_PRESSED_COLOR else BODY_COLOR
         val radius = 8f.dp2px
         canvas.drawRoundRect(RectF(0f, 0f, w, h), radius, radius, bodyPaint)
+        val borderInset = 0.5f.dp2px
+        canvas.drawRoundRect(
+            RectF(borderInset, borderInset, w - borderInset, h - borderInset),
+            radius,
+            radius,
+            borderPaint,
+        )
 
         // Horizontal ridges that travel vertically, like the surface of a wheel.
         val spacing = 9f.dp2px
@@ -125,9 +137,10 @@ class MouseScrollWheelView(
     }
 
     private companion object {
-        val BODY_COLOR = 0x66000000.toInt()
-        val BODY_PRESSED_COLOR = 0x88000000.toInt()
-        val RIDGE_COLOR = 0x66FFFFFF.toInt()
-        val CENTER_COLOR = 0xCC4CAF50.toInt()
+        val BODY_COLOR = 0x26000000
+        val BODY_PRESSED_COLOR = 0x33000000
+        val BORDER_COLOR = 0x1FFFFFFF
+        val RIDGE_COLOR = 0x33FFFFFF
+        val CENTER_COLOR = 0xB34CAF50.toInt()
     }
 }
