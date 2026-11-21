@@ -51,7 +51,6 @@ class MousePadOverlay(
 
     private val buttons = linkedMapOf<Direction, TextView>()
     private lateinit var wheelView: MouseScrollWheelView
-    private lateinit var bottomSpacer: View
     private lateinit var quickTopButton: TextView
     private lateinit var quickBottomButton: TextView
     private lateinit var closeButton: TextView
@@ -110,12 +109,11 @@ class MousePadOverlay(
         longPressButton = addActionButton(topBar, "长按", vertical = false) {
             onLongPress()
         }
-        // Only the wheel grows downward into the 96dp top bar; keep the two
-        // adjacent actions at the normal 48dp height so they do not become
-        // oversized touch targets.
+        // Only the wheel grows downward into the 98dp top bar; keep the two
+        // adjacent actions at 44dp height so they do not become oversized touch targets.
         listOf(quickTopButton, longPressButton).forEach { button ->
             button.layoutParams = (button.layoutParams as LinearLayout.LayoutParams).apply {
-                height = 48f.dp2px.toInt()
+                height = 44f.dp2px.toInt()
                 gravity = Gravity.TOP
             }
         }
@@ -126,25 +124,10 @@ class MousePadOverlay(
         addDirectionButton(Direction.LEFT, "←")
         addDirectionButton(Direction.RIGHT, "→")
 
-        // Bottom short edge: leave the same slot as the wheel on the left, so
-        // quick-bottom and close sit directly under quick-top and long-press.
+        // Bottom short edge: quick-bottom and close share the full width.
         // U+21D1/U+21D3 live in the ordinary Arrows block, which is much more widely
         // covered than Supplemental Arrows-B; keep a plain-arrow fallback for ROMs
         // that still lack them.
-        bottomSpacer = View(context).apply {
-            isClickable = false
-            importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
-        }
-        bottomBar.addView(
-            bottomSpacer,
-            LinearLayout.LayoutParams(
-                WHEEL_WIDTH_DP.dp2px.toInt(),
-                LinearLayout.LayoutParams.MATCH_PARENT,
-            ).apply {
-                val margin = 2f.dp2px.toInt()
-                setMargins(margin, margin, margin, margin)
-            },
-        )
         quickBottomButton = addActionButton(
             bottomBar,
             edgeArrowLabel(up = false),
@@ -296,10 +279,10 @@ class MousePadOverlay(
         if (!::wheelView.isInitialized) return
         if (touchPadOnLeft) {
             arrangeBar(topBar, longPressButton, quickTopButton, wheelView)
-            arrangeBar(bottomBar, closeButton, quickBottomButton, bottomSpacer)
+            arrangeBar(bottomBar, closeButton, quickBottomButton)
         } else {
             arrangeBar(topBar, wheelView, quickTopButton, longPressButton)
-            arrangeBar(bottomBar, bottomSpacer, quickBottomButton, closeButton)
+            arrangeBar(bottomBar, quickBottomButton, closeButton)
         }
     }
 
@@ -333,12 +316,12 @@ class MousePadOverlay(
     }
 
     private companion object {
-        const val STRIP_WIDTH_DP = 48f
-        const val WHEEL_WIDTH_DP = 46f
-        const val TOP_BAR_HEIGHT_DP = 96f
-        // The bottom buttons carry 2dp top/bottom margins. A 52dp bar gives them the
-        // same 48dp content height as the top quick-top and long-press buttons.
-        const val BOTTOM_BAR_HEIGHT_DP = 52f
+        const val STRIP_WIDTH_DP = 44f
+        const val WHEEL_WIDTH_DP = 44f
+        const val TOP_BAR_HEIGHT_DP = 98f
+        // The bottom buttons carry 2dp top/bottom margins. A 48dp bar gives them
+        // the same 44dp content height as the top quick-top and long-press buttons.
+        const val BOTTOM_BAR_HEIGHT_DP = 48f
         const val BUTTON_OFF_COLOR = 0x66000000
         val BUTTON_ON_COLOR = 0xCC4CAF50.toInt()
         val BUTTON_ARMED_COLOR = 0xCCD32F2F.toInt()
