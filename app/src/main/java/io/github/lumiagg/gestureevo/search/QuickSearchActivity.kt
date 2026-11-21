@@ -30,7 +30,6 @@ import androidx.core.graphics.ColorUtils
 import androidx.core.view.ContentInfoCompat
 import androidx.core.view.OnReceiveContentListener
 import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.core.view.doOnPreDraw
 import androidx.core.view.WindowCompat
@@ -79,7 +78,6 @@ class QuickSearchActivity : AppCompatActivity() {
         private const val MAX_PICKED_IMAGES = 10
         private const val MAX_IMAGE_BYTES = 20L * 1024L * 1024L
         private const val MAX_IMAGE_CACHE_BYTES = 200L * 1024L * 1024L
-        private const val STATE_RESTORE_KEYBOARD = "restore_keyboard_after_picker"
         private const val KEEP_BACKGROUND_BLUR_HANDOFF_TIMEOUT_MS = 1_000L
         private var keepBackgroundBlurHandoffTime = 0L
         private var releaseBackgroundBlurHandoff: (() -> Unit)? = null
@@ -129,7 +127,6 @@ class QuickSearchActivity : AppCompatActivity() {
     private val attachedImageUris = mutableListOf<Uri>()
     private val attachedImageHashes = mutableListOf<String>()
     private var pendingCameraImageUri: Uri? = null
-    private var restoreKeyboardAfterPicker = false
 
     private var showBlur = false
     private var cardBackgroundBlurEnabled = false
@@ -181,7 +178,6 @@ class QuickSearchActivity : AppCompatActivity() {
         Log.d(TAG, "pickImages result: ${uris.size}")
         if (uris.isEmpty()) {
             clearPendingImageSearch()
-            maybeRestoreKeyboard()
             return@registerForActivityResult
         }
         lifecycleScope.launch(uiDispatcher) {
@@ -202,7 +198,6 @@ class QuickSearchActivity : AppCompatActivity() {
         Log.d(TAG, "pickImageAndSearch result: ${uri != null}")
         if (uri == null) {
             clearPendingImageSearch()
-            maybeRestoreKeyboard()
             return@registerForActivityResult
         }
         lifecycleScope.launch(uiDispatcher) {
@@ -224,7 +219,6 @@ class QuickSearchActivity : AppCompatActivity() {
         pendingCameraImageUri = null
         if (!success || uri == null) {
             clearPendingImageSearch()
-            maybeRestoreKeyboard()
             return@registerForActivityResult
         }
         lifecycleScope.launch(uiDispatcher) {
@@ -238,8 +232,6 @@ class QuickSearchActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        restoreKeyboardAfterPicker =
-            savedInstanceState?.getBoolean(STATE_RESTORE_KEYBOARD) ?: false
         triggerSide = intent?.getStringExtra(TriggerSide.EXTRA_TRIGGER_SIDE)
         pendingBlurHandoff = consumeKeepBackgroundBlurOnNextEnter()
         keepBackgroundBlurOnEnter = pendingBlurHandoff != null
@@ -341,7 +333,6 @@ class QuickSearchActivity : AppCompatActivity() {
         engineManager.configureEngineRecycler(preferences)
         initView()
         motionController.bind()
-        maybeRestoreKeyboard()
         if (keepBackgroundBlurOnEnter) {
             releaseBackgroundBlurHandoffIfNeeded()
         }
@@ -614,11 +605,6 @@ class QuickSearchActivity : AppCompatActivity() {
         }
     }
 
-    override fun onSaveInstanceState(outState: Bundle) {
-        outState.putBoolean(STATE_RESTORE_KEYBOARD, restoreKeyboardAfterPicker)
-        super.onSaveInstanceState(outState)
-    }
-
     override fun onPause() {
         super.onPause()
         cancelPendingSearch()
@@ -638,32 +624,10 @@ class QuickSearchActivity : AppCompatActivity() {
         }
     }
 
-    private fun rememberKeyboardForPicker() {
-        restoreKeyboardAfterPicker = ViewCompat.getRootWindowInsets(binding.root)
-            ?.isVisible(WindowInsetsCompat.Type.ime()) == true
-        Log.d(TAG, "rememberKeyboardForPicker: $restoreKeyboardAfterPicker")
-    }
-
-    private fun maybeRestoreKeyboard() {
-        if (!restoreKeyboardAfterPicker) return
-        if (!::binding.isInitialized || !::motionController.isInitialized) return
-        if (!binding.root.hasWindowFocus()) return
-        restoreKeyboardAfterPicker = false
-        binding.searchInput.post {
-            if (isFinishing || isDestroyed) return@post
-            binding.searchInput.requestFocus()
-            motionController.showKeyboard()
-            Log.d(TAG, "restore keyboard after picker")
-        }
-    }
-
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (::motionController.isInitialized) {
             motionController.onWindowFocusChanged(hasFocus)
-        }
-        if (hasFocus) {
-            maybeRestoreKeyboard()
         }
     }
 
@@ -767,7 +731,6 @@ class QuickSearchActivity : AppCompatActivity() {
     fun pickImageAndSearch(engine: SearchEngine, freeform: Boolean) {
         pendingImageEngine = engine
         pendingImageSearchFreeform = freeform
-        rememberKeyboardForPicker()
         searchImagePickerLauncher.launch(arrayOf("image/*"))
     }
 
@@ -778,7 +741,6 @@ class QuickSearchActivity : AppCompatActivity() {
     }
 
     fun pickImages() {
-        rememberKeyboardForPicker()
         imagePickerLauncher.launch(arrayOf("image/*"))
     }
 
@@ -789,10 +751,8 @@ class QuickSearchActivity : AppCompatActivity() {
         if (uri == null) {
             Log.w(TAG, "createCameraImageUri failed")
             clearPendingImageSearch()
-            maybeRestoreKeyboard()
             return
         }
-        rememberKeyboardForPicker()
         pendingCameraImageUri = uri
         cameraLauncher.launch(uri)
     }
@@ -834,7 +794,6 @@ class QuickSearchActivity : AppCompatActivity() {
             }
         }
         if (newUris.isEmpty()) {
-            maybeRestoreKeyboard()
             return 0
         }
         inputReadyForSave = true
@@ -842,7 +801,6 @@ class QuickSearchActivity : AppCompatActivity() {
         attachedImageHashes.addAll(newHashes)
         updateInputActionVisibility(binding.searchInput.text?.toString().orEmpty())
         withContext(ioDispatcher) { pruneImageCache() }
-        maybeRestoreKeyboard()
         return newUris.size
     }
 
