@@ -31,10 +31,6 @@ class MouseScrollWheelView(
         color = RIDGE_COLOR
         strokeWidth = 1f.dp2px
     }
-    private val centerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = CENTER_COLOR
-        strokeWidth = 1.5f.dp2px
-    }
     private val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = BORDER_COLOR
         style = Paint.Style.STROKE
@@ -81,9 +77,6 @@ class MouseScrollWheelView(
             }
             y += spacing
         }
-
-        // A short centre mark makes the neutral position obvious without adding a label.
-        canvas.drawLine(w / 2f, 3f.dp2px, w / 2f, h - 3f.dp2px, centerPaint)
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -141,6 +134,5 @@ class MouseScrollWheelView(
         val BODY_PRESSED_COLOR = 0x33000000
         val BORDER_COLOR = 0x1FFFFFFF
         val RIDGE_COLOR = 0x33FFFFFF
-        val CENTER_COLOR = 0xB34CAF50.toInt()
     }
 }
