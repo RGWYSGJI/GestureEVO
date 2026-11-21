@@ -2,10 +2,12 @@ package io.github.lumiagg.gestureevo.db
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 
 @Database(
-    version = 2,
+    version = 3,
     exportSchema = true,
     entities = [
         APPModel::class,
@@ -16,12 +18,9 @@ import androidx.room.RoomDatabase
         HiddenSearchResultModel::class,
         ExternalActionPermissionModel::class,
         PinPoolModel::class,
-        DynamicShortcutModel::class,
     ]
 )
 abstract class DataBase : RoomDatabase() {
-    abstract fun dynamicShortcutDao(): DynamicShortcutDao
-
     val appDao: APPDao by lazy { createAPPDao() }
 
     val contactDao: ContactDao by lazy { createContactDao() }
@@ -55,4 +54,19 @@ abstract class DataBase : RoomDatabase() {
 
     abstract fun createPinPoolDao(): PinPoolDao
 
+    companion object {
+        /** v1 databases predate the dynamic shortcut table. */
+        val MIGRATION_1_3 = object : Migration(1, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS `DynamicShortcutModel`")
+            }
+        }
+
+        /** v2 databases contain the removed dynamic shortcut table. */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS `DynamicShortcutModel`")
+            }
+        }
+    }
 }

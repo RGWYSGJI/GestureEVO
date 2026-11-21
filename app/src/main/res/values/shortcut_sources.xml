@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="shortcut_source_local_summary">打开应用提供的快捷方式创建页</string>
+  <string name="shortcut_source_templates_summary">从预置的应用功能入口中选择</string>
+</resources>

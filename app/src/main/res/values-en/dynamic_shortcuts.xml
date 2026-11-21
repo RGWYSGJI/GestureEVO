@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-  <string name="dynamic_shortcuts_freeform_unsupported">This window backend requires an activity Intent and cannot launch a dynamic shortcut. Turn off the floating window option for this action.</string>
-  <string name="shortcut_source_local_summary">Open the shortcut creator provided by an app</string>
-  <string name="shortcut_source_templates_summary">Choose from bundled app feature templates</string>
-  <string name="dynamic_shortcuts_launch_failed">Unable to launch shortcut. It may be unavailable or need importing on this device.</string>
-</resources>

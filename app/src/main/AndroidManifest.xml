@@ -32,9 +32,6 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.GestureEVO"
         tools:targetApi="34">
-        <activity android:name=".utils.shortcuts.ShortcutLaunchActivity"
-            android:exported="false" android:excludeFromRecents="true"
-            android:theme="@style/Theme.GestureEVO.transparent" />
         <activity
             android:name=".drop.DropSearchActivity"
             android:excludeFromRecents="true"
