@@ -94,11 +94,8 @@ class MousePadOverlay(
             wheelView,
             LinearLayout.LayoutParams(
                 WHEEL_WIDTH_DP.dp2px.toInt(),
-                LinearLayout.LayoutParams.MATCH_PARENT,
-            ).apply {
-                val margin = 2f.dp2px.toInt()
-                setMargins(margin, margin, margin, margin)
-            },
+                WHEEL_HEIGHT_DP.dp2px.toInt(),
+            ),
         )
         quickTopButton = addActionButton(
             topBar,
@@ -145,6 +142,12 @@ class MousePadOverlay(
             pressedColor = BUTTON_ARMED_COLOR,
         ) {
             handleCloseTap()
+        }
+        listOf(quickBottomButton, closeButton).forEach { button ->
+            button.layoutParams = (button.layoutParams as LinearLayout.LayoutParams).apply {
+                height = 44f.dp2px.toInt()
+                gravity = Gravity.BOTTOM
+            }
         }
 
         visibility = View.GONE
@@ -279,22 +282,35 @@ class MousePadOverlay(
      */
     private fun applySideLayout(touchPadOnLeft: Boolean) {
         if (!::wheelView.isInitialized) return
-        // Keep the bottom buttons under the quick-top/long-press columns. The empty
-        // wheel column is padding, not a child view, so the direction strip can use it.
-        val sideInset = (WHEEL_WIDTH_DP + 4f).dp2px.toInt()
-        bottomBar.setPadding(
-            if (touchPadOnLeft) 0 else sideInset,
-            0,
-            if (touchPadOnLeft) sideInset else 0,
-            0,
-        )
+        val margin = 2f.dp2px.toInt()
+        // Keep the outer edges flush and the inter-button gaps at 2dp + 2dp.
+        // The bottom row has no spacer child; its empty wheel column is horizontal padding.
+        val bottomInset = (WHEEL_WIDTH_DP + 2f).dp2px.toInt()
         if (touchPadOnLeft) {
+            setBarMargins(longPressButton, 0, 0, margin, 0)
+            setBarMargins(quickTopButton, margin, 0, margin, 0)
+            setBarMargins(wheelView, margin, 0, 0, 0)
+            setBarMargins(closeButton, 0, 0, margin, 0)
+            setBarMargins(quickBottomButton, margin, 0, margin, 0)
+            bottomBar.setPadding(0, 0, bottomInset, 0)
             arrangeBar(topBar, longPressButton, quickTopButton, wheelView)
             arrangeBar(bottomBar, closeButton, quickBottomButton)
         } else {
+            setBarMargins(wheelView, 0, 0, margin, 0)
+            setBarMargins(quickTopButton, margin, 0, margin, 0)
+            setBarMargins(longPressButton, margin, 0, 0, 0)
+            setBarMargins(quickBottomButton, margin, 0, margin, 0)
+            setBarMargins(closeButton, margin, 0, 0, 0)
+            bottomBar.setPadding(bottomInset, 0, 0, 0)
             arrangeBar(topBar, wheelView, quickTopButton, longPressButton)
             arrangeBar(bottomBar, quickBottomButton, closeButton)
         }
+    }
+
+    private fun setBarMargins(view: View, left: Int, top: Int, right: Int, bottom: Int) {
+        val params = view.layoutParams as? LinearLayout.LayoutParams ?: return
+        params.setMargins(left, top, right, bottom)
+        view.layoutParams = params
     }
 
     private fun arrangeBar(bar: LinearLayout, vararg children: View) {
@@ -329,6 +345,7 @@ class MousePadOverlay(
     private companion object {
         const val STRIP_WIDTH_DP = 44f
         const val WHEEL_WIDTH_DP = 44f
+        const val WHEEL_HEIGHT_DP = 94f
         const val TOP_BAR_HEIGHT_DP = 98f
         // The bottom buttons carry 2dp top/bottom margins. A 48dp bar gives them
         // the same 44dp content height as the top quick-top and long-press buttons.
