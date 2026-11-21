@@ -137,10 +137,7 @@ class QuickSearchActivity : AppCompatActivity() {
         get() = showBlur
     val searchCardBlurEnabled: Boolean
         get() = cardBackgroundBlurEnabled
-    val keyboardInsetPixels: Int
-        get() = if (::motionController.isInitialized) motionController.keyboardInsetPixels else 0
-
-    fun onKeyboardInsetChanged() {
+    internal fun onSearchViewportChanged() {
         if (::resultManager.isInitialized) {
             resultManager.onAvailableSpaceChanged()
         }
@@ -268,9 +265,8 @@ class QuickSearchActivity : AppCompatActivity() {
 
     private fun createSearchContent(preferences: Preferences) {
         keyboardFollowAnimationEnabled = preferences.readKey(KEY_KEYBOARD_FOLLOW_ANIMATION, false)
-        // When keyboard follow animation is disabled, let the system window handle resizing (adjustResize);
-        // when enabled, switch to edge-to-edge and manage system bar and keyboard insets manually.
-        WindowCompat.setDecorFitsSystemWindows(window, !keyboardFollowAnimationEnabled)
+        val handlesWindowInsets = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+        WindowCompat.setDecorFitsSystemWindows(window, !handlesWindowInsets)
         window.statusBarColor = android.graphics.Color.TRANSPARENT
         window.navigationBarColor = android.graphics.Color.TRANSPARENT
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -278,7 +274,7 @@ class QuickSearchActivity : AppCompatActivity() {
             window.isNavigationBarContrastEnforced = false
         }
         window.setSoftInputMode(
-            if (keyboardFollowAnimationEnabled) {
+            if (handlesWindowInsets) {
                 WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING or
                     WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE
             } else {
@@ -307,8 +303,7 @@ class QuickSearchActivity : AppCompatActivity() {
         // installs the configured style.
         binding.topSearchCard.alpha = 0f
         binding.bottomEngineCard.alpha = 0f
-        // Match decorFitsSystemWindows direction to avoid lost top margins and system inset handling.
-        binding.root.fitsSystemWindows = !keyboardFollowAnimationEnabled
+        binding.root.fitsSystemWindows = !handlesWindowInsets
         binding.topSearchCard.clipToOutline = true
         setContentView(binding.root)
 
@@ -353,14 +348,9 @@ class QuickSearchActivity : AppCompatActivity() {
         binding.root.doOnPreDraw {
             binding.root.post {
                 firstFrame.complete(Unit)
-                if (!isClosing && !isDestroyed) {
-                    lifecycleScope.launch(uiDispatcher) {
-                        engineManager.initEngineData()
-                        updateLandscapeEnginesVisibility(binding.searchInput.text?.toString().orEmpty())
-                    }
-                }
             }
         }
+        engineManager.ensureEnginesLoaded()
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -423,7 +413,6 @@ class QuickSearchActivity : AppCompatActivity() {
                         isHighlighting = false
                     }
                 }
-                this@QuickSearchActivity.updateLandscapeEnginesVisibility(text)
                 resultManager.updateSearchResults(analysis)
                 updateInputLines(text)
                 updateInputActionVisibility(text)
@@ -503,28 +492,6 @@ class QuickSearchActivity : AppCompatActivity() {
             )
             binding.imageAttachButton.contentDescription =
                 getString(R.string.quick_search_add_image)
-        }
-    }
-
-    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
-        super.onConfigurationChanged(newConfig)
-        if (!::binding.isInitialized) return
-        val text = binding.searchInput.text?.toString().orEmpty()
-        updateLandscapeEnginesVisibility(text)
-    }
-
-    private fun updateLandscapeEnginesVisibility(text: String) {
-        val isLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-        if (!bottomInputLayoutEnabled) {
-            val shouldShow = if (isLandscape) {
-                text.isEmpty() && engineManager.getSearchEngines().isNotEmpty()
-            } else {
-                engineManager.getSearchEngines().isNotEmpty()
-            }
-            if (binding.bottomEngineCard.isVisible != shouldShow) {
-                binding.bottomEngineCard.isVisible = shouldShow
-                resultManager.onAvailableSpaceChanged()
-            }
         }
     }
 
@@ -619,8 +586,17 @@ class QuickSearchActivity : AppCompatActivity() {
         super.onSaveInstanceState(outState)
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (!::motionController.isInitialized || isClosing) return
+        engineManager.ensureEnginesLoaded()
+        motionController.refreshViewport()
+        onSearchViewportChanged()
+    }
+
     override fun onPause() {
         super.onPause()
+        if (::motionController.isInitialized) motionController.finishImeMotion()
         cancelPendingSearch()
         if (!::binding.isInitialized || !inputReadyForSave) return
         val currentText = binding.searchInput.text?.toString() ?: ""
@@ -690,6 +666,10 @@ class QuickSearchActivity : AppCompatActivity() {
         inputRevision++
         triggerSide = intent.getStringExtra(TriggerSide.EXTRA_TRIGGER_SIDE)
         if (!::binding.isInitialized) return
+        if (!isClosing) {
+            engineManager.ensureEnginesLoaded()
+            motionController.requestKeyboardOnActivation()
+        }
         if (::positionManager.isInitialized) {
             positionManager.onTriggerSideChanged()
         }

@@ -31,6 +31,7 @@ import io.github.lumiagg.gestureevo.drop.DropPreferences.KEY_EXTERNAL_DROP_ENABL
 import io.github.lumiagg.gestureevo.drop.DropPreferences.KEY_EXTERNAL_DROP_POSITION
 import io.github.lumiagg.gestureevo.drop.DropPreferences.EXTERNAL_DROP_POSITION_BOTTOM
 import io.github.lumiagg.gestureevo.drop.DropPreferences.KEY_EXTERNAL_DROP_SHOW_ENGINES
+import io.github.lumiagg.gestureevo.utils.AccessibilityBlacklist
 import io.github.lumiagg.gestureevo.utils.CurrentPackageProvider
 import io.github.lumiagg.gestureevo.utils.DynamicColorUtils
 import io.github.lumiagg.gestureevo.utils.RecentAppsRecorder
@@ -93,6 +94,7 @@ class GestureService : AccessibilityService(), CoroutineScope {
         super.onServiceConnected()
         AppLogger.event(
             LogModule.SERVICE, "accessibility_connected")
+        AccessibilityBlacklist.start(this)
         CurrentPackageProvider.setService(this)
         initReceiver()
         launch(Dispatchers.Main) {
@@ -200,6 +202,7 @@ class GestureService : AccessibilityService(), CoroutineScope {
             unregisterReceiver(gestureBroadcastReceiver)
         }
         CurrentPackageProvider.clearService()
+        AccessibilityBlacklist.stop()
         io.github.lumiagg.gestureevo.pin.PinDragCancelOverlay.hide(notify = false)
         job.cancel()
     }
@@ -286,10 +289,10 @@ class GestureService : AccessibilityService(), CoroutineScope {
         y: Float,
         duration: Long = 100L,
         clickCount: Int = 1,
-    ): Boolean = suspendCancellableCoroutine { continuation ->
+    ): Boolean {
         if (!x.isFinite() || !y.isFinite() || x < 0 || y < 0 || duration <= 0 || clickCount !in 1..2) {
-            continuation.resume(false) { Log.d(TAG, "Click cancelled: negative position") }
-            return@suspendCancellableCoroutine
+            Log.d(TAG, "Click cancelled: invalid gesture parameters")
+            return false
         }
 
         val clickPath = Path().apply {
@@ -304,22 +307,7 @@ class GestureService : AccessibilityService(), CoroutineScope {
             ))
         }
         Log.d(TAG, "performClickAsync: start click")
-        val accepted = dispatchGesture(
-            gestureBuilder.build(),
-            object : GestureResultCallback() {
-                override fun onCompleted(gestureDescription: GestureDescription?) {
-                    Log.d(TAG, "onCompleted: click completed")
-                    if (continuation.isActive) continuation.resume(true)
-                }
-
-                override fun onCancelled(gestureDescription: GestureDescription?) {
-                    Log.d(TAG, "onCancelled: click cancelled")
-                    if (continuation.isActive) continuation.resume(false)
-                }
-            },
-            null
-        )
-        if (!accepted && continuation.isActive) continuation.resume(false)
+        return dispatchGestureAsync(gestureBuilder.build())
     }
 
     suspend fun performSwipeAsync(
@@ -329,12 +317,11 @@ class GestureService : AccessibilityService(), CoroutineScope {
         endY: Float,
         duration: Long = 600L,
         holdDuration: Long = 0L,
-        useDecelerationCurve: Boolean = true
-    ): Boolean = suspendCancellableCoroutine { continuation ->
+        useDecelerationCurve: Boolean = true,
+    ): Boolean {
         if (startX < 0 || startY < 0 || endX < 0 || endY < 0) {
             Log.d(TAG, "Swipe cancelled: negative position")
-            continuation.resume(false)
-            return@suspendCancellableCoroutine
+            return false
         }
 
         val swipePath = if (useDecelerationCurve) {
@@ -376,22 +363,28 @@ class GestureService : AccessibilityService(), CoroutineScope {
             "performSwipeAsync: start swipe from ($startX,$startY) to ($endX,$endY), duration=${duration}ms, hold=${holdDuration}ms"
         )
 
-        dispatchGesture(
-            gestureBuilder.build(),
-            object : GestureResultCallback() {
+        return dispatchGestureAsync(gestureBuilder.build())
+    }
+
+    private suspend fun dispatchGestureAsync(gesture: GestureDescription): Boolean =
+        suspendCancellableCoroutine { continuation ->
+            if (!continuation.isActive) return@suspendCancellableCoroutine
+            if (AccessibilityBlacklist.isBlocked(CurrentPackageProvider::resolveCurrentPackageName)) {
+                continuation.resume(false)
+                return@suspendCancellableCoroutine
+            }
+
+            val accepted = dispatchGesture(gesture, object : GestureResultCallback() {
                 override fun onCompleted(gestureDescription: GestureDescription?) {
-                    Log.d(TAG, "onCompleted: swipe completed successfully")
                     continuation.resume(true)
                 }
 
                 override fun onCancelled(gestureDescription: GestureDescription?) {
-                    Log.d(TAG, "onCancelled: swipe cancelled by system")
                     continuation.resume(false)
                 }
-            },
-            null
-        )
-    }
+            }, null)
+            if (!accepted) continuation.resume(false)
+        }
 
     /**
      * Dispatches an initial stationary stroke with `willContinue = true`. The callback fires

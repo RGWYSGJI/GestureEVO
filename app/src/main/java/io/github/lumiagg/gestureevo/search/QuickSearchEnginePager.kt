@@ -35,9 +35,7 @@ class QuickSearchEnginePager @JvmOverloads constructor(
         val showLabel: Boolean,
         val showImageBadge: Boolean,
         val previewSortMode: Boolean
-    ) {
-        val pageSize: Int = (rowCount * columnCount).coerceAtLeast(1)
-    }
+    )
 
     private val engines = mutableListOf<SearchEngine>()
     private val inflater = LayoutInflater.from(context)
@@ -62,6 +60,9 @@ class QuickSearchEnginePager @JvmOverloads constructor(
         showImageBadge = true,
         previewSortMode = false
     )
+    private var heightLimit: Int? = null
+    private var visibleRows = config.rowCount
+    private var pageAnchor: Int? = null
     private var onEngineClick: (SearchEngine) -> Unit = {}
     private var onEngineLongClick: (SearchEngine) -> Unit = {}
     private var onOrderChanged: (List<SearchEngine>) -> Unit = {}
@@ -279,13 +280,19 @@ class QuickSearchEnginePager @JvmOverloads constructor(
         post { scrollTo(scrollX.coerceIn(0, maxScrollX), 0) }
     }
 
+    internal fun limitHeight(height: Int) {
+        if (heightLimit == height) return
+        heightLimit = height
+        requestLayout()
+    }
+
     /**
      * Do not reserve rows that have no engines. A configured 5 x 3 grid with
      * three engines still occupies one row, and grows back to the configured
      * height as engines are added.
      */
     private val effectiveRowCount: Int
-        get() = config.rowCount.coerceAtMost(
+        get() = visibleRows.coerceAtMost(
             ((engines.size + config.columnCount - 1) / config.columnCount).coerceAtLeast(1)
         )
 
@@ -307,6 +314,24 @@ class QuickSearchEnginePager @JvmOverloads constructor(
             MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
         )
         val rowHeight = template.measuredHeight + templateParams.topMargin + templateParams.bottomMargin
+        val verticalPadding = paddingTop + paddingBottom
+        val configuredRows = config.rowCount.coerceAtLeast(1)
+        val maxHeight = heightLimit?.let {
+            if (MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.UNSPECIFIED) it
+            else minOf(it, MeasureSpec.getSize(heightMeasureSpec))
+        }
+        val rows = if (maxHeight != null && rowHeight > 0) {
+            ((maxHeight - verticalPadding) / rowHeight).coerceIn(1, configuredRows)
+        } else {
+            configuredRows
+        }
+        if (rows != visibleRows) {
+            if (maxHeight != null) {
+                pageAnchor = pageAnchor ?: currentPage * effectivePageSize
+                scroller.forceFinished(true)
+            }
+            visibleRows = rows
+        }
 
         children.forEach { child ->
             val layoutParams = child.layoutParams as MarginLayoutParams
@@ -321,7 +346,7 @@ class QuickSearchEnginePager @JvmOverloads constructor(
             child.measure(childWidthSpec, childHeightSpec)
         }
 
-        val desiredHeight = paddingTop + paddingBottom + rowHeight * effectiveRowCount
+        val desiredHeight = verticalPadding + rowHeight * effectiveRowCount
         val measuredHeight = resolveSize(desiredHeight, heightMeasureSpec)
         setMeasuredDimension(widthSize, measuredHeight)
     }
@@ -380,7 +405,9 @@ class QuickSearchEnginePager @JvmOverloads constructor(
 
         animateNextLayout = false
 
-        scrollTo(scrollX.coerceIn(0, maxScrollX), 0)
+        val newScrollX = pageAnchor?.let { it / effectivePageSize * contentWidth } ?: scrollX
+        pageAnchor = null
+        scrollTo(newScrollX.coerceIn(0, maxScrollX), 0)
     }
 
     override fun onInterceptTouchEvent(event: MotionEvent): Boolean {
