@@ -81,7 +81,9 @@ class MousePadOverlay(
             directionStrip,
             LayoutParams(STRIP_WIDTH_DP.dp2px.toInt(), LayoutParams.MATCH_PARENT, Gravity.END).apply {
                 topMargin = topBarHeight
-                bottomMargin = bottomBarHeight
+                // The bottom row no longer has a spacer; the inner column is empty there.
+                // Let the direction strip continue down through that column.
+                bottomMargin = 0
             },
         )
 
@@ -124,7 +126,7 @@ class MousePadOverlay(
         addDirectionButton(Direction.LEFT, "←")
         addDirectionButton(Direction.RIGHT, "→")
 
-        // Bottom short edge: quick-bottom and close share the full width.
+        // Bottom short edge: quick-bottom and close sit under the top action columns.
         // U+21D1/U+21D3 live in the ordinary Arrows block, which is much more widely
         // covered than Supplemental Arrows-B; keep a plain-arrow fallback for ROMs
         // that still lack them.
@@ -277,6 +279,15 @@ class MousePadOverlay(
      */
     private fun applySideLayout(touchPadOnLeft: Boolean) {
         if (!::wheelView.isInitialized) return
+        // Keep the bottom buttons under the quick-top/long-press columns. The empty
+        // wheel column is padding, not a child view, so the direction strip can use it.
+        val sideInset = (WHEEL_WIDTH_DP + 4f).dp2px.toInt()
+        bottomBar.setPadding(
+            if (touchPadOnLeft) 0 else sideInset,
+            0,
+            if (touchPadOnLeft) sideInset else 0,
+            0,
+        )
         if (touchPadOnLeft) {
             arrangeBar(topBar, longPressButton, quickTopButton, wheelView)
             arrangeBar(bottomBar, closeButton, quickBottomButton)
