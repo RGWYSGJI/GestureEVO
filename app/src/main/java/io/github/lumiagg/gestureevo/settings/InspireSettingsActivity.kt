@@ -91,7 +91,6 @@ class InspireSettingsActivity : AppCompatActivity() {
         const val KEY_ENABLE_POINTER_DRAG_MODE = "key_enable_pointer_drag_mode"
         const val KEY_MOUSE_ARROW_SPEED = "key_mouse_arrow_speed"
         const val KEY_MOUSE_WHEEL_SPEED = "key_mouse_wheel_speed"
-        const val KEY_POINTER_HOVER_MENU = "key_pointer_hover_menu"
         const val KEY_PIN_POOL_DISPLAY_MODE = "key_pin_pool_display_mode"
         const val KEY_PIN_POOL_LOCAL_RULE_EXTRACTION = "key_pin_pool_local_rule_extraction"
         const val DEFAULT_PIN_POOL_LOCAL_RULE_EXTRACTION = false
@@ -219,9 +218,6 @@ class InspireSettingsActivity : AppCompatActivity() {
             .coerceIn(0.1f, 3.0f)
         binding.mouseWheelSpeedSeek.progress = ((wheelSpeed - 0.1f) * 10f).roundToInt()
         binding.mouseWheelSpeedValue.text = formatMouseSpeed(wheelSpeed)
-        binding.pointerHoverMenuSwitch.isChecked = settingsStore.readKey(KEY_POINTER_HOVER_MENU, false)
-        updatePointerHoverMenuSetting(binding.pointerHoverMenuSwitch.isChecked)
-
         val pinPoolDisplayMode =
             settingsStore.readKey(KEY_PIN_POOL_DISPLAY_MODE, PIN_POOL_DISPLAY_MODE_RIGHT_SIDEBAR)
         updatePinPoolModeText(pinPoolDisplayMode)
@@ -542,11 +538,6 @@ class InspireSettingsActivity : AppCompatActivity() {
 
         binding.screenContentLinkRadarSwitch.setOnCheckedChangeListener { _, isChecked ->
             lifecycleScope.launch { settingsStore.saveKey(KEY_SCREEN_CONTENT_LINK_RADAR, isChecked) }
-        }
-
-        binding.pointerHoverMenuSwitch.setOnCheckedChangeListener { _, isChecked ->
-            updatePointerHoverMenuSetting(isChecked)
-            lifecycleScope.launch { settingsStore.saveKey(KEY_POINTER_HOVER_MENU, isChecked) }
         }
 
         binding.pinPoolModeRow.setOnClickListener {
@@ -1032,13 +1023,6 @@ class InspireSettingsActivity : AppCompatActivity() {
                 }
             }.show()
         }
-    }
-
-    private fun updatePointerHoverMenuSetting(enabled: Boolean) {
-        binding.pointerDragModeSwitch.isEnabled = !enabled
-        binding.pointerDragModeRow.isEnabled = !enabled
-        binding.pointerDragModeRow.alpha = if (enabled) 0.5f else 1f
-        binding.pointerHoverMenuHint.visibility = if (enabled) View.VISIBLE else View.GONE
     }
 
     private fun updatePointerTouchAreaOffsetText(offsetDp: Int) {

@@ -1376,14 +1376,6 @@
     <string name="shortcut_search_long">打开 GestureEVO 搜索</string>
     <string name="shortcut_screen_content_short">屏幕内容</string>
     <string name="shortcut_screen_content_long">屏幕内容（全屏图文）</string>
-    <string name="pointer_hover_menu_title">悬停显示操作菜单</string>
-    <string name="pointer_hover_menu_summary">悬停后上下滑动选择长按、双击、框选和链接目标。松手执行；停留在“框选”上进入框选模式。</string>
-    <string name="pointer_hover_menu_overrides_drag">已由操作菜单接管悬停；可通过菜单中的“框选”进入框选模式。</string>
-    <string name="pointer_hover_long_press">长按</string>
-    <string name="pointer_hover_double_tap">双击</string>
-    <string name="pointer_hover_select">框选</string>
-    <string name="pointer_hover_choose_link">选择链接…</string>
-    <string name="pointer_hover_action_failed">操作未完成，请重试</string>
     <string name="screen_content_link_radar_title">屏幕内容链接雷达</string>
     <string name="screen_content_link_radar_summary">框选悬浮窗中高亮链接，轻点打开；从链接上拖动仍可框选</string>
     <string name="screen_content_radar_choose">轻点选择链接</string>

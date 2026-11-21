@@ -88,9 +88,8 @@ class GestureManager(
         LinkRadarOverlay(
             gestureService,
             pointerStateProvider = {
-                // The radar yields throughout drag selection and hover menu interaction.
-                if (pointerFloatingLazy.isInitialized() && !pointerFloating.isPointerDragMode &&
-                    !pointerFloating.isHoverInteractionActive) {
+                // The radar yields throughout drag selection.
+                if (pointerFloatingLazy.isInitialized() && !pointerFloating.isPointerDragMode) {
                     pointerFloating.currentPointerSnapshot()
                 } else null
             },
@@ -244,7 +243,6 @@ class GestureManager(
                         pointerLinks.stop()
                         if (linkRadarFloatingLazy.isInitialized()) linkRadarFloating.stopSession()
                     }
-                    pointerFloating.captureLinks = { pointerLinks.get() }
                     pointerFloating.onPointerPositionChanged = { snapshot ->
                         if (linkRadarFloatingLazy.isInitialized()) linkRadarFloating.onPointerPositionChanged(snapshot)
                     }
@@ -556,7 +554,7 @@ class GestureManager(
         lastConfig = Configuration(newConfig)
 
         if (orientationChanged) {
-            cancelPointerHoverInteraction()
+            cancelPointerLinkInteraction()
             Log.d(TAG, "Screen orientation changed")
             PictureFloating.onOrientationChanged()
             if (notificationFloatingLazy.isInitialized()) {
@@ -587,7 +585,6 @@ class GestureManager(
 
     fun onWindowStateChanged(event: AccessibilityEvent) {
         if (inspireFloatingLazy.isInitialized()) inspireFloating.onWindowEvent(event)
-        if (pointerFloatingLazy.isInitialized()) pointerFloating.onWindowEvent(event)
         if (pointerLinks.active && (
                 event.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED ||
                     (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
@@ -609,12 +606,11 @@ class GestureManager(
     }
 
     fun onAccessibilityInterrupted() {
-        cancelPointerHoverInteraction()
+        cancelPointerLinkInteraction()
         if (inspireFloatingLazy.isInitialized()) inspireFloating.cancelLinkRadar()
     }
 
-    fun cancelPointerHoverInteraction() {
-        if (pointerFloatingLazy.isInitialized()) pointerFloating.cancelHoverInteraction()
+    fun cancelPointerLinkInteraction() {
         pointerLinks.invalidate()
         if (linkRadarFloatingLazy.isInitialized()) linkRadarFloating.stopSession()
     }

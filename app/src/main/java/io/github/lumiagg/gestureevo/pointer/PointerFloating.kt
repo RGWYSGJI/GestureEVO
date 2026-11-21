@@ -52,9 +52,6 @@ import io.github.lumiagg.gestureevo.settings.AppearanceSettingsActivity.Companio
 import io.github.lumiagg.gestureevo.settings.AppearanceSettingsActivity.Companion.POINTER_SIZE_MAX
 import io.github.lumiagg.gestureevo.settings.AppearanceSettingsActivity.Companion.POINTER_SIZE_MIN
 import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_ENABLE_POINTER_DRAG_MODE
-import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_POINTER_HOVER_MENU
-import io.github.lumiagg.gestureevo.pointer.radar.LinkRegion
-import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_MOUSE_ARROW_SPEED
 import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_MOUSE_WHEEL_SPEED
@@ -144,48 +141,10 @@ class PointerFloating(
     private var mouseWheelScrollRemainderPx = 0f
     private var mouseWheelFallbackJob: Job? = null
     private var pointerVisibleRequested = false
-    private var hoverMenuEnabled = false
-    var captureLinks: suspend () -> List<LinkRegion> = { emptyList() }
-    private val hoverMenu by lazy {
-        PointerHoverMenuController(context, pointerFloatingView, { captureLinks() }, { anchor ->
-            pointerManger.beginMenuSelection(anchor)
-        }, { anchor ->
-            pointerManger.rebaseMenuPointer(anchor)
-        }, { action, point, valid ->
-            val success = if (action == PointerHoverAction.DOUBLE_TAP) {
-                performPointerClick(point.x, point.y, 60L, valid, clickCount = 2)
-            } else if (valid()) {
-                performPointerClick(point.x, point.y, 600L, valid)
-            } else false
-            if (!success && valid()) {
-                io.github.lumiagg.gestureevo.utils.ToastHelper.showInUIThread(context, R.string.pointer_hover_action_failed)
-            }
-        }, onSelectionPreview = { anchor ->
-            pointerManger.previewMenuSelection(anchor)
-        }, isCoordinateSpaceCurrent = {
-            pointerManger.isMenuCoordinateSpaceCurrent()
-        })
-    }
-    val isHoverInteractionActive: Boolean
-        get() = !mouseModeActive && hoverMenuEnabled && hoverMenu.ownsInteraction
 
     /** True while the pointer is controlled by the simulated mouse touch pad. */
     val isMouseMode: Boolean get() = mouseModeActive
 
-    fun onWindowEvent(event: AccessibilityEvent) {
-        if (mouseModeActive) return
-        if (hoverMenuEnabled && hoverMenu.onWindowEvent(event) && pointerManger.isDragMode) {
-            pointerManger.exitDragMode()
-        }
-    }
-
-    fun cancelHoverInteraction() {
-        if (mouseModeActive) return
-        if (hoverMenuEnabled) {
-            hoverMenu.cancel()
-            if (pointerManger.isDragMode) pointerManger.exitDragMode()
-        }
-    }
     var triggerSide: String? = null
 
     /** Pointer icon state for the link radar: screen-space center plus icon radius. */
@@ -198,7 +157,7 @@ class PointerFloating(
         get() = !mouseModeActive && pointerManger.isDragMode && pointerManger.isDragSelectionStarted
 
     /**
-     * True from hover-stability until drag mode exits. The link radar yields for this whole
+     * True from pointer stability until drag mode exits. The link radar yields for this whole
      * window: its capsule and hit areas would otherwise sit on top of the selection crosshair,
      * and its tap interception would turn a release into a link open.
      */
@@ -252,7 +211,6 @@ class PointerFloating(
     }
 
     fun refreshTheme() {
-        if (hoverMenuEnabled) hoverMenu.refreshTheme()
         highlightRectView.setStrokeColor(pointerManger.getPointerColor())
         pointerManger.refreshTheme()
         // The trail stamps a copy of the pointer artwork, so it has to be rebuilt after the
@@ -449,9 +407,6 @@ class PointerFloating(
         pointerVisibleRequested = true
         ensureViewsAttached()
         updateTouchAreaConfig()
-        hoverMenuEnabled = context.settingsStore.readKey(KEY_POINTER_HOVER_MENU, false)
-        hoverMenu.reset()
-        pointerManger.resetMenuMapping()
         pointerManger.updatePointerColorConfig()
         pointerManger.updatePointerAppearanceConfig()
         highlightRectView.setStrokeColor(pointerManger.getPointerColor())
@@ -485,7 +440,6 @@ class PointerFloating(
     fun hide() = context.postOnMain {
         resetMouseModeState()
         pointerVisibleRequested = false
-        hoverMenu.reset()
         onPointerHidden?.invoke()
         pointerManger.viewPositionMonitor.stop()
         if (pointerManger.isDragMode) {
@@ -543,7 +497,6 @@ class PointerFloating(
     fun destroy() = context.postOnMain {
         resetMouseModeState()
         pointerVisibleRequested = false
-        hoverMenu.reset()
         onPointerHidden?.invoke()
         pointerManger.viewPositionMonitor.stop()
         if (pointerManger.isDragMode) {
@@ -571,10 +524,8 @@ class PointerFloating(
         mouseModeActive = true
         needShowTouchView = true
         pointerManger.viewPositionMonitor.stop()
-        hoverMenu.reset()
         if (pointerManger.isDragMode) pointerManger.exitDragMode()
         highlightRectView.hidePotentialRect()
-        pointerManger.resetMenuMapping()
         pointerManger.startMouseMode()
         // Mouse mode owns the pointer session from here; stop link radar / link picking even
         // though the icon itself stays visible.
@@ -1088,42 +1039,11 @@ class PointerFloating(
         private var hasStartedDragSelection = false
         private var lastPotentialThinRect: Rect? = null
         private val moveTouchHandler = MoveTouchHandler()
-        private var menuMappingOffset = Point(0f, 0f)
-        private var menuCoordinateMapping: PointerCoordinateMapping? = null
         val viewPositionMonitor = ViewPositionMonitor()
-
-        fun resetMenuMapping() {
-            menuMappingOffset = Point(0f, 0f)
-            menuCoordinateMapping = null
-        }
-
-        fun isMenuCoordinateSpaceCurrent(): Boolean = enable && pointerVisibleRequested &&
-            menuCoordinateMapping != null && menuCoordinateMapping == moveTouchHandler.coordinateMapping()
-
-        fun previewMenuSelection(anchor: Point?) {
-            if (anchor == null) {
-                highlightRectView.hidePotentialRect()
-                return
-            }
-            val end = moveTouchHandler.computePosition()
-            highlightRectView.showPotentialRect(Rect(minOf(anchor.x, end.x).toInt(), minOf(anchor.y, end.y).toInt(),
-                maxOf(anchor.x, end.x).toInt(), maxOf(anchor.y, end.y).toInt()))
-        }
-
-        fun beginMenuSelection(anchor: Point) {
-            if (!isMenuCoordinateSpaceCurrent()) return
-            enterDragMode(anchor, moveTouchHandler.computePosition())
-        }
 
         private fun placePointer(point: Point) {
             view.x = point.x - view.width / 2f
             view.y = point.y - view.height / 2f
-        }
-
-        fun rebaseMenuPointer(anchor: Point) {
-            val mapped = moveTouchHandler.computePosition()
-            menuMappingOffset = Point(menuMappingOffset.x + anchor.x - mapped.x, menuMappingOffset.y + anchor.y - mapped.y)
-            placePointer(anchor)
         }
 
         /** Snapshot for the link radar; null whenever the icon is invisible or not laid out. */
@@ -1256,8 +1176,6 @@ class PointerFloating(
                 MotionEvent.ACTION_DOWN -> {
                     touchViewX = event.rawX
                     touchViewY = event.rawY
-                    hoverMenu.reset()
-                    resetMenuMapping()
                     pendingHoverLongPress = false
                     pendingHoverPoint = null
                     if (enable && fromTouchView && touchView.alpha == 1f) {
@@ -1625,7 +1543,6 @@ class PointerFloating(
             highlightRectView.updateRect(targetPoint)
             if (highlightRectView.isBackToOrigin) {
                 exitDragMode()
-                if (hoverMenuEnabled && hoverMenu.ownsInteraction) hoverMenu.dismiss()
             }
         }
 
@@ -1720,14 +1637,10 @@ class PointerFloating(
                 return PointerCoordinateMapping(screenWidth, screenHeight, origin[0], origin[1], touchWidth, touchHeight)
             }
 
-            fun computePosition(): Point = coordinateMapping()?.map(Point(touchViewX, touchViewY), menuMappingOffset)
+            fun computePosition(): Point = coordinateMapping()?.map(Point(touchViewX, touchViewY))
                 ?: Point((view.x + view.width / 2).coerceAtLeast(0f), (view.y + view.height / 2).coerceAtLeast(0f))
 
             fun handleActionMove(event: MotionEvent) {
-                if (hoverMenuEnabled && hoverMenu.isShowing) {
-                    hoverMenu.move(touchViewY)
-                    return
-                }
                 val targetPoint = computePosition()
                 placePointer(targetPoint)
 
@@ -1739,19 +1652,12 @@ class PointerFloating(
 
             fun handleActionUp(event: MotionEvent) {
                 if (event.actionMasked == MotionEvent.ACTION_CANCEL) {
-                    if (hoverMenuEnabled) hoverMenu.cancel()
                     hoverLongPressJob?.cancel()
                     hoverLongPressJob = null
                     pendingHoverLongPress = false
                     pendingHoverPoint = null
                     resetHoverLongPressHint()
                     if (isDragMode) exitDragMode()
-                    return
-                }
-                if (hoverMenuEnabled && hoverMenu.isShowing) hoverMenu.move(touchViewY)
-                if (hoverMenuEnabled && hoverMenu.release(triggerSide)) {
-                    resetHoverLongPressHint()
-                    trailView.clearTrail()
                     return
                 }
                 if (isDragMode) {
@@ -1764,7 +1670,7 @@ class PointerFloating(
                 }
                 // A radar target keeps the same release action even after a long hover.
                 // Actual text selection still wins; cancelled gestures returned above.
-                if (!(hoverMenuEnabled && hoverMenu.ownsInteraction) && !isPointerDragSelecting && onPointerTapInterceptor?.invoke() == true) {
+                if (!isPointerDragSelecting && onPointerTapInterceptor?.invoke() == true) {
                     resetHoverLongPressHint()
                     if (isDragMode) exitDragMode()
                     trailView.clearTrail()
@@ -1859,17 +1765,6 @@ class PointerFloating(
                 // Dispatch UI operations to the main thread
                 context.postOnMain {
                     if (!enable || !pointerVisibleRequested || mouseModeActive) return@postOnMain
-                    if (hoverMenuEnabled) {
-                        if (isStable && !isDragMode && hoverMenu.canShow) {
-                            resetHoverLongPressHint()
-                            val mapping = moveTouchHandler.coordinateMapping() ?: return@postOnMain
-                            menuCoordinateMapping = mapping
-                            val anchor = mapping.map(Point(touchViewX, touchViewY), menuMappingOffset)
-                            placePointer(anchor)
-                            hoverMenu.show(anchor, minOf(view.width, view.height) / 2f, touchViewY)
-                        }
-                        return@postOnMain
-                    }
                     if (isStable && !isDragMode) {
                         // Drag selection wins once the pointer settles, even on a link: entering
                         // it makes the radar stand down through the pointer snapshot instead.
@@ -1902,7 +1797,7 @@ class PointerFloating(
 
                     // Update checkJob atomically
                     val currentCheckJob = checkJob
-                    if (isPositionStable && !isDragMode && (!hoverMenuEnabled || hoverMenu.canShow)) {
+                    if (isPositionStable && !isDragMode) {
                         if (currentCheckJob == null || !currentCheckJob.isActive) {
                             // Cancel previous check job and schedule a new check
                             currentCheckJob?.cancel()
@@ -2017,7 +1912,7 @@ class PointerFloating(
                                         x = currentView.x + currentView.width / 2
                                         y = currentView.y + currentView.height / 2
                                         onPointerPositionChanged?.invoke(
-                                            if (pointerVisibleRequested && !isPointerDragMode && !isHoverInteractionActive) currentPointerSnapshot() else null
+                                            if (pointerVisibleRequested && !isPointerDragMode) currentPointerSnapshot() else null
                                         )
                                         if (onPointerLinkTargeted?.invoke() == true &&
                                             (pendingHoverLongPress || isHoverLongPressActive)) {

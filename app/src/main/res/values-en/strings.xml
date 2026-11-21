@@ -1374,14 +1374,6 @@ Create a rule or import templates to get started</string>
     <string name="shortcut_search_long">Open GestureEVO search</string>
     <string name="shortcut_screen_content_short">Screen content</string>
     <string name="shortcut_screen_content_long">Screen content (fullscreen)</string>
-    <string name="pointer_hover_menu_title">Show actions on pointer hover</string>
-    <string name="pointer_hover_menu_summary">Hover, then slide up or down to select long press, double tap, selection and link targets. Release to run an action; dwell on Select to enter selection mode.</string>
-    <string name="pointer_hover_menu_overrides_drag">The action menu now handles hovering. Use Select in the menu to enter selection mode.</string>
-    <string name="pointer_hover_long_press">Long press</string>
-    <string name="pointer_hover_double_tap">Double tap</string>
-    <string name="pointer_hover_select">Select</string>
-    <string name="pointer_hover_choose_link">Choose link…</string>
-    <string name="pointer_hover_action_failed">Action could not be completed. Please try again.</string>
     <string name="screen_content_link_radar_title">Screen content link radar</string>
     <string name="screen_content_link_radar_summary">Highlight links in the selection overlay. Tap to open, or drag to select content.</string>
     <string name="screen_content_radar_choose">Tap to choose a link</string>
