@@ -173,6 +173,15 @@ internal class QuickSearchMotionController(
         }
     }
 
+    /**
+     * Request the keyboard after returning from an external picker.
+     * The actual show is posted and guarded by window focus in [showKeyboardIfPossible].
+     */
+    fun showKeyboard() {
+        pendingShowKeyboard = true
+        showKeyboardIfPossible()
+    }
+
     fun release() {
         pendingShowKeyboard = false
         binding.searchInput.removeCallbacks(keyboardRequestRunnable)
