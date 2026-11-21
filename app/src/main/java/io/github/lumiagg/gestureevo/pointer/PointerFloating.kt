@@ -337,19 +337,15 @@ class PointerFloating(
         // buttons shrink automatically with the pad.
         val requestedPadWidth = basePadWidth
         layoutParams.width = requestedPadWidth
-            .coerceAtMost(
-                if (mouseModeActive) screenWidth.toFloat()
-                else screenWidth - 20f.dp2px
-            )
+            .coerceAtMost(screenWidth - 20f.dp2px)
             .toInt()
         layoutParams.height = ((screenHeight + screenStatusHeight) * touchViewScale).toInt()
 
-        // Keep a 20dp top guard for the status bar. In mouse mode the pad sits flush with
-        // the bottom and both sides; the transient normal pointer pad keeps its old margins.
-        val flushToEdges = mouseModeActive
+        // The mouse pad uses the same margins as the normal pointer pad:
+        // 10dp on both sides and 20dp from the bottom.
         val minDistanceFromTop = 20f.dp2px
-        val minDistanceFromEdge = if (flushToEdges) 0f else 10f.dp2px
-        val minDistanceFromBottom = if (flushToEdges) 0f else 20f.dp2px
+        val minDistanceFromEdge = 10f.dp2px
+        val minDistanceFromBottom = 20f.dp2px
 
         val minX = minDistanceFromEdge
         val maxX = screenWidth - layoutParams.width - minDistanceFromEdge
@@ -623,7 +619,10 @@ class PointerFloating(
         } else {
             TriggerSide.RIGHT
         }) == TriggerSide.LEFT
-        pointerManger.touchViewX = if (onLeft) 0f else screenWidth.toFloat()
+        val edgeInset = 10f.dp2px
+        pointerManger.touchViewX = if (onLeft) edgeInset else screenWidth - edgeInset
+        // Keep the vertical anchor at the screen bottom; updateTouchViewLayout applies
+        // the fixed 20dp bottom margin while clamping.
         pointerManger.touchViewY = screenHeight.toFloat()
         updateTouchViewLayout()
         mousePadOverlay.setTouchPadSide(onLeft)
