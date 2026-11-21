@@ -130,11 +130,6 @@ class SettingsActivity : AppCompatActivity() {
                 }
             }
 
-            findPreference<Preference>("preferenceSettingsGuide")?.setOnPreferenceClickListener {
-                startActivity(Intent(requireActivity(), SettingsGuideActivity::class.java))
-                true
-            }
-
             findPreference<Preference>("preferenceConfigTrigger")?.apply {
                 setOnPreferenceClickListener {
                     startActivity(

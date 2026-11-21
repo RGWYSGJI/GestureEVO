@@ -70,8 +70,6 @@ class GestureMainFloating(private val context: GestureService) :
     private var backgroundBlurActive = false
     private var backgroundBlurAnimator: ValueAnimator? = null
     private var backgroundBlurRadius = 0
-    private var guidePreviewRevision = 0
-    private var guidePreview = false
     private val originOsSurfaceBlur = Rom.isOriginOS()
 
     init {
@@ -454,56 +452,7 @@ class GestureMainFloating(private val context: GestureService) :
     fun refreshTheme() {
         if (!actionView.isAttachedToWindow || !actionView.isVisible) return
         actionView.refreshTheme()
-        if (guidePreview) actionView.background = null else actionView.refreshWheelBackgroundForTheme()
-    }
-
-    internal fun showGuidePreview(
-        config: ActionConfig,
-        items: List<GestureActionItem>,
-        trigger: FreeTriggerConfig,
-        isMirror: Boolean = false,
-        onWheelSelection: ((Int) -> Unit)? = null,
-        onLayout: (() -> Unit)? = null,
-    ) {
-        guidePreview = true
-        val revision = ++guidePreviewRevision
-        actionView.backgroundBlurCallback = {}
-        actionView.keepGuidePreviewVisible = true
-        actionView.statusCallback = object : MainActionView.StatusCallback {
-            override fun executeAction(modelItem: ModelItem, isPress: Boolean, isUp: Boolean): Boolean {
-                if (!isUp || modelItem.type != ActionView.ItemType.NORMAL) return false
-                val index = actionView.modelList.indexOf(modelItem)
-                if (index < 0 || index >= items.size) return false
-                onWheelSelection?.invoke(index)
-                return onWheelSelection != null
-            }
-        }
-        setTouchEnabled(false)
-        actionView.config = config
-        actionView.state.itemsTag = config.tag
-        actionView.setModeList(items)
-        actionView.workMode = ActionView.WorkMode.ACTIVE
-        actionView.disableAllWheelVibrate = true
-        actionView.visibility = View.VISIBLE
-        ensureAttached()
-        actionView.doOnLayout {
-            if (revision == guidePreviewRevision && isAttachRequested(actionView)) {
-                val (x, y) = resolveTriggerCenter(trigger, isMirror)
-                if (trigger.quadrantValue == 0) relayoutActionViewQuadrant(x, y)
-                else relayoutActionViewQuadrantByTrigger(trigger, x, y, isMirror = isMirror)
-                actionView.relayoutSelectedIcon(enable = false)
-                actionView.fitGuideWheelToScreen(guideWheelScreenBounds(actionView.width, actionView.height))
-                actionView.layoutGuidePreview()
-                onLayout?.invoke()
-            }
-        }
-    }
-
-    internal fun destroyGuidePreview() {
-        guidePreviewRevision++
-        actionView.keepGuidePreviewVisible = false
-        actionView.release()
-        detachViewSafely(actionView)
+        actionView.refreshWheelBackgroundForTheme()
     }
 
     private suspend fun showActionViewInternal(
@@ -726,8 +675,6 @@ class GestureMainFloating(private val context: GestureService) :
         viewHeight: Int = actionView.height
     ) {
         Log.d(TAG, "relayoutActionViewItem: $downX, $downY, width:$viewWidth, height:$viewHeight")
-        actionView.restoreGuideWheelScreenFit()
-
         val actionConfig = actionView.config
         val actionState = actionView.state
 
@@ -831,7 +778,6 @@ class GestureMainFloating(private val context: GestureService) :
         viewWidth: Int = actionView.width,
         isMirror: Boolean = false
     ) {
-        actionView.restoreGuideWheelScreenFit()
         actionView.state.mirror = downX <= viewWidth / 2
         actionView.state.centerX = downX.toInt() + actionView.config.actionOffsetX.toInt()
         actionView.state.centerY = downY.toInt() + actionView.config.actionOffsetY.toInt()
@@ -840,29 +786,6 @@ class GestureMainFloating(private val context: GestureService) :
         }
         val quadrant = triggerConfig.getQuadrant(isMirror)
         actionView.state.setAngleByQuadrant(quadrant)
-    }
-
-    @SuppressLint("InternalInsetResource", "DiscouragedApi")
-    private fun guideWheelScreenBounds(viewWidth: Int, viewHeight: Int): Rect {
-        val insets = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            windowManager.maximumWindowMetrics.windowInsets.getInsetsIgnoringVisibility(
-                WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout()
-            ).let { androidx.core.graphics.Insets.of(it.left, it.top, it.right, it.bottom) }
-        } else {
-            ViewCompat.getRootWindowInsets(actionView)?.getInsetsIgnoringVisibility(
-                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
-            ) ?: run {
-                val resourceId = context.resources.getIdentifier("navigation_bar_height", "dimen", "android")
-                val bottom = if (resourceId > 0) context.resources.getDimensionPixelSize(resourceId) else 0
-                androidx.core.graphics.Insets.of(0, ScreenUtil.getStatusBarHeight(context, false), 0, bottom)
-            }
-        }
-        val left = insets.left.coerceAtMost((viewWidth - 3).coerceAtLeast(0))
-        val top = insets.top.coerceAtMost((viewHeight - 3).coerceAtLeast(0))
-        return Rect(
-            left, top, (viewWidth - insets.right).coerceAtLeast(left + 3),
-            (viewHeight - insets.bottom).coerceAtLeast(top + 3)
-        )
     }
 
     private fun actionViewAnchor(): TriggerSide.Point {

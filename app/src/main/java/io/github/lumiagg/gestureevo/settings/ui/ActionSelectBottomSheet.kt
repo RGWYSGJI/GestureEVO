@@ -164,14 +164,14 @@ internal fun actionCategories(
         system += navigation(8, R.string.acc_action_select_lock_screen)
     }
     return listOf(
-        R.string.quick_setup_category_system to system,
-        R.string.quick_setup_category_tools to listOf(
+        R.string.action_select_category_system to system,
+        R.string.action_select_category_tools to listOf(
             simple(GestureActionType.SEARCH), simple(GestureActionType.SCREEN_SEARCH),
             simple(GestureActionType.SCREEN_CONTENT), simple(GestureActionType.SCREEN_CONTENT_FULLSCREEN),
             simple(GestureActionType.PIN_POOL), simple(GestureActionType.POINTER),
             simple(GestureActionType.TOUCHPAD), simple(GestureActionType.KEYBOARD)
         ),
-        R.string.quick_setup_category_apps to listOf(
+        R.string.action_select_category_apps to listOf(
             ActionChoice(GestureActionType.OPEN_APP), ActionChoice(GestureActionType.OPEN_ACTIVITY),
             ActionChoice(GestureActionType.OTHER_SHORTCUT), ActionChoice(GestureActionType.FREEZE_APP),
             simple(GestureActionType.FREEFORM_FOREGROUND)
@@ -181,7 +181,7 @@ internal fun actionCategories(
             ActionChoice(GestureActionType.PAUSE_GESTURE),
             simple(GestureActionType.CLICK_THROUGH).takeIf { allowClickThrough }
         ),
-        R.string.quick_setup_category_other to listOfNotNull(
+        R.string.action_select_category_other to listOfNotNull(
             ActionChoice(GestureActionType.OTHER_LINK), ActionChoice(GestureActionType.OPEN_SHELL),
             ActionChoice(GestureActionType.CLIPBOARD_ACTION), ActionChoice(GestureActionType.TEMP_DND),
             simple(GestureActionType.NONE).takeIf { allowNone }

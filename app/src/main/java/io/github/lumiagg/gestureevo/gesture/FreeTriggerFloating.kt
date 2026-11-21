@@ -79,7 +79,6 @@ class FreeTriggerFloating(
     private var triggers = listOf<FreeTriggerConfig>()
     private var lastPackageName: String? = context.packageName
     private var lastOrientation: Int = Configuration.ORIENTATION_UNDEFINED
-    private var guidePreviewActive = false
     init {
         instanceRef = WeakReference(this)
         context.launch {
@@ -94,7 +93,7 @@ class FreeTriggerFloating(
     ) {
         if (configs.none { it.actionMap.isNotEmpty() }) return@withContext configs
         gestureConfigurationWriteMutex.withLock {
-            // The snapshot can become stale while waiting for a guide commit.
+            // The snapshot can become stale while waiting for a settings commit.
             val current = FreeTriggerDataManager.readTriggers(context).map { it.copy() }
             if (current.none { it.actionMap.isNotEmpty() }) return@withLock current
             current.forEach { config ->
@@ -334,10 +333,6 @@ class FreeTriggerFloating(
             if (isVisible && isCoolingDown(tag)) {
                 return@withContext triggerViews.containsKey(tag)
             }
-            if (guidePreviewActive) {
-                triggerViews[tag]?.getAllViews()?.forEach { it.visibility = View.GONE }
-                return@withContext triggerViews.containsKey(tag)
-            }
             if (isVisible) realTriggerIsEnable = true
             val viewGroup = triggerViews[tag] ?: return@withContext false
             val targetVisible = if (isVisible) View.VISIBLE else View.GONE
@@ -369,18 +364,6 @@ class FreeTriggerFloating(
             }
         } else {
             setVisibility(triggerView.triggerConfig.tag, false)
-        }
-    }
-
-    suspend fun setGuidePreviewActive(active: Boolean) = withContext(Dispatchers.Main) {
-        if (guidePreviewActive == active) return@withContext
-        guidePreviewActive = active
-        if (active) {
-            triggerViews.values.forEach { group ->
-                group.getAllViews().forEach { it.visibility = View.GONE }
-            }
-        } else {
-            refreshTriggerVisibility()
         }
     }
 

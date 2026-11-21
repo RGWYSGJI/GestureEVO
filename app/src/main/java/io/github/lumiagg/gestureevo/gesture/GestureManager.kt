@@ -42,7 +42,6 @@ import io.github.lumiagg.gestureevo.search.AutomatePerformer
 import io.github.lumiagg.gestureevo.settings.ActionViewSettingsActivity.Companion.KEY_DISABLE_ALL_WHEEL_VIBRATE
 import io.github.lumiagg.gestureevo.settings.ActionViewSettingsActivity.Companion.KEY_MAIN_SHOW_VIBRATE
 import io.github.lumiagg.gestureevo.pointer.radar.LinkRadarPreferences
-import io.github.lumiagg.gestureevo.settings.guide.GuidePreviewSession
 import io.github.lumiagg.gestureevo.utils.ActionProxy
 import io.github.lumiagg.gestureevo.utils.CurrentPackageProvider
 import io.github.lumiagg.gestureevo.utils.RecentAppsRecorder
@@ -69,9 +68,6 @@ class GestureManager(
         get() = actionViewFloatingLazy.value
     private val freeTriggerFloating =
         FreeTriggerFloating(gestureService, initTriggerTouchProxyCallBack())
-    private val guidePreviewFloatingLazy = lazy { GuidePreviewFloating(gestureService) }
-    private val guidePreviewFloating: GuidePreviewFloating
-        get() = guidePreviewFloatingLazy.value
     private val gestureFeedbackFloatingLazy = lazy { GestureFeedbackFloating(gestureService) }
     private val gestureFeedbackFloating: GestureFeedbackFloating
         get() = gestureFeedbackFloatingLazy.value
@@ -121,23 +117,9 @@ class GestureManager(
     }
 
     private fun initSharedFlow() {
-        lifecycleScope.launch(Dispatchers.Main) {
-            GuidePreviewSession.current.collect { request ->
-                if (request != null) {
-                    freeTriggerFloating.setGuidePreviewActive(true)
-                    if (actionViewFloatingLazy.isInitialized()) actionViewFloating.hide()
-                    if (gestureFeedbackFloatingLazy.isInitialized()) gestureFeedbackFloating.forceHide()
-                    guidePreviewFloating.show(request)
-                } else {
-                    if (guidePreviewFloatingLazy.isInitialized()) guidePreviewFloating.hide()
-                    freeTriggerFloating.setGuidePreviewActive(false)
-                }
-            }
-        }
         // Wheel / Gesture action view
         lifecycleScope.launch(Dispatchers.Main) {
             actionViewEventBus.collect {
-                if (it.show && GuidePreviewSession.current.value != null) return@collect
                 if (!it.show && !actionViewFloatingLazy.isInitialized()) return@collect
                 with(actionViewFloating) {
                     it.workMode?.let {
@@ -585,7 +567,6 @@ class GestureManager(
                 delay(100)
                 freeTriggerFloating.checkTriggerOrientation(newConfig.orientation)
             }
-            if (guidePreviewFloatingLazy.isInitialized()) guidePreviewFloating.refresh()
         }
         if (nightChanged) {
             Log.d(TAG, "UI mode changed")
@@ -594,7 +575,6 @@ class GestureManager(
     }
 
     fun refreshOverlayThemes() {
-        if (guidePreviewFloatingLazy.isInitialized()) guidePreviewFloating.refresh()
         if (actionViewFloatingLazy.isInitialized()) actionViewFloating.refreshTheme()
         if (notificationFloatingLazy.isInitialized()) notificationFloating.refreshTheme()
         if (inspireFloatingLazy.isInitialized()) inspireFloating.refreshTheme()
@@ -679,7 +659,6 @@ class GestureManager(
         pointerLinks.stop()
         interactionMode = InteractionMode.NORMAL
         freeTriggerFloating.destroy()
-        if (guidePreviewFloatingLazy.isInitialized()) guidePreviewFloating.destroy()
         if (actionViewFloatingLazy.isInitialized()) actionViewFloating.destroy()
         if (gestureFeedbackFloatingLazy.isInitialized()) gestureFeedbackFloating.destroy()
         if (inspireFloatingLazy.isInitialized()) inspireFloating.destroy()
@@ -692,7 +671,7 @@ class GestureManager(
     }
 
     private fun isTriggerActionAllowed(): Boolean {
-        return interactionMode == InteractionMode.NORMAL && GuidePreviewSession.current.value == null
+        return interactionMode == InteractionMode.NORMAL
     }
 
     companion object {

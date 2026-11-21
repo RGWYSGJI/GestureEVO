@@ -357,7 +357,7 @@ class GestureAddActionActivity : AppCompatActivity() {
                 getString(if (params["scope"] == "all") R.string.pause_gesture_scope_all else R.string.pause_gesture_scope_current),
                 params["seconds"] ?: "3"
             )
-            GestureActionType.SHOW_ACTION_VIEW -> getString(R.string.quick_setup_action_wheel_desc)
+            GestureActionType.SHOW_ACTION_VIEW -> getString(R.string.action_select_wheel_summary)
             GestureActionType.OPEN_ACTIVITY -> params["activityName"]
             GestureActionType.OTHER_LINK, GestureActionType.OTHER_SHORTCUT -> params["uri"]
             GestureActionType.CLIPBOARD_ACTION -> mapOf(
@@ -584,7 +584,7 @@ class GestureAddActionActivity : AppCompatActivity() {
                         throw e
                     } catch (e: Exception) {
                         Log.e(TAG, "Unable to load applications", e)
-                        Toast.makeText(this@GestureAddActionActivity, R.string.guide_load_failed, Toast.LENGTH_LONG).show()
+                        Toast.makeText(this@GestureAddActionActivity, R.string.app_select_load_failed, Toast.LENGTH_LONG).show()
                     }
                 }
             }

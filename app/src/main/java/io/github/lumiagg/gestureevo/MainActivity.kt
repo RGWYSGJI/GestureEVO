@@ -8,8 +8,6 @@ import androidx.lifecycle.lifecycleScope
 import io.github.lumiagg.gestureevo.search.config.SearchEngineDataManager
 import io.github.lumiagg.gestureevo.settings.BackgroundStabilityActivity
 import io.github.lumiagg.gestureevo.settings.SettingsActivity
-import io.github.lumiagg.gestureevo.settings.SettingsGuideActivity
-import io.github.lumiagg.gestureevo.settings.guide.SettingsGuideState
 import io.github.lumiagg.gestureevo.utils.icon.IconHelper
 import io.github.lumiagg.gestureevo.utils.readKey
 import io.github.lumiagg.gestureevo.utils.settingsStore
@@ -22,15 +20,12 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         lifecycleScope.launch {
-            // Decide onboarding before creating defaults; initialize icons before inflating its preview.
-            val showGuide = startupValue(false) { SettingsGuideState.shouldShowOnLaunch(applicationContext) }
             withContext(Dispatchers.IO) {
                 startupValue(Unit) { SearchEngineDataManager.ensureDefaultEngines(applicationContext) }
                 startupValue(Unit) { IconHelper.initIconConfig(applicationContext) }
             }
             val hideTask = startupValue(true) { settingsStore.readKey(BackgroundStabilityActivity.HIDE_TASK, true) }
-            startActivity(Intent(this@MainActivity, if (showGuide) SettingsGuideActivity::class.java else SettingsActivity::class.java).apply {
-                if (showGuide) putExtra(SettingsGuideActivity.EXTRA_FROM_LAUNCHER, true)
+            startActivity(Intent(this@MainActivity, SettingsActivity::class.java).apply {
                 if (!hideTask) flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NEW_DOCUMENT
             })
             EvoApplication.application.refreshSearchCatalogs()

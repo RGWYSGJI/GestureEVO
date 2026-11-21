@@ -73,15 +73,12 @@ class MainActionView : ActionView {
     var onHideRequestedCallback: () -> Unit = {}
     var onHiddenCallback: () -> Unit = {}
     var keepBackgroundBlurOnNextHide = false
-    internal var keepGuidePreviewVisible = false
     private var wheelBackgroundColor = DynamicColorUtils.surfaceContainerHighestColor
     private var wheelBackgroundFollowsTheme = true
     private var latestShowAnimEnabled = true
     private val dragTouchSlop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
     private val dragLongPressTimeout = ViewConfiguration.getLongPressTimeout().toLong()
     private var configTarget = ConfigTarget.MAIN
-    private var guideSourceConfig: ActionConfig? = null
-    private var guideFittedConfig: ActionConfig? = null
 
     private val isConfigMode: Boolean
         get() = workMode.isConfig
@@ -375,68 +372,6 @@ class MainActionView : ActionView {
         dragItemAction.updateRingItemsSize(false)
     }
 
-    internal fun layoutGuidePreview() {
-        visibility = VISIBLE
-        alpha = 1f
-        distributeItemsInRing()
-        refreshItemState()
-        background = null
-        configPromptView.hidePrompt()
-        clearViewBoundsCache()
-    }
-
-    internal fun fitGuideWheelToScreen(screenBounds: Rect) {
-        val viewWidth = screenBounds.width()
-        val viewHeight = screenBounds.height()
-        if (viewWidth <= 2 || viewHeight <= 2 || modelList.isEmpty()) return
-        val source = if (config === guideFittedConfig) guideSourceConfig ?: config else config
-        config = source
-        guideSourceConfig = source
-        updateGuideWheelItemSizes()
-        distributeItemsInRing()
-        val sizes = { modelList.map { it.view.layoutParams.width } }
-        var bounds = guideWheelBounds(ringsFlatten, sizes())
-        val scale = guideWheelScale(bounds, viewWidth, viewHeight)
-        if (scale < 1f) {
-            // Keep the persisted configuration intact; only the display geometry is fitted.
-            config = source.copy().apply {
-                itemDiameter = source.itemDiameter * scale
-                initRadius = source.initRadius * scale
-                itemWarpOffset = source.itemWarpOffset * scale
-                iconPadding = source.iconPadding * scale
-                iconCornerRadius = source.iconCornerRadius * scale
-            }
-            updateGuideWheelItemSizes()
-            distributeItemsInRing()
-            bounds = guideWheelBounds(ringsFlatten, sizes())
-        }
-        guideFittedConfig = config
-        val (centerX, centerY) = guideWheelCenter(
-            bounds.relativeTo(state.centerX, state.centerY), viewWidth, viewHeight,
-            state.centerX - screenBounds.left, state.centerY - screenBounds.top
-        )
-        state.centerX = centerX + screenBounds.left
-        state.centerY = centerY + screenBounds.top
-        distributeItemsInRing()
-        clearViewBoundsCache()
-    }
-
-    internal fun restoreGuideWheelScreenFit() {
-        if (config === guideFittedConfig) {
-            guideSourceConfig?.let { config = it }
-            updateGuideWheelItemSizes()
-        }
-        guideSourceConfig = null
-        guideFittedConfig = null
-    }
-
-    private fun updateGuideWheelItemSizes() {
-        dragItemAction.updateRingItemsSize(showAnim = false)
-        modelList.forEach {
-            it.view.applyWheelStyle(config)
-        }
-    }
-
     @OptIn(ExperimentalCoroutinesApi::class)
     suspend fun show(
         showAnim: Boolean = true,
@@ -482,7 +417,6 @@ class MainActionView : ActionView {
 
     fun hide(force: Boolean = false) {
         postOnMain {
-            if (keepGuidePreviewVisible) return@postOnMain
             if (!force && isConfigMode) return@postOnMain
             onHideRequestedCallback.invoke()
             val keepBackgroundBlur = keepBackgroundBlurOnNextHide
