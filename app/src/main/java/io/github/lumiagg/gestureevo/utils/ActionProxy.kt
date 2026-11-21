@@ -402,13 +402,11 @@ class ActionProxy(private val context: Context, linkString: String) {
         return when (route) {
             ActionWindowRoute.NORMAL -> launchDirect(null)
             ActionWindowRoute.SYSTEM_FREEFORM -> launchDirect(options ?: getActivityOptions().toBundle())
-            ActionWindowRoute.VIVO_SHARE -> targetIntent != null && shareOpenIntent(targetIntent).success
-            ActionWindowRoute.NUBIA_INTENT -> {
-                if (targetIntent == null) false else {
-                    startNubiaFreeformActivity(context, targetIntent)
-                    true
-                }
-            }
+            ActionWindowRoute.VIVO_SHARE -> targetIntent?.let { shareOpenIntent(it).success } == true
+            ActionWindowRoute.NUBIA_INTENT -> targetIntent?.let {
+                startNubiaFreeformActivity(context, it)
+                true
+            } ?: false
         }
     }
 
