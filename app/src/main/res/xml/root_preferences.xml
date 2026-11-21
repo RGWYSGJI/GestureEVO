@@ -46,12 +46,6 @@
             app:title="@string/search_engine_settings_title"
             app:summary="@string/settings_search_summary" />
         <Preference
-            android:icon="@drawable/ic_baseline_insert_link_24"
-            android:key="preferenceDynamicShortcuts"
-            android:layout="@layout/custom_preference_widget_layout"
-            app:title="@string/dynamic_shortcuts_title"
-            app:summary="@string/dynamic_shortcuts_summary" />
-        <Preference
             android:icon="@drawable/link_20px"
             android:key="preferenceLink"
             android:layout="@layout/custom_preference_widget_layout"

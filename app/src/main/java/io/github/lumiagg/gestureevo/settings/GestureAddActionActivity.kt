@@ -28,7 +28,6 @@ import io.github.lumiagg.gestureevo.databinding.BottomSheetClipboardActionSelect
 import io.github.lumiagg.gestureevo.databinding.BottomSheetIconSelectBinding
 import io.github.lumiagg.gestureevo.databinding.BottomSheetShortcutSourceSelectBinding
 import io.github.lumiagg.gestureevo.db.APPModel
-import io.github.lumiagg.gestureevo.db.DatabaseManager
 import io.github.lumiagg.gestureevo.gesture.ActionViewEvent
 import io.github.lumiagg.gestureevo.gesture.EventBusManager
 import io.github.lumiagg.gestureevo.gesture.config.ActionConfig
@@ -50,7 +49,6 @@ import io.github.lumiagg.gestureevo.settings.ui.SelectShortcutCallback
 import io.github.lumiagg.gestureevo.settings.ui.ShortcutModel
 import io.github.lumiagg.gestureevo.settings.ui.ShortcutSelectAPPBottomSheet
 import io.github.lumiagg.gestureevo.settings.ui.showActionSelectBottomSheet
-import io.github.lumiagg.gestureevo.settings.ui.showDynamicShortcutSelectBottomSheet
 import io.github.lumiagg.gestureevo.settings.ui.showEditTextBottomSheet
 import io.github.lumiagg.gestureevo.settings.ui.showPieGroupSelectBottomSheet
 import io.github.lumiagg.gestureevo.utils.GestureActionLink
@@ -61,7 +59,6 @@ import io.github.lumiagg.gestureevo.utils.app.syncAppCatalog
 import io.github.lumiagg.gestureevo.utils.icon.IconFileUtils
 import io.github.lumiagg.gestureevo.utils.icon.IconHelper
 import io.github.lumiagg.gestureevo.utils.icon.IconImageIO
-import io.github.lumiagg.gestureevo.utils.shortcuts.DynamicShortcuts
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -769,36 +766,6 @@ class GestureAddActionActivity : AppCompatActivity() {
             this, R.style.ThemeOverlay_BottomSheetDialog_Scrollable
         )
         val bottomSheetView = BottomSheetShortcutSourceSelectBinding.inflate(layoutInflater).root
-
-        bottomSheetView.findViewById<View>(R.id.selectDynamicShortcut).setOnClickListener {
-            bottomSheet.dismiss()
-            lifecycleScope.launch {
-                val records = try {
-                    DatabaseManager.db.dynamicShortcutDao().getImported()
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Log.e(TAG, "Unable to load imported shortcuts", e)
-                    Toast.makeText(this@GestureAddActionActivity, R.string.dynamic_shortcuts_failed, Toast.LENGTH_LONG).show()
-                    return@launch
-                }
-                if (isFinishing || isDestroyed) return@launch
-                if (records.isEmpty()) {
-                    MaterialAlertDialogBuilder(this@GestureAddActionActivity)
-                        .setMessage(R.string.dynamic_shortcuts_empty)
-                        .setPositiveButton(R.string.dynamic_shortcuts_import) { _, _ ->
-                            startActivity(Intent(this@GestureAddActionActivity, DynamicShortcutSettingsActivity::class.java))
-                        }
-                        .setNegativeButton(android.R.string.cancel, null).show()
-                } else {
-                    showDynamicShortcutSelectBottomSheet(this@GestureAddActionActivity, records) { record ->
-                        actionLink.addParams("uri", DynamicShortcuts.uri(record))
-                        actionLink.addParams("pkg", record.packageName)
-                        commitAction(configBinding, actionLink)
-                    }
-                }
-            }
-        }
 
         bottomSheetView.findViewById<View>(R.id.selectLocalShortcut)
             .setOnClickListener {

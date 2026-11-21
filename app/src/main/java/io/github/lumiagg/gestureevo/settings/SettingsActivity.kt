@@ -124,10 +124,6 @@ class SettingsActivity : AppCompatActivity() {
             preferenceManager.preferenceDataStore =
                 PreferenceDataStoreAdapter(requireContext().settingsStore, lifecycleScope)
             setPreferencesFromResource(R.xml.root_preferences, rootKey)
-            findPreference<Preference>("preferenceDynamicShortcuts")?.setOnPreferenceClickListener {
-                startActivity(Intent(requireActivity(), DynamicShortcutSettingsActivity::class.java))
-                true
-            }
             lifecycleScope.launch {
                 repeatOnLifecycle(Lifecycle.State.RESUMED) {
                     refreshConfigurationSummaries()

@@ -8,13 +8,6 @@ import java.util.Locale
 object SettingsSearchRegistry {
     private val entries = listOf(
         entry(
-            id = "root_dynamic_shortcuts",
-            titleResId = R.string.dynamic_shortcuts_title,
-            pageTitleResId = R.string.settings_title,
-            targetActivity = DynamicShortcutSettingsActivity::class.java,
-            keywords = listOf("动态快捷方式", "导入", "桌面", "shortcuts", "launcher", "import")
-        ),
-        entry(
             id = "root_settings_guide",
             titleResId = R.string.guide_title,
             pageTitleResId = R.string.settings_title,
@@ -431,14 +424,6 @@ object SettingsSearchRegistry {
             targetActivity = SearchEngineSettingsActivity::class.java,
             targetViewId = R.id.functionSettingsCard,
             keywords = listOf("系统设置", "快捷方式", "settings shortcut")
-        ),
-        entry(
-            id = "search_dynamic_shortcuts",
-            titleResId = R.string.search_engine_settings_search_dynamic_shortcuts,
-            pageTitleResId = R.string.search_engine_settings_title,
-            targetActivity = SearchEngineSettingsActivity::class.java,
-            targetViewId = R.id.functionSettingsCard,
-            keywords = listOf("动态快捷方式", "已导入", "dynamic shortcuts", "imported shortcuts")
         ),
         entry(
             id = "search_enter_first",

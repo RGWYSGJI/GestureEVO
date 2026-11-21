@@ -169,7 +169,6 @@ sealed class SearchResult {
         val title: String,
         val uri: String?,
         val settingsRowId: Int? = null,
-        val dynamicPackage: String? = null,
     ) : SearchResult()
 
     data class HistoryResult(val text: String) : SearchResult()
