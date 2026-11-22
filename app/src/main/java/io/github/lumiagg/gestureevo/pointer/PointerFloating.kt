@@ -58,7 +58,7 @@ import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.K
 import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_POINTER_TOUCH_AREA_OFFSET_DP
 import io.github.lumiagg.gestureevo.settings.InspireSettingsActivity.Companion.KEY_SHOW_POINTER_TRAIL
 import io.github.lumiagg.gestureevo.utils.DynamicColorUtils
-import io.github.lumiagg.gestureevo.utils.MlKitOcr
+import io.github.lumiagg.gestureevo.ocr.ScreenOcr
 import io.github.lumiagg.gestureevo.utils.Point
 import io.github.lumiagg.gestureevo.utils.ScreenUtil
 import io.github.lumiagg.gestureevo.utils.VibratorUtils
@@ -1462,7 +1462,7 @@ class PointerFloating(
             hasStartedDragSelection = false
             context.gestureManager?.setInteractionMode(InteractionMode.POINTER_DRAG_SELECT)
             context.launch(Dispatchers.IO) {
-                MlKitOcr.preload()
+                ScreenOcr.preload()
                 SmartSegmenter.prewarm(context.applicationContext)
             }
             VibratorUtils.vibrator(context, true)
