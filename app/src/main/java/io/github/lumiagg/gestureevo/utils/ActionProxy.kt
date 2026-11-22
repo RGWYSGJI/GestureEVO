@@ -732,7 +732,9 @@ class ActionProxy(private val context: Context, linkString: String) {
         if (serial <= 0L) return ""
         val userManager = context.getSystemService(Context.USER_SERVICE) as? UserManager ?: return ""
         val user = userManager.getUserForSerialNumber(serial) ?: return ""
-        return "--user ${user.identifier}"
+        // UserHandle has no public identifier property on all compile SDKs;
+        // its hashCode is the user id.
+        return "--user ${user.hashCode()}"
     }
 
     private fun shellQuote(value: String): String =
