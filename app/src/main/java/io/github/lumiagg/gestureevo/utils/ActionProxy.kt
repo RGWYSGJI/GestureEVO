@@ -188,10 +188,12 @@ class ActionProxy(private val context: Context, linkString: String) {
                             mapOf("package" to pkg))
                         return
                     }
-                    val launched = if (!launchTemporaryAssistant(context, pkg, activityName)) {
-                        launchUri(otherLink ?: return, pkg)
-                    } else {
-                        true
+                    var launched = launchTemporaryAssistant(context, pkg, activityName)
+                    if (!launched) {
+                        launched = launchActivityWithShizuku(pkg, activityName, userId)
+                    }
+                    if (!launched) {
+                        launched = launchUri(otherLink ?: return, pkg)
                     }
                     if (launched) {
                         recordOpenCount(pkg)
@@ -625,50 +627,112 @@ class ActionProxy(private val context: Context, linkString: String) {
             val searchManager =
                 context.getSystemService(Context.SEARCH_SERVICE) as? android.app.SearchManager
             val currentAssistant = Settings.Secure.getString(context.contentResolver, "assistant")
-
-            val targetComponent = ComponentName(
-                pkg,
-                activity
-            )
+            val targetComponent = ComponentName(pkg, activity)
             val replacedAssistant = targetComponent.flattenToString()
+            val packageBefore = CurrentPackageProvider.resolveCurrentPackageName()
 
-            runCatching {
+            try {
                 allowReflectionLaunchAssist()
-                // Temporarily replace system assistant
+                // Temporarily replace the system assistant. This is still an Activity start,
+                // so verify the target actually reached the foreground before restoring it.
                 Settings.Secure.putString(context.contentResolver, "assistant", replacedAssistant)
 
-                // Launch assistant
-                searchManager?.let {
-                    val method =
-                        searchManager.javaClass.getMethod("launchAssist", Bundle::class.java)
-                    method.invoke(searchManager, Bundle())
+                val manager = searchManager ?: return@withContext false
+                val method = manager.javaClass.getMethod("launchAssist", Bundle::class.java)
+                method.invoke(manager, Bundle())
 
-                    // Brief delay before restoring
-                    delay(100)
-                    Settings.Secure.putString(
-                        context.contentResolver,
-                        "assistant",
-                        currentAssistant
-                    )
-                    return@withContext true
+                val verified = if (packageBefore == pkg) {
+                    true
+                } else {
+                    withTimeoutOrNull(ASSIST_LAUNCH_VERIFY_MS) {
+                        CurrentPackageProvider.currentPackageFlow.first { it == pkg }
+                        true
+                    } ?: false
                 }
-
-                return@withContext false
-            }.onFailure { e ->
+                AppLogger.event(
+                    LogModule.ACTION, "open_activity_assist_result", trace = trace,
+                    fields = mapOf(
+                        "package" to pkg,
+                        "activity" to activity,
+                        "verified" to verified,
+                    ),
+                )
+                verified
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                AppLogger.event(
+                    LogModule.ACTION, "open_activity_assist_failed", LogLevel.WARN, trace,
+                    fields = mapOf("package" to pkg, "activity" to activity),
+                    error = e,
+                )
+                false
+            } finally {
                 runCatching {
                     Settings.Secure.putString(
                         context.contentResolver,
                         "assistant",
-                        currentAssistant
+                        currentAssistant,
                     )
                 }
             }
-
-            return@withContext false
         }
+
+    /**
+     * Shell/Shizuku fallback for activities that cannot be launched from a background app
+     * through launchAssist(). Running as shell also allows non-exported activities.
+     */
+    private suspend fun launchActivityWithShizuku(
+        pkg: String,
+        activity: String,
+        userSerial: Long,
+    ): Boolean {
+        val component = ComponentName(pkg, activity).flattenToShortString()
+        val userArg = resolveUserArgument(userSerial)
+        val command = buildString {
+            append("am start -W")
+            if (userArg.isNotEmpty()) {
+                append(' ').append(userArg)
+            }
+            append(" -n ").append(shellQuote(component))
+        }
+        val (exitOk, output) = AShell.doCmd(context, command)
+        val normalized = output.lowercase()
+        val launched = exitOk &&
+            !normalized.contains("error:") &&
+            !normalized.contains("exception") &&
+            (
+                normalized.contains("status: ok") ||
+                    normalized.contains("starting:") ||
+                    normalized.contains("activity not started")
+                )
+        AppLogger.event(
+            LogModule.ACTION, "open_activity_shizuku", trace = trace,
+            level = if (launched) LogLevel.INFO else LogLevel.WARN,
+            fields = mapOf(
+                "package" to pkg,
+                "activity" to activity,
+                "command" to command,
+                "exit_ok" to exitOk,
+                "output" to output.take(500),
+            ),
+        )
+        return launched
+    }
+
+    private fun resolveUserArgument(serial: Long): String {
+        if (serial <= 0L) return ""
+        val userManager = context.getSystemService(Context.USER_SERVICE) as? UserManager ?: return ""
+        val user = userManager.getUserForSerialNumber(serial) ?: return ""
+        return "--user ${user.identifier}"
+    }
+
+    private fun shellQuote(value: String): String =
+        "'" + value.replace("'", "'\\''") + "'"
 
     companion object {
         private const val NUBIA_FREEFORM_IDENTIFIER = "_WindowReply"
+        private const val ASSIST_LAUNCH_VERIFY_MS = 700L
         private var activityOptionsAPIPass = false
         private var launchAssistAPIPass = false
 
