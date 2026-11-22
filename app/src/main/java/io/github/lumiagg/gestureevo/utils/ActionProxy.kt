@@ -679,7 +679,7 @@ class ActionProxy(private val context: Context, linkString: String) {
         }
 
     /**
-     * Shell/Shizuku fallback for activities that cannot be launched from a background app
+     * Shizuku-only fallback for activities that cannot be launched from a background app
      * through launchAssist(). Running as shell also allows non-exported activities.
      */
     private suspend fun launchActivityWithShizuku(
@@ -687,6 +687,14 @@ class ActionProxy(private val context: Context, linkString: String) {
         activity: String,
         userSerial: Long,
     ): Boolean {
+        if (!AShizuku.checkPermission(context)) {
+            AppLogger.event(
+                LogModule.ACTION, "open_activity_shizuku_permission_denied",
+                LogLevel.WARN, trace,
+                fields = mapOf("package" to pkg, "activity" to activity),
+            )
+            return false
+        }
         val component = ComponentName(pkg, activity).flattenToShortString()
         val userArg = resolveUserArgument(userSerial)
         val command = buildString {
@@ -696,7 +704,7 @@ class ActionProxy(private val context: Context, linkString: String) {
             }
             append(" -n ").append(shellQuote(component))
         }
-        val (exitOk, output) = AShell.doCmd(context, command)
+        val (exitOk, output) = AShizuku.doCmdWithShizuku(command)
         val normalized = output.lowercase()
         val launched = exitOk &&
             !normalized.contains("error:") &&
