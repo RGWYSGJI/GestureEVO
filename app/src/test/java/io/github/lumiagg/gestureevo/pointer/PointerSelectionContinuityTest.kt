@@ -9,12 +9,11 @@ import org.junit.Test
 
 class PointerSelectionContinuityTest {
     private val mapping = PointerCoordinateMapping(1000, 2000, 100, 400, 500, 1000)
-    private val zeroOffset = Point(0f, 0f)
     private fun selection() = PointerDragSelection(20f, 10f)
 
     @Test fun menuHandoffMatchesDirectDragAtTheSameFingerPositions() {
-        val start = mapping.map(Point(200f, 600f), zeroOffset)
-        val end = mapping.map(Point(350f, 900f), zeroOffset)
+        val start = mapping.map(Point(200f, 600f))
+        val end = mapping.map(Point(350f, 900f))
         val direct = selection().apply { begin(start); update(end) }
         val throughMenu = selection().apply { begin(start, end) }
         assertEquals(direct.start, throughMenu.start)
@@ -33,9 +32,9 @@ class PointerSelectionContinuityTest {
     }
 
     @Test fun horizontalMovementDuringDwellUpdatesTheFinalEndpoint() {
-        val start = mapping.map(Point(200f, 600f), zeroOffset)
-        val preview = mapping.map(Point(200f, 900f), zeroOffset)
-        val confirmed = mapping.map(Point(300f, 900f), zeroOffset)
+        val start = mapping.map(Point(200f, 600f))
+        val preview = mapping.map(Point(200f, 900f))
+        val confirmed = mapping.map(Point(300f, 900f))
         assertEquals(preview.y, confirmed.y)
         assertNotEquals(preview.x, confirmed.x)
         val drag = selection().apply { begin(start, confirmed) }
@@ -44,32 +43,26 @@ class PointerSelectionContinuityTest {
     }
 
     @Test fun continuingAfterMenuUsesTheOriginalScaleWithoutRebasing() {
-        val start = mapping.map(Point(200f, 600f), zeroOffset)
-        val drag = selection().apply { begin(start, mapping.map(Point(300f, 900f), zeroOffset)) }
+        val start = mapping.map(Point(200f, 600f))
+        val drag = selection().apply { begin(start, mapping.map(Point(300f, 900f))) }
         val previous = drag.end
-        drag.update(mapping.map(Point(310f, 920f), zeroOffset))
+        drag.update(mapping.map(Point(310f, 920f)))
         assertEquals(20f, drag.end.x - previous.x, 0f)
         assertEquals(40f, drag.end.y - previous.y, 0f)
         assertEquals(start, drag.start)
     }
 
     @Test fun fingerAtBottomCanStillReachBottomOfScreen() {
-        val start = mapping.map(Point(200f, 1000f), zeroOffset)
-        val end = mapping.map(Point(350f, 1400f), zeroOffset)
+        val start = mapping.map(Point(200f, 1000f))
+        val end = mapping.map(Point(350f, 1400f))
         val drag = selection().apply { begin(start, end) }
         assertEquals(2000f, drag.end.y, 0f)
         assertEquals(800f, drag.end.y - drag.start.y, 0f)
     }
 
     @Test fun boundaryOvershootAndReverseMovementDoNotAccumulateExtraDistance() {
-        assertEquals(Point(1000f, 2000f), mapping.map(Point(800f, 1800f), zeroOffset))
-        assertEquals(Point(900f, 1800f), mapping.map(Point(550f, 1300f), zeroOffset))
-    }
-
-    @Test fun existingReturnToPointerOffsetIsPreserved() {
-        val offset = Point(-50f, 100f)
-        assertEquals(Point(350f, 1100f), mapping.map(Point(300f, 900f), offset))
-        assertEquals(Point(370f, 1140f), mapping.map(Point(310f, 920f), offset))
+        assertEquals(Point(1000f, 2000f), mapping.map(Point(800f, 1800f)))
+        assertEquals(Point(900f, 1800f), mapping.map(Point(550f, 1300f)))
     }
 
     @Test fun reversedCornersKeepTheOriginalAnchor() {
