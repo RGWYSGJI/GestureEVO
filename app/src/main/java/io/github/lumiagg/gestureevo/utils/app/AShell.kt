@@ -12,10 +12,13 @@ import java.io.IOException
 
 object AShell {
     suspend fun doCmd(context: Context, command: String): Pair<Boolean, String> {
-        val rootResult = doCmdWithRoot(command)
-        return if (!rootResult.first && AShizuku.checkPermission(context)) {
-            AShizuku.doCmdWithShizuku(command)
-        } else rootResult
+        // Prefer Shizuku when it is already authorized. This avoids an unnecessary
+        // superuser lookup on devices that only have Shizuku.
+        if (AShizuku.checkPermission(context)) {
+            val shizukuResult = AShizuku.doCmdWithShizuku(command)
+            if (shizukuResult.first) return shizukuResult
+        }
+        return doCmdWithRoot(command)
     }
 
     fun doCmdWithRoot(command: String): Pair<Boolean, String> {
