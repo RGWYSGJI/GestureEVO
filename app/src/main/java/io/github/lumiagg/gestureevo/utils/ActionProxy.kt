@@ -188,9 +188,9 @@ class ActionProxy(private val context: Context, linkString: String) {
                             mapOf("package" to pkg))
                         return
                     }
-                    var launched = launchTemporaryAssistant(context, pkg, activityName)
+                    var launched = launchActivityWithShizuku(pkg, activityName, userId)
                     if (!launched) {
-                        launched = launchActivityWithShizuku(pkg, activityName, userId)
+                        launched = launchTemporaryAssistant(context, pkg, activityName)
                     }
                     if (!launched) {
                         launched = launchUri(otherLink ?: return, pkg)
