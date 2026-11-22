@@ -987,7 +987,7 @@
     <string name="link_rule_never_hit">never hit</string>
     <string name="default_trigger_name">Default trigger</string>
     <string name="default_action_tag_name">Default</string>
-    <string name="root_shizuku_permission_failed">Root (Shizuku) permission failed</string>
+    <string name="root_shizuku_permission_failed">Shizuku permission failed</string>
     <string name="shizuku_call_failed">Shizuku call failed</string>
     <string name="shizuku_request_permission">Request Shizuku permission</string>
     <string name="share_open_app_failed">Failed to launch app</string>
