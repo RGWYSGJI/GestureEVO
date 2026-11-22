@@ -27,9 +27,8 @@
     <string name="log_no_error">无</string>
     <string name="log_summary">%1$d 个文件 · %2$d KB / 20 MB · 最长保留 7 天\n最近错误：%3$s</string>
     <string name="log_enable_first">请先开启运行日志</string>
-    <string name="log_system_description">采集持续最多 60 秒，离开此页后仍会继续。开始后请复现问题，再返回导出日志。\n\n选择已授权的 Shizuku 或 Root。仅保存 GestureEVO 和本次操作目标的启动事件分类，不保存原始系统日志。无匹配事件不代表系统允许了启动。</string>
+    <string name="log_system_description">采集持续最多 60 秒，离开此页后仍会继续。开始后请复现问题，再返回导出日志。\n\n使用已授权的 Shizuku。仅保存 GestureEVO 和本次操作目标的启动事件分类，不保存原始系统日志。无匹配事件不代表系统允许了启动。</string>
     <string name="log_use_shizuku">使用 Shizuku</string>
-    <string name="log_use_root">使用 Root</string>
     <string name="log_capture_idle">日志保存在本机，导出包含设备信息和动作目标包名。系统诊断可辅助排查后台启动问题。</string>
     <string name="log_capture_running">正在采集，请复现问题 · 已记录 %1$d 条相关事件</string>
     <string name="log_capture_complete">采集完成 · %1$d 条相关事件；未匹配到事件不能证明启动成功</string>
@@ -47,7 +46,6 @@
     <string name="log_reason_timeout">连接或启动采集超时</string>
     <string name="log_reason_disconnected">采集服务已断开</string>
     <string name="log_reason_protocol">采集接口不兼容，请重新连接 Shizuku 服务</string>
-    <string name="log_reason_root">Root 不可用或启动失败</string>
     <string name="log_reason_command">系统日志命令执行失败</string>
     <string name="log_reason_limit">已达到采集大小或事件数量上限</string>
     <string name="log_reason_busy">采集器忙，请稍后重试</string>

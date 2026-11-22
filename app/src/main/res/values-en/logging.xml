@@ -27,9 +27,8 @@
     <string name="log_no_error">None</string>
     <string name="log_summary">Files: %1$d · %2$d KB / 20 MB · Kept for up to 7 days\nLatest error: %3$s</string>
     <string name="log_enable_first">Enable application logging first</string>
-    <string name="log_system_description">Capture runs for up to 60 seconds and continues when you leave this page. Reproduce the issue, then return to export logs.\n\nChoose authorized Shizuku or Root. Only launch classifications for GestureEVO and action targets are saved, without raw system messages. No matching events does not mean the launch was allowed.</string>
+    <string name="log_system_description">Capture runs for up to 60 seconds and continues when you leave this page. Reproduce the issue, then return to export logs.\n\nUse authorized Shizuku. Only launch classifications for GestureEVO and action targets are saved, without raw system messages. No matching events does not mean the launch was allowed.</string>
     <string name="log_use_shizuku">Use Shizuku</string>
-    <string name="log_use_root">Use Root</string>
     <string name="log_capture_idle">Logs stay on this device. Exports include device information and action target packages. System capture can help diagnose background launches.</string>
     <string name="log_capture_running">Capturing; reproduce the issue · Related events: %1$d</string>
     <string name="log_capture_complete">Capture complete · Related events: %1$d. No matches does not confirm success.</string>
@@ -47,7 +46,6 @@
     <string name="log_reason_timeout">Connecting or starting capture timed out</string>
     <string name="log_reason_disconnected">Capture service disconnected</string>
     <string name="log_reason_protocol">Incompatible capture interface; reconnect the Shizuku service</string>
-    <string name="log_reason_root">Root unavailable or could not start</string>
     <string name="log_reason_command">System log command failed</string>
     <string name="log_reason_limit">Capture size or event limit reached</string>
     <string name="log_reason_busy">Collector busy; try again later</string>
