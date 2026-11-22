@@ -60,7 +60,7 @@ object SystemLogCapture {
             }
         }
 
-    fun start(useRoot: Boolean) {
+    fun start() {
         if (!AppLogger.enabled || mutableStatus.value.running) return
         val token = UUID.randomUUID().toString()
         activeToken = token
@@ -72,7 +72,6 @@ object SystemLogCapture {
             var result = "stream_closed"
             var code: Int? = null
             var input: ParcelFileDescriptor.AutoCloseInputStream? = null
-            var relay: DiagnosticRelay? = null
             var service: IUserService? = null
             val startWall = System.currentTimeMillis()
             var expired = false
@@ -82,27 +81,18 @@ object SystemLogCapture {
                 owner.cancel()
             }
             AppLogger.event(LogModule.SYSTEM, "capture_started", trace = token,
-                fields = mapOf("method" to if (useRoot) "root" else "shizuku"))
+                fields = mapOf("method" to "shizuku"))
             try {
-                if (!useRoot && !shizukuAvailable()) {
+                if (!shizukuAvailable()) {
                     result = "permission_missing"
                 } else {
-                    val descriptor = if (useRoot) {
-                        val pipe = ParcelFileDescriptor.createPipe()
-                        try {
-                            relay = DiagnosticRelay(listOf("su", "-c", DiagnosticRelay.rootCommand),
-                                ParcelFileDescriptor.AutoCloseOutputStream(pipe[1]))
-                            pipe[0]
-                        } catch (e: Exception) { pipe.forEach { it.close() }; throw e }
-                    } else {
-                        service = withTimeout(5000) { ShizukuServiceHelper.awaitService() }
-                        val connected = requireNotNull(service)
-                        withTimeout(5000) {
-                            awaitWorker(binder, late = { fd: ParcelFileDescriptor ->
-                                runCatching { fd.close() }
-                                closeRemote(connected, token)
-                            }) { connected.openDiagnosticStream(token) }
-                        }
+                    service = withTimeout(5000) { ShizukuServiceHelper.awaitService() }
+                    val connected = requireNotNull(service)
+                    val descriptor = withTimeout(5000) {
+                        awaitWorker(binder, late = { fd: ParcelFileDescriptor ->
+                            runCatching { fd.close() }
+                            closeRemote(connected, token)
+                        }) { connected.openDiagnosticStream(token) }
                     }
                     input = ParcelFileDescriptor.AutoCloseInputStream(descriptor)
                     val stream = requireNotNull(input)
@@ -147,14 +137,13 @@ object SystemLogCapture {
                     is android.os.DeadObjectException -> "service_disconnected"
                     is android.os.RemoteException -> "protocol_unsupported"
                     is SecurityException -> "permission_missing"
-                    else -> if (useRoot) "root_unavailable" else "service_disconnected"
+                    else -> "service_disconnected"
                 }
                 AppLogger.event(LogModule.SYSTEM, "capture_failed", LogLevel.WARN, token,
                     mapOf("reason" to result), e)
             } finally {
                 deadline.cancel()
                 runCatching { input?.close() }
-                runCatching { relay?.close() }
                 closeRemote(service, token)
                 AppLogger.event(LogModule.SYSTEM, "capture_finished", trace = token,
                     fields = mapOf("reason" to result, "count" to count.get(), "exitCode" to code, "dropped" to discarded.get()))

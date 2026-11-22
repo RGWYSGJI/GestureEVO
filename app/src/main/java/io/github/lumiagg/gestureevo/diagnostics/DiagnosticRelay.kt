@@ -20,17 +20,7 @@ class DiagnosticRelay(
     companion object {
         val arguments = listOf("/system/bin/logcat", "-v", "epoch", "-T", "1",
             "ActivityTaskManager:I", "ActivityManager:I", "VivoPermissionManager:I", "VivoFirewall:I", "*:S")
-        // The privileged shell also enforces a deadline if the app or su client disappears.
-        val rootCommand = """
-            /system/bin/logcat -v epoch -T 1 ActivityTaskManager:I ActivityManager:I VivoPermissionManager:I VivoFirewall:I '*:S' &
-            child=${'$'}!
-            ( /system/bin/sleep 60; kill "${'$'}child" 2>/dev/null ) &
-            timer=${'$'}!
-            trap 'kill "${'$'}child" "${'$'}timer" 2>/dev/null' EXIT HUP INT TERM
-            wait "${'$'}child"
-            code=${'$'}?
-            exit "${'$'}code"
-        """.trimIndent()
+
     }
 }
 

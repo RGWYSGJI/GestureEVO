@@ -124,8 +124,7 @@ class LogManagerActivity : AppCompatActivity() {
             if (SystemLogCapture.status.value.running) SystemLogCapture.stop()
             else if (!AppLogger.enabled) toast(R.string.log_enable_first)
             else MaterialAlertDialogBuilder(this).setTitle(R.string.log_system).setMessage(R.string.log_system_description)
-                .setPositiveButton(R.string.log_use_shizuku) { _, _ -> SystemLogCapture.start(false) }
-                .setNeutralButton(R.string.log_use_root) { _, _ -> SystemLogCapture.start(true) }
+                .setPositiveButton(R.string.log_use_shizuku) { _, _ -> SystemLogCapture.start() }
                 .setNegativeButton(android.R.string.cancel, null).show()
         }
         lifecycleScope.launch {
@@ -222,7 +221,6 @@ class LogManagerActivity : AppCompatActivity() {
         "service_timeout" -> R.string.log_reason_timeout
         "service_disconnected" -> R.string.log_reason_disconnected
         "protocol_unsupported" -> R.string.log_reason_protocol
-        "root_unavailable" -> R.string.log_reason_root
         "command_failed" -> R.string.log_reason_command
         "output_limit", "event_limit" -> R.string.log_reason_limit
         "collector_busy" -> R.string.log_reason_busy
