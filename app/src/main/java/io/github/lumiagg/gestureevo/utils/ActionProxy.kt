@@ -740,7 +740,7 @@ class ActionProxy(private val context: Context, linkString: String) {
 
     companion object {
         private const val NUBIA_FREEFORM_IDENTIFIER = "_WindowReply"
-        private const val ASSIST_LAUNCH_VERIFY_MS = 700L
+        private const val ASSIST_LAUNCH_VERIFY_MS = 300L
         private var activityOptionsAPIPass = false
         private var launchAssistAPIPass = false
 
