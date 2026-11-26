@@ -584,12 +584,7 @@ class PointerFloating(
     private fun resetMouseModeState() {
         mouseModeActive = false
         mouseHoldDirection = null
-        mouseHoldScrollJob?.cancel()
-        mouseHoldScrollJob = null
-        mouseQuickScrollJob?.cancel()
-        mouseQuickScrollJob = null
-        mouseWheelLoopJob?.cancel()
-        mouseWheelLoopJob = null
+        cancelMouseScrollJobs()
         mouseWheelFallbackJob?.cancel()
         mouseWheelFallbackJob = null
         mouseWheelDragging = false
@@ -602,6 +597,15 @@ class PointerFloating(
         pointerManger.stopMouseMode()
         mousePadOverlay.cancelDirectionHold()
         mousePadOverlay.visibility = View.GONE
+    }
+
+    private fun cancelMouseScrollJobs() {
+        mouseHoldScrollJob?.cancel()
+        mouseHoldScrollJob = null
+        mouseQuickScrollJob?.cancel()
+        mouseQuickScrollJob = null
+        mouseWheelLoopJob?.cancel()
+        mouseWheelLoopJob = null
     }
 
     private fun onMouseDirectionPress(direction: MousePadOverlay.Direction) {
@@ -664,12 +668,7 @@ class PointerFloating(
         }
         if (pointerHoldSession.isBusy) return
 
-        mouseHoldScrollJob?.cancel()
-        mouseHoldScrollJob = null
-        mouseQuickScrollJob?.cancel()
-        mouseQuickScrollJob = null
-        mouseWheelLoopJob?.cancel()
-        mouseWheelLoopJob = null
+        cancelMouseScrollJobs()
 
         mouseLongPressHoldActive = true
         mousePadOverlay.setLongPressActive(true)
