@@ -616,42 +616,37 @@ class DataBackActivity : AppCompatActivity() {
 
     // =============================== Helper Methods ===============================
 
-    private fun backupIcons(targetDir: File) {
-        val iconDir = File(filesDir, "icon")
-        if (!iconDir.exists()) return
-
-        iconDir.listFiles()?.forEach { iconFile ->
-            if (iconFile.isFile && iconFile.name.startsWith("saveIcon-")) {
-                iconFile.copyTo(File(targetDir, iconFile.name))
+    private fun copyFiles(
+        source: File,
+        target: File,
+        overwrite: Boolean = false,
+        predicate: (File) -> Boolean = { true },
+    ) {
+        if (!source.exists()) return
+        source.listFiles()?.forEach { file ->
+            if (file.isFile && predicate(file)) {
+                file.copyTo(File(target, file.name), overwrite)
             }
         }
     }
 
+    private fun backupIcons(targetDir: File) {
+        copyFiles(File(filesDir, "icon"), targetDir) { it.name.startsWith("saveIcon-") }
+    }
+
     private fun restoreIcons(sourceDir: File) {
         if (!sourceDir.exists()) return
-
         val iconDir = File(filesDir, "icon").apply {
-            deleteRecursively() // Clear existing icons
+            deleteRecursively()
             mkdirs()
         }
-
-        sourceDir.listFiles()?.forEach { iconFile ->
-            if (iconFile.isFile && iconFile.name.startsWith("saveIcon-")) {
-                iconFile.copyTo(File(iconDir, iconFile.name))
-            }
-        }
+        copyFiles(sourceDir, iconDir)
     }
 
     private suspend fun backupPinPool(imageDir: File, dbStatesDir: File) {
         val pins = PinPoolStore.loadPins(applicationContext)
         File(dbStatesDir, PIN_POOL_ITEMS_FILE).writeText(MoshiUtils.toJson(pins, true))
-        val sourceDir = PinPoolStore.pinImageDir(applicationContext)
-        if (!sourceDir.exists()) return
-        sourceDir.listFiles()?.forEach { file ->
-            if (file.isFile) {
-                file.copyTo(File(imageDir, file.name), overwrite = true)
-            }
-        }
+        copyFiles(PinPoolStore.pinImageDir(applicationContext), imageDir, overwrite = true)
     }
 
     private suspend fun restorePinPool(imageDir: File, dbStatesDir: File) {
@@ -669,11 +664,7 @@ class DataBackActivity : AppCompatActivity() {
         if (imageDir.exists()) {
             targetDir.deleteRecursively()
             targetDir.mkdirs()
-            imageDir.listFiles()?.forEach { file ->
-                if (file.isFile) {
-                    file.copyTo(File(targetDir, file.name), overwrite = true)
-                }
-            }
+            copyFiles(imageDir, targetDir, overwrite = true)
         }
         if (items != null) {
             PinPoolStore.replaceAll(applicationContext, items)
