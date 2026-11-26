@@ -3,11 +3,11 @@ package io.github.lumiagg.gestureevo.gesture.config
 import android.content.Context
 import android.net.Uri
 import androidx.core.net.toUri
-import io.github.lumiagg.gestureevo.gesture.config.GestureActionDataManager.buildTag
+import com.squareup.moshi.JsonClass
 import io.github.lumiagg.gestureevo.R
+import io.github.lumiagg.gestureevo.gesture.config.GestureActionDataManager.buildTag
 import io.github.lumiagg.gestureevo.utils.MoshiUtils
 import io.github.lumiagg.gestureevo.utils.toGestureActionType
-import com.squareup.moshi.JsonClass
 
 enum class IconType {
     URI, TEXT, OTHER, INVISIBLE
@@ -23,32 +23,19 @@ class GestureActionItem {
     var firstStageLink: String? = null
         set(value) {
             field = value
-            // Update cached URI and metadata
-            if (value != null) {
-                firstStageUri = runCatching { value.toUri() }.getOrNull()
-                firstStageAction = firstStageUri?.toGestureActionType() ?: GestureActionType.NONE
-                firstStagePkg = firstStageUri?.getQueryParameter("pkg")
-            } else {
-                firstStageUri = null
-                firstStageAction = GestureActionType.NONE
-                firstStagePkg = null
-            }
+            val stage = parseStage(value)
+            firstStageUri = stage.uri
+            firstStageAction = stage.action
+            firstStagePkg = stage.packageName
         }
     var secondStageLink: String? = null
         set(value) {
             field = value
-            // Update cached URI and metadata
-            if (value != null) {
-                secondStageUri = runCatching { value.toUri() }.getOrNull()
-                secondStageAction = secondStageUri?.toGestureActionType() ?: GestureActionType.NONE
-                secondStagePkg = secondStageUri?.getQueryParameter("pkg")
-            } else {
-                secondStageUri = null
-                secondStageAction = GestureActionType.NONE
-                secondStagePkg = null
-            }
+            val stage = parseStage(value)
+            secondStageUri = stage.uri
+            secondStageAction = stage.action
+            secondStagePkg = stage.packageName
         }
-
 
     // Cached properties excluded from serialization
     @Transient
@@ -75,13 +62,27 @@ class GestureActionItem {
     var secondStagePkg: String? = null
         private set
 
-    fun getFirstStageParam(param: String): Boolean {
-        return firstStageUri?.getBooleanQueryParameter(param, false) == true
+
+    private fun parseStage(link: String?): StageLink {
+        val uri = link?.let { runCatching { it.toUri() }.getOrNull() }
+        return StageLink(
+            uri = uri,
+            action = uri?.toGestureActionType() ?: GestureActionType.NONE,
+            packageName = uri?.getQueryParameter("pkg"),
+        )
     }
 
-    fun getSecondStageParam(param: String): Boolean {
-        return secondStageUri?.getBooleanQueryParameter(param, false) == true
-    }
+    private data class StageLink(
+        val uri: Uri?,
+        val action: GestureActionType,
+        val packageName: String?,
+    )
+
+    fun getFirstStageParam(param: String): Boolean =
+        firstStageUri?.getBooleanQueryParameter(param, false) == true
+
+    fun getSecondStageParam(param: String): Boolean =
+        secondStageUri?.getBooleanQueryParameter(param, false) == true
 
     fun addParam(param: String, value: String, isFirstStage: Boolean = true) {
         val uri = if (isFirstStage) firstStageUri else secondStageUri
@@ -116,9 +117,8 @@ class GestureActionItem {
         }
     }
 
-    fun haveSecondStage(): Boolean {
-        return !secondStageLink.isNullOrEmpty() && secondStageAction != GestureActionType.NONE
-    }
+    fun haveSecondStage(): Boolean =
+        !secondStageLink.isNullOrEmpty() && secondStageAction != GestureActionType.NONE
 
     /** Detached copy for draft editors; assigning links also rebuilds cached URI metadata. */
     fun copy(tag: String = this.tag): GestureActionItem = GestureActionItem().also {
@@ -136,17 +136,14 @@ class GestureActionItem {
     }
 
     companion object {
-        fun toModel(json: String): GestureActionItem? {
-            return MoshiUtils.toModel<GestureActionItem>(json)
-        }
+        fun toModel(json: String): GestureActionItem? =
+            MoshiUtils.toModel<GestureActionItem>(json)
 
-        fun toJsonList(list: List<GestureActionItem>): String {
-            return MoshiUtils.toJson(list)
-        }
+        fun toJsonList(list: List<GestureActionItem>): String =
+            MoshiUtils.toJson(list)
 
-        fun toModelList(json: String): List<GestureActionItem>? {
-            return MoshiUtils.toModel<List<GestureActionItem>>(json)
-        }
+        fun toModelList(json: String): List<GestureActionItem>? =
+            MoshiUtils.toModel<List<GestureActionItem>>(json)
     }
 }
 
@@ -155,7 +152,8 @@ enum class GestureActionType {
     SHOW_ACTION_VIEW, CLICK_THROUGH, SCREEN_CONTENT, SCREEN_CONTENT_FULLSCREEN, SCREEN_SEARCH, SEARCH, PIN_POOL, POINTER, TOUCHPAD, KEYBOARD, OPEN_APP, OTHER_SHORTCUT, OTHER_LINK, CLIPBOARD_ACTION, ACC_ACTION,
     RECENT_APP, OPEN_ACTIVITY, FREEZE_APP, FREEFORM_FOREGROUND, OPEN_SHELL, TEMP_DND,
     PAUSE_GESTURE,
-    NONE;
+    NONE,
+    ;
 
     fun showName(context: Context): String {
         return when (this) {
