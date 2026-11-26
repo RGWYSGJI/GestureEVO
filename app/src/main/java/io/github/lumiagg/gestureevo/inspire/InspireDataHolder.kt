@@ -26,7 +26,11 @@ object InspireDataHolder {
     var sourcePackage: String? = null
 
     fun replaceScreenshotBitmap(bitmapHandle: ManagedBitmap?) {
-        val newHandle = bitmapHandle?.acquire()
+        if (bitmapHandle == null) {
+            clearScreenshotBitmap()
+            return
+        }
+        val newHandle = bitmapHandle.acquire()
         screenshotBitmap?.close()
         screenshotBitmap = newHandle
     }

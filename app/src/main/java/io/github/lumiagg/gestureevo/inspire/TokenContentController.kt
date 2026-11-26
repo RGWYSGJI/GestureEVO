@@ -46,10 +46,7 @@ internal class TokenContentController(
         }
         ocrRawText = correctedOcrResult.rawText
         if (correctedOcrResult.rawText.isBlank()) {
-            contentView.ocrContents = listOf(context.getString(R.string.inspire_content_ocr_empty))
-            if (contentView.getCurrentMode().isOCR) {
-                contentView.switchToMode(InspireTokenContentMode.OCR)
-            }
+            showEmptyOcrContent()
             return
         }
         contentView.setOcrImageTextNodes(
@@ -60,6 +57,13 @@ internal class TokenContentController(
         contentView.setDisplayMode(loadPlan.initialDisplayMode)
         if (contentView.getCurrentMode().isOCR) {
             requestMode(InspireTokenContentMode.OCR)
+        }
+    }
+
+    private fun showEmptyOcrContent() {
+        contentView.ocrContents = listOf(context.getString(R.string.inspire_content_ocr_empty))
+        if (contentView.getCurrentMode().isOCR) {
+            contentView.switchToMode(InspireTokenContentMode.OCR)
         }
     }
 
