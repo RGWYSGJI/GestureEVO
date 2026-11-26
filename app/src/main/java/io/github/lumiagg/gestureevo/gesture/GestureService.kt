@@ -295,19 +295,29 @@ class GestureService : AccessibilityService(), CoroutineScope {
             return false
         }
 
-        val clickPath = Path().apply {
-            moveTo(x, y)
-        }
-
-        val gestureBuilder = GestureDescription.Builder()
-        // Non-overlapping strokes keep a double tap in one accepted gesture, not two races.
-        repeat(clickCount) { index ->
-            gestureBuilder.addStroke(GestureDescription.StrokeDescription(
-                clickPath, index * (duration + 80L), duration,
-            ))
-        }
         Log.d(TAG, "performClickAsync: start click")
-        return dispatchGestureAsync(gestureBuilder.build())
+        return dispatchGestureAsync(buildClickGesture(x, y, duration, clickCount))
+    }
+
+    private fun buildClickGesture(
+        x: Float,
+        y: Float,
+        duration: Long,
+        clickCount: Int,
+    ): GestureDescription {
+        val clickPath = Path().apply { moveTo(x, y) }
+        return GestureDescription.Builder().apply {
+            // Non-overlapping strokes keep a double tap in one accepted gesture, not two races.
+            repeat(clickCount) { index ->
+                addStroke(
+                    GestureDescription.StrokeDescription(
+                        clickPath,
+                        index * (duration + 80L),
+                        duration,
+                    ),
+                )
+            }
+        }.build()
     }
 
     suspend fun performSwipeAsync(
@@ -324,6 +334,32 @@ class GestureService : AccessibilityService(), CoroutineScope {
             return false
         }
 
+        Log.d(
+            TAG,
+            "performSwipeAsync: start swipe from ($startX,$startY) to ($endX,$endY), duration=${duration}ms, hold=${holdDuration}ms",
+        )
+        return dispatchGestureAsync(
+            buildSwipeGesture(
+                startX = startX,
+                startY = startY,
+                endX = endX,
+                endY = endY,
+                duration = duration,
+                holdDuration = holdDuration,
+                useDecelerationCurve = useDecelerationCurve,
+            ),
+        )
+    }
+
+    private fun buildSwipeGesture(
+        startX: Float,
+        startY: Float,
+        endX: Float,
+        endY: Float,
+        duration: Long,
+        holdDuration: Long,
+        useDecelerationCurve: Boolean,
+    ): GestureDescription {
         val swipePath = if (useDecelerationCurve) {
             createDecelerationPath(startX, startY, endX, endY)
         } else {
@@ -333,37 +369,31 @@ class GestureService : AccessibilityService(), CoroutineScope {
             }
         }
 
-        // If hold duration is needed, use willContinue param of StrokeDescription
+        // If hold duration is needed, use willContinue param of StrokeDescription.
         val gesture = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             GestureDescription.StrokeDescription(swipePath, 0, duration, holdDuration > 0)
         } else {
             GestureDescription.StrokeDescription(swipePath, 0, duration)
         }
 
-        val gestureBuilder = GestureDescription.Builder().apply {
+        return GestureDescription.Builder().apply {
             addStroke(gesture)
 
-            // If hold duration is specified, append a stationary stroke
+            // If hold duration is specified, append a stationary stroke.
             if (holdDuration > 0) {
                 val holdPath = Path().apply {
                     moveTo(endX, endY)
-                    lineTo(endX, endY)  // Stay stationary at end position
+                    lineTo(endX, endY)
                 }
-                val holdStroke = GestureDescription.StrokeDescription(
-                    holdPath,
-                    duration,  // Start after swipe duration
-                    holdDuration
+                addStroke(
+                    GestureDescription.StrokeDescription(
+                        holdPath,
+                        duration,
+                        holdDuration,
+                    ),
                 )
-                addStroke(holdStroke)
             }
-        }
-
-        Log.d(
-            TAG,
-            "performSwipeAsync: start swipe from ($startX,$startY) to ($endX,$endY), duration=${duration}ms, hold=${holdDuration}ms"
-        )
-
-        return dispatchGestureAsync(gestureBuilder.build())
+        }.build()
     }
 
     private suspend fun dispatchGestureAsync(gesture: GestureDescription): Boolean =
