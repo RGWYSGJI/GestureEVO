@@ -35,12 +35,12 @@ import io.github.lumiagg.gestureevo.databinding.LogManagerFooterBinding
 import io.github.lumiagg.gestureevo.databinding.LogRecordItemBinding
 import io.github.lumiagg.gestureevo.databinding.LogSettingsSheetBinding
 import io.github.lumiagg.gestureevo.diagnostics.AppLogger
-io.github.lumiagg.gestureevo.diagnostics.LogFilter
-io.github.lumiagg.gestureevo.diagnostics.LogLevel
-io.github.lumiagg.gestureevo.diagnostics.LogModule
-io.github.lumiagg.gestureevo.diagnostics.LogStore
 import io.github.lumiagg.gestureevo.diagnostics.LogArchive
+import io.github.lumiagg.gestureevo.diagnostics.LogFilter
+import io.github.lumiagg.gestureevo.diagnostics.LogLevel
+import io.github.lumiagg.gestureevo.diagnostics.LogModule
 import io.github.lumiagg.gestureevo.diagnostics.LogRecord
+import io.github.lumiagg.gestureevo.diagnostics.LogStore
 import io.github.lumiagg.gestureevo.diagnostics.ProblemSession
 import io.github.lumiagg.gestureevo.diagnostics.ProblemSessions
 import io.github.lumiagg.gestureevo.diagnostics.SystemLogCapture
