@@ -7,6 +7,7 @@ import android.os.SystemClock
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -55,6 +56,7 @@ class MousePadOverlay(
     private lateinit var closeButton: TextView
     private lateinit var longPressButton: TextView
     private var activeDirection: Direction? = null
+    private val glyphPaint = Paint()
     private var closeArmed = false
     private var lastCloseTapAt = 0L
     private val closeReset = Runnable {
@@ -195,7 +197,7 @@ class MousePadOverlay(
 
     private fun edgeArrowLabel(up: Boolean): String {
         val symbol = if (up) "\u21D1" else "\u21D3"
-        return if (Paint().hasGlyph(symbol)) symbol else if (up) "↑" else "↓"
+        return if (glyphPaint.hasGlyph(symbol)) symbol else if (up) "↑" else "↓"
     }
 
     private fun addActionButton(
@@ -316,7 +318,7 @@ class MousePadOverlay(
         val params = children.map { it.layoutParams as? LinearLayout.LayoutParams }
         bar.removeAllViews()
         children.forEachIndexed { index, child ->
-            (child.parent as? android.view.ViewGroup)?.removeView(child)
+            (child.parent as? ViewGroup)?.removeView(child)
             val childParams = params[index]
             if (childParams != null) {
                 bar.addView(child, childParams)

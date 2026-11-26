@@ -86,13 +86,7 @@ class PointerDragSession(
             Log.d(TAG, "start timeout, resetting")
             starting = false
             active = false
-            withTimeoutOrNull(300L) {
-                try {
-                    service.endPointerDrag()
-                } catch (_: Throwable) {
-                    // The initial stroke may not have been dispatched yet.
-                }
-            }
+            withTimeoutOrNull(300L) { endDragQuietly() }
             finish("start_timeout")
         }
 
@@ -118,11 +112,7 @@ class PointerDragSession(
 
             if (!active) {
                 // The user ended the session while the initial hold was still being dispatched.
-                try {
-                    service.endPointerDrag()
-                } catch (_: Throwable) {
-                    // The gesture may already have been cancelled by the target.
-                }
+                endDragQuietly()
                 finish("ended_during_start")
                 return@launch
             }
@@ -159,13 +149,7 @@ class PointerDragSession(
         scope.launch {
             move?.cancelAndJoinQuietly()
             heartbeat?.cancelAndJoinQuietly()
-            mutex.withLock {
-                try {
-                    service.endPointerDrag()
-                } catch (_: Throwable) {
-                    // The gesture may already have been cancelled by the target.
-                }
-            }
+            mutex.withLock { endDragQuietly() }
             finish("user_end")
         }
     }
@@ -175,17 +159,7 @@ class PointerDragSession(
             val targetX = latestX
             val targetY = latestY
             if (abs(targetX - lastX) > MOVE_EPSILON || abs(targetY - lastY) > MOVE_EPSILON) {
-                val accepted = mutex.withLock {
-                    if (!active) {
-                        false
-                    } else {
-                        try {
-                            service.continuePointerDrag(targetX, targetY, MOVE_DURATION_MS)
-                        } catch (_: Throwable) {
-                            false
-                        }
-                    }
-                }
+                val accepted = continueDrag(targetX, targetY, MOVE_DURATION_MS)
                 if (!accepted) {
                     finish("move_rejected")
                     return
@@ -205,21 +179,32 @@ class PointerDragSession(
         while (active && scope.isActive) {
             delay(HEARTBEAT_INTERVAL_MS)
             if (!active) return
-            val accepted = mutex.withLock {
-                if (!active) {
-                    false
-                } else {
-                    try {
-                        service.continuePointerDrag(lastX, lastY, HEARTBEAT_DURATION_MS)
-                    } catch (_: Throwable) {
-                        false
-                    }
-                }
-            }
+            val accepted = continueDrag(lastX, lastY, HEARTBEAT_DURATION_MS)
             if (!accepted) {
                 finish("heartbeat_rejected")
                 return
             }
+        }
+    }
+
+    private suspend fun continueDrag(x: Float, y: Float, durationMs: Long): Boolean =
+        mutex.withLock {
+            if (!active) {
+                false
+            } else {
+                try {
+                    service.continuePointerDrag(x, y, durationMs)
+                } catch (_: Throwable) {
+                    false
+                }
+            }
+        }
+
+    private suspend fun endDragQuietly() {
+        try {
+            service.endPointerDrag()
+        } catch (_: Throwable) {
+            // The gesture may already have been cancelled by the target.
         }
     }
 
