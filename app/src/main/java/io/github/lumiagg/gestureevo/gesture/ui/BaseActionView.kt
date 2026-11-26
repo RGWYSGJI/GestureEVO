@@ -341,98 +341,64 @@ open class ActionView : ConstraintLayout {
         if (ringsFlatten.size < modelList.size) return
         visibility = INVISIBLE
 
-        // Initialize all view positions to center point
-        modelList.forEachIndexed { index, modelItem ->
+        modelList.forEach { modelItem ->
             modelItem.view.translationX = state.centerX.toFloat() - config.itemDiameter / 2
             modelItem.view.translationY = state.centerY.toFloat() - config.itemDiameter / 2
         }
         visibility = VISIBLE
 
-        // Create master AnimatorSet to coordinate animations
-        val mainAnimatorSet = AnimatorSet()
-        val allAnimators = ArrayList<Animator>()
-
-        modelList.forEachIndexed { index, modelItem ->
-            val ringItem = ringsFlatten[index]
-
-            // Position animation
-            val animatorX = ObjectAnimator.ofFloat(
-                modelItem.view,
-                "x",
-                modelItem.view.x,
-                ringItem.x
-            )
-            val animatorY = ObjectAnimator.ofFloat(
-                modelItem.view,
-                "y",
-                modelItem.view.y,
-                ringItem.y
-            )
-
-            // Create dedicated AnimatorSet for each item
-            val itemAnimatorSet = AnimatorSet()
-            itemAnimatorSet.playTogether(
-                animatorX,
-                animatorY,
-            )
-
-            // Add staggered delay for staggered animation effect
-            itemAnimatorSet.startDelay = (index * 15).toLong().coerceAtMost(100)
-
-            allAnimators.add(itemAnimatorSet)
-        }
-
-        mainAnimatorSet.playTogether(allAnimators)
-        mainAnimatorSet.duration = 250
-        mainAnimatorSet.interpolator = OvershootInterpolator(1.3f)
-        mainAnimatorSet.start()
+        animateItemsTo(
+            duration = 250,
+            interpolator = OvershootInterpolator(1.3f),
+            delayFor = { index -> (index * 15).toLong().coerceAtMost(100) },
+            targetFor = { ringItem -> ringItem.x to ringItem.y },
+        )
     }
 
     internal fun playShrinkAnim() {
         if (ringsFlatten.size < modelList.size) return
-        // Create master AnimatorSet to coordinate animations
+
+        animateItemsTo(
+            duration = 200,
+            interpolator = AnticipateInterpolator(1.3f),
+            delayFor = { index -> ((modelList.size - index) * 10).toLong().coerceAtMost(80) },
+            targetFor = {
+                (state.centerX.toFloat() - config.itemDiameter / 2) to
+                    (state.centerY.toFloat() - config.itemDiameter / 2)
+            },
+            onEnd = ::onHideAnimationCompleted,
+        )
+    }
+
+    private fun animateItemsTo(
+        duration: Long,
+        interpolator: android.animation.TimeInterpolator,
+        delayFor: (Int) -> Long,
+        targetFor: (RingItem) -> Pair<Float, Float>,
+        onEnd: (() -> Unit)? = null,
+    ) {
         val mainAnimatorSet = AnimatorSet()
         val allAnimators = ArrayList<Animator>()
 
         modelList.forEachIndexed { index, modelItem ->
-            // Position animation
-            val animatorX = ObjectAnimator.ofFloat(
-                modelItem.view,
-                "x",
-                modelItem.view.x,
-                state.centerX.toFloat() - config.itemDiameter / 2
-            )
-            val animatorY = ObjectAnimator.ofFloat(
-                modelItem.view,
-                "y",
-                modelItem.view.y,
-                state.centerY.toFloat() - config.itemDiameter / 2
-            )
-
-            // Create dedicated AnimatorSet for each item
-            val itemAnimatorSet = AnimatorSet()
-            itemAnimatorSet.playTogether(
-                animatorX,
-                animatorY,
-            )
-
-            // Staggered delay pattern for collapse - outside to inside
-            itemAnimatorSet.startDelay =
-                ((modelList.size - index) * 10).toLong().coerceAtMost(80)
-
+            val (targetX, targetY) = targetFor(ringsFlatten[index])
+            val animatorX = ObjectAnimator.ofFloat(modelItem.view, "x", modelItem.view.x, targetX)
+            val animatorY = ObjectAnimator.ofFloat(modelItem.view, "y", modelItem.view.y, targetY)
+            val itemAnimatorSet = AnimatorSet().apply {
+                playTogether(animatorX, animatorY)
+                startDelay = delayFor(index)
+            }
             allAnimators.add(itemAnimatorSet)
         }
 
         mainAnimatorSet.playTogether(allAnimators)
-        mainAnimatorSet.duration = 200
-        mainAnimatorSet.interpolator = AnticipateInterpolator(1.3f)
-
-        mainAnimatorSet.addListener(object : AnimatorListenerAdapter() {
-            override fun onAnimationEnd(animation: Animator) {
-                onHideAnimationCompleted()
-            }
-        })
-
+        mainAnimatorSet.duration = duration
+        mainAnimatorSet.interpolator = interpolator
+        if (onEnd != null) {
+            mainAnimatorSet.addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) = onEnd()
+            })
+        }
         mainAnimatorSet.start()
     }
 
