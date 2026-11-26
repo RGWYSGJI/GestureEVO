@@ -865,11 +865,7 @@ class QuickSearchActivity : AppCompatActivity() {
                 }
                 if (uris.isNotEmpty()) {
                     lifecycleScope.launch(uiDispatcher) {
-                        addAttachedImages(uris)
-                        ToastHelper.showInUIThread(applicationContext, R.string.quick_search_image_added)
-                        if (::resultManager.isInitialized) {
-                            resultManager.updateSearchResults(binding.searchInput.text?.toString().orEmpty())
-                        }
+                        addImagesAndRefresh(uris)
                     }
                 }
             }
@@ -894,11 +890,7 @@ class QuickSearchActivity : AppCompatActivity() {
                     val clipboardImage = ClipboardUtils.getImage(applicationContext)
                     if (clipboardImage != null) {
                         lifecycleScope.launch(uiDispatcher) {
-                            addAttachedImages(listOf(clipboardImage))
-                            ToastHelper.showInUIThread(applicationContext, R.string.quick_search_image_added)
-                            if (::resultManager.isInitialized) {
-                                resultManager.updateSearchResults(binding.searchInput.text?.toString().orEmpty())
-                            }
+                            addImagesAndRefresh(listOf(clipboardImage))
                         }
                         val clipboardText = ClipboardUtils.getText(applicationContext)
                         if (clipboardText.isNotEmpty()) {
@@ -944,8 +936,16 @@ class QuickSearchActivity : AppCompatActivity() {
     }
 
     fun attachClipboardImage(uri: Uri) = lifecycleScope.launch(uiDispatcher) {
-        addAttachedImages(listOf(uri))
+        addImagesAndRefresh(listOf(uri))
+    }
+
+    private suspend fun addImagesAndRefresh(uris: List<Uri>) {
+        addAttachedImages(uris)
         ToastHelper.showInUIThread(applicationContext, R.string.quick_search_image_added)
+        refreshSearchResults()
+    }
+
+    private fun refreshSearchResults() {
         if (::resultManager.isInitialized) {
             resultManager.updateSearchResults(binding.searchInput.text?.toString().orEmpty())
         }
@@ -960,9 +960,7 @@ class QuickSearchActivity : AppCompatActivity() {
         attachedImageHashes.clear()
         updateInputActionVisibility(binding.searchInput.text?.toString().orEmpty())
         ToastHelper.showInUIThread(applicationContext, R.string.quick_search_image_cleared)
-        if (::resultManager.isInitialized) {
-            resultManager.updateSearchResults(binding.searchInput.text?.toString().orEmpty())
-        }
+        refreshSearchResults()
     }
 
     private fun executePendingImageSearchIfNeeded() {
