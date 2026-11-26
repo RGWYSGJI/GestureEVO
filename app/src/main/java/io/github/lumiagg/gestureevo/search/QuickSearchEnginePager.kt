@@ -183,17 +183,19 @@ class QuickSearchEnginePager @JvmOverloads constructor(
     fun updateContentDrag(x: Float, y: Float) {
         externalDragActive = true
         highlightExternalTarget(findEnginePositionUnder(x, y))
-        val direction = when {
-            !externalEdgePagingEnabled || y < 0 || y >= height -> 0
-            x >= 0 && x < edgeFlipSize && currentPage > 0 -> -1
-            x > width - edgeFlipSize && x < width && currentPage < pageCount - 1 -> 1
-            else -> 0
-        }
+        val direction = externalEdgeDirectionFor(x, y)
         if (direction != externalEdgeDirection) {
             handler.removeCallbacks(externalEdgeFlip)
             externalEdgeDirection = direction
             if (direction != 0) handler.postDelayed(externalEdgeFlip, edgeFlipDelay)
         }
+    }
+
+    private fun externalEdgeDirectionFor(x: Float, y: Float): Int = when {
+        !externalEdgePagingEnabled || y < 0 || y >= height -> 0
+        x >= 0 && x < edgeFlipSize && currentPage > 0 -> -1
+        x > width - edgeFlipSize && x < width && currentPage < pageCount - 1 -> 1
+        else -> 0
     }
 
     fun contentDragTarget(x: Float, y: Float): Pair<SearchEngine, Boolean>? {
