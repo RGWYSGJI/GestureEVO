@@ -121,11 +121,11 @@ class LogManagerActivity : AppCompatActivity() {
         header.sessionButton.setOnClickListener { recordProblem() }
         header.sessionHistoryButton.setOnClickListener { showHistory() }
         header.captureButton.setOnClickListener {
-            if (SystemLogCapture.status.value.running) SystemLogCapture.stop()
-            else if (!AppLogger.enabled) toast(R.string.log_enable_first)
-            else MaterialAlertDialogBuilder(this).setTitle(R.string.log_system).setMessage(R.string.log_system_description)
-                .setPositiveButton(R.string.log_use_shizuku) { _, _ -> SystemLogCapture.start() }
-                .setNegativeButton(android.R.string.cancel, null).show()
+            when {
+                SystemLogCapture.status.value.running -> SystemLogCapture.stop()
+                !AppLogger.enabled -> toast(R.string.log_enable_first)
+                else -> showSystemLogCaptureDialog()
+            }
         }
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -214,6 +214,15 @@ class LogManagerActivity : AppCompatActivity() {
         MaterialAlertDialogBuilder(this).setTitle(R.string.log_clear).setMessage(R.string.log_clear_confirm)
             .setNegativeButton(android.R.string.cancel, null)
             .setPositiveButton(android.R.string.ok) { _, _ -> clearLogs() }.show()
+    }
+
+    private fun showSystemLogCaptureDialog() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.log_system)
+            .setMessage(R.string.log_system_description)
+            .setPositiveButton(R.string.log_use_shizuku) { _, _ -> SystemLogCapture.start() }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun captureReason(reason: String): String = getString(when (reason) {

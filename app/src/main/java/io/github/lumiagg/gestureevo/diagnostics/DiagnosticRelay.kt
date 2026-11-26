@@ -7,13 +7,20 @@ import io.github.lumiagg.gestureevo.utils.process.ProcessStreamRelay
 
 /** Bounded log transport. Diagnostic framing and logcat policy stay in this module. */
 class DiagnosticRelay(
-    command: List<String>, output: OutputStream,
-    durationMs: Long = 60_000, byteLimit: Int = 2 * 1024 * 1024,
+    command: List<String>,
+    output: OutputStream,
+    durationMs: Long = 60_000,
+    byteLimit: Int = 2 * 1024 * 1024,
 ) : Closeable {
-    private val transport = ProcessStreamRelay(command, output, durationMs, byteLimit,
+    private val transport = ProcessStreamRelay(
+        command = command,
+        output = output,
+        durationMs = durationMs,
+        byteLimit = byteLimit,
         onEnd = { stream, reason, code ->
             stream.write("\nGEVO_END $reason $code\n".toByteArray(Charsets.UTF_8))
-        })
+        },
+    )
 
     override fun close() = transport.close()
 

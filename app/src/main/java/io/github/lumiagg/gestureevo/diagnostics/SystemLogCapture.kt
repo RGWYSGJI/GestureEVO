@@ -1,24 +1,32 @@
 package io.github.lumiagg.gestureevo.diagnostics
 
 import android.content.pm.PackageManager
+import android.os.DeadObjectException
 import android.os.ParcelFileDescriptor
+import android.os.RemoteException
 import io.github.lumiagg.gestureevo.BuildConfig
 import io.github.lumiagg.gestureevo.IUserService
 import io.github.lumiagg.gestureevo.utils.shizuku.ShizukuServiceHelper
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import rikka.shizuku.Shizuku
 import java.util.UUID
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.FutureTask
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import rikka.shizuku.Shizuku
 
- data class CaptureStatus(val running: Boolean = false, val result: String = "idle", val count: Int = 0,
-    val exitCode: Int? = null, val discardedLines: Int = 0)
+data class CaptureStatus(
+    val running: Boolean = false,
+    val result: String = "idle",
+    val count: Int = 0,
+    val exitCode: Int? = null,
+    val discardedLines: Int = 0,
+)
 
 /** Continuous capture with cancellable local reads, a bounded Binder executor, and a remote hard deadline. */
 object SystemLogCapture {
@@ -28,16 +36,26 @@ object SystemLogCapture {
     private var job: Job? = null
     @Volatile private var activeToken: String? = null
     private val targets = RecentTargets()
-    private fun pool(name: String) = ThreadPoolExecutor(2, 2, 0, TimeUnit.MILLISECONDS, ArrayBlockingQueue(2)) {
-        runnable -> Thread(runnable, name).apply { isDaemon = true }
-    }
-    private val binder = pool("diagnostic-binder")
-    private val readers = pool("diagnostic-reader")
+    private fun newExecutor(name: String): ThreadPoolExecutor =
+        ThreadPoolExecutor(2, 2, 0, TimeUnit.MILLISECONDS, ArrayBlockingQueue(2)) { runnable ->
+            Thread(runnable, name).apply { isDaemon = true }
+        }
+
+    private val binder = newExecutor("diagnostic-binder")
+    private val readers = newExecutor("diagnostic-reader")
     fun rememberTarget(pkg: String?) = targets.remember(pkg)
 
     fun shizukuAvailable(): Boolean = runCatching {
         Shizuku.pingBinder() && !Shizuku.isPreV11() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
     }.getOrDefault(false)
+
+    private fun failureReason(error: Exception): String = when (error) {
+        is RejectedExecutionException -> "collector_busy"
+        is DeadObjectException -> "service_disconnected"
+        is RemoteException -> "protocol_unsupported"
+        is SecurityException -> "permission_missing"
+        else -> "service_disconnected"
+    }
 
     private fun closeRemote(service: IUserService?, token: String) {
         if (service == null) return
@@ -55,7 +73,7 @@ object SystemLogCapture {
                 }
             }
             continuation.invokeOnCancellation { task.cancel(true) }
-            try { pool.execute(task) } catch (e: java.util.concurrent.RejectedExecutionException) {
+            try { pool.execute(task) } catch (e: RejectedExecutionException) {
                 continuation.resumeWithException(e)
             }
         }
@@ -132,13 +150,7 @@ object SystemLogCapture {
                 result = if (expired) "complete" else "stopped"
                 throw e
             } catch (e: Exception) {
-                result = when (e) {
-                    is java.util.concurrent.RejectedExecutionException -> "collector_busy"
-                    is android.os.DeadObjectException -> "service_disconnected"
-                    is android.os.RemoteException -> "protocol_unsupported"
-                    is SecurityException -> "permission_missing"
-                    else -> "service_disconnected"
-                }
+                result = failureReason(e)
                 AppLogger.event(LogModule.SYSTEM, "capture_failed", LogLevel.WARN, token,
                     mapOf("reason" to result), e)
             } finally {
