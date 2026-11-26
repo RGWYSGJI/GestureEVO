@@ -348,6 +348,19 @@ class GestureMainFloating(private val context: GestureService) :
         }
     }
 
+    private fun relayoutActionViewForTrigger(
+        triggerConfig: FreeTriggerConfig,
+        x: Float,
+        y: Float,
+        isMirror: Boolean,
+    ) {
+        if (triggerConfig.quadrantValue == 0) {
+            relayoutActionViewQuadrant(x, y)
+        } else {
+            relayoutActionViewQuadrantByTrigger(triggerConfig, x, y, isMirror)
+        }
+    }
+
     suspend fun showActionView(
         tag: String,
         downX: Float,
@@ -362,16 +375,7 @@ class GestureMainFloating(private val context: GestureService) :
             selectedIconY = downY,
             gestureType = gestureType
         ) {
-            if (triggerConfig.quadrantValue == 0) {
-                relayoutActionViewQuadrant(downX, downY)
-            } else {
-                relayoutActionViewQuadrantByTrigger(
-                    triggerConfig,
-                    downX,
-                    downY,
-                    isMirror = isMirror
-                )
-            }
+            relayoutActionViewForTrigger(triggerConfig, downX, downY, isMirror)
         }
     }
 
@@ -382,16 +386,7 @@ class GestureMainFloating(private val context: GestureService) :
             tag = tag,
             selectedIconY = centerY
         ) {
-            if (triggerConfig.quadrantValue == 0) {
-                relayoutActionViewQuadrant(centerX, centerY)
-            } else {
-                relayoutActionViewQuadrantByTrigger(
-                    triggerConfig,
-                    centerX,
-                    centerY,
-                    isMirror = isMirror
-                )
-            }
+            relayoutActionViewForTrigger(triggerConfig, centerX, centerY, isMirror)
         }
     }
 
@@ -414,16 +409,7 @@ class GestureMainFloating(private val context: GestureService) :
             actionView.relayoutSelectedIcon(enable = false)
             if (triggerConfig != null) {
                 val (downX, downY) = resolveTriggerCenter(triggerConfig, isMirror)
-                if (triggerConfig.quadrantValue == 0) {
-                    relayoutActionViewQuadrant(downX, downY)
-                } else {
-                    relayoutActionViewQuadrantByTrigger(
-                        triggerConfig,
-                        downX,
-                        downY,
-                        isMirror = isMirror
-                    )
-                }
+                relayoutActionViewForTrigger(triggerConfig, downX, downY, isMirror)
             }
         }
         actionView.relayoutConfigView()
