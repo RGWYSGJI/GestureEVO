@@ -1,13 +1,10 @@
 package io.github.lumiagg.gestureevo.search
 
-import androidx.core.graphics.drawable.toDrawable
-
 import android.content.Context
+import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.util.Log
-import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.Drawable
-import androidx.core.view.isInvisible
+import androidx.core.graphics.drawable.toDrawable
 import androidx.core.view.isVisible
 import androidx.lifecycle.LifecycleCoroutineScope
 import androidx.lifecycle.lifecycleScope
@@ -55,12 +52,7 @@ class SearchEngineManager(
         if (engineDataLoaded || engineLoad?.isActive == true) return
         engineLoad = lifecycleScope.launch(uiDispatcher) {
             val (engines, defaultEngineTag) = try {
-                withContext(ioDispatcher) {
-                    val context = activity.applicationContext
-                    val engines = SearchEngineDataManager.readSearchEngineList(context)
-                        .filter { it.showInSearchEngineList }
-                    engines to SearchEngineDataManager.getDefaultEngineTag(context)
-                }
+                readEngineData()
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
@@ -80,6 +72,14 @@ class SearchEngineManager(
             }
         }
     }
+
+    private suspend fun readEngineData(): Pair<List<SearchEngine>, String?> =
+        withContext(ioDispatcher) {
+            val context = activity.applicationContext
+            val engines = SearchEngineDataManager.readSearchEngineList(context)
+                .filter { it.showInSearchEngineList }
+            engines to SearchEngineDataManager.getDefaultEngineTag(context)
+        }
 
     fun configureEngineRecycler(preferences: Preferences) {
         val layout = EngineLayoutPreferences.read(preferences, EngineLayoutScope.SEARCH)
@@ -128,6 +128,18 @@ class SearchEngineManager(
         }
     }
 
+    private suspend fun resolveEngineIcon(engine: SearchEngine): Drawable? =
+        withContext(ioDispatcher) {
+            val bitmap = if (engine.iconType == IconType.URI) {
+                engine.icon?.let { IconHelper.getIconBitmap(it) }
+            } else {
+                null
+            }
+            bitmap?.let { it.toDrawable(activity.resources) }
+                ?: engine.targetPackage?.takeIf { it.isNotEmpty() }
+                    ?.let { IconHelper.getIcon(activity.applicationContext, it) }
+        }
+
     private fun loadEngineIcon(view: RoundImageTextView, engine: SearchEngine, badge: Boolean) {
         val token = Any()
         iconBindings[view] = token
@@ -139,14 +151,7 @@ class SearchEngineManager(
         if (engine.iconType == IconType.TEXT) return
         lifecycleScope.launch(uiDispatcher) {
             val icon: Drawable? = try {
-                withContext(ioDispatcher) {
-                    val bitmap = if (engine.iconType == IconType.URI) {
-                        engine.icon?.let { IconHelper.getIconBitmap(it) }
-                    } else null
-                    bitmap?.let { it.toDrawable(activity.resources) }
-                        ?: engine.targetPackage?.takeIf { it.isNotEmpty() }
-                            ?.let { IconHelper.getIcon(activity.applicationContext, it) }
-                }
+                resolveEngineIcon(engine)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
