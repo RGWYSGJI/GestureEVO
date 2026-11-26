@@ -273,8 +273,8 @@ class MainActionView : ActionView {
         ringsFlatten.clear()
         ringsFlatten.add(
             RingItem(
-                state.centerX - (if (config.rectangleLayoutEnabled) config.itemDiameter else config.initRadius) / 2,
-                state.centerY - (if (config.rectangleLayoutEnabled) config.itemDiameter else config.initRadius) / 2
+                state.centerX - config.initRadius / 2,
+                state.centerY - config.initRadius / 2,
             )
         )
 
@@ -297,15 +297,14 @@ class MainActionView : ActionView {
             val columns = config.rectangleColumns.coerceAtLeast(1)
             val rows = ((modelList.size + columns - 1) / columns).coerceAtLeast(1)
             val cellSize = config.itemDiameter + config.itemWarpOffset
-            val gridWidth =
-                if (columns == 1) config.itemDiameter else config.itemDiameter + (columns - 1) * cellSize
-            val gridHeight =
-                if (rows == 1) config.itemDiameter else config.itemDiameter + (rows - 1) * cellSize
-            val maxDimension = max(gridWidth, gridHeight)
+            val maxDimension = max(gridSpan(columns, cellSize), gridSpan(rows, cellSize))
             return Pair(maxDimension, rows)
         }
         return quarterWheelOuterRadius(modelList.size, config.initRadius, config.itemDiameter, config.itemWarpOffset)
     }
+
+    private fun gridSpan(count: Int, cellSize: Float): Float =
+        if (count == 1) config.itemDiameter else config.itemDiameter + (count - 1) * cellSize
 
     fun touchInMinRadius(touchX: Float, touchY: Float): Boolean {
         if (config.rectangleLayoutEnabled) return false
