@@ -75,56 +75,62 @@ internal class QuickSearchMotionController(
     fun bind() {
         binding.searchContainer.setBackgroundColor(Color.TRANSPARENT)
         applyStaticCardBackgrounds()
-        if (handlesWindowInsets) {
-            ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
-                applyViewportInsets(insets)
-                insets
-            }
-        }
-        if (handlesWindowInsets && keyboardFollowAnimationEnabled) {
-            ViewCompat.setWindowInsetsAnimationCallback(
-                binding.root,
-                object : WindowInsetsAnimationCompat.Callback(DISPATCH_MODE_CONTINUE_ON_SUBTREE) {
-                    override fun onPrepare(animation: WindowInsetsAnimationCompat) {
-                        if (animation.typeMask and imeType != 0) {
-                            binding.root.removeCallbacks(settleImeMotion)
-                            imeAnimation = animation
-                            animatedBottomInset = null
-                        }
-                    }
-
-                    override fun onStart(
-                        animation: WindowInsetsAnimationCompat,
-                        bounds: WindowInsetsAnimationCompat.BoundsCompat
-                    ): WindowInsetsAnimationCompat.BoundsCompat {
-                        if (animation === imeAnimation && animation.durationMillis >= 0) {
-                            // Some IMEs stop sending frames without delivering an end callback.
-                            binding.root.postDelayed(settleImeMotion, animation.durationMillis + 64L)
-                        }
-                        return bounds
-                    }
-
-                    override fun onProgress(
-                        insets: WindowInsetsCompat,
-                        runningAnimations: MutableList<WindowInsetsAnimationCompat>
-                    ): WindowInsetsCompat {
-                        if (runningAnimations.any { it === imeAnimation }) {
-                            animatedBottomInset = insets.getInsets(safeAreaTypes).bottom
-                            applyCardMotion()
-                        }
-                        return insets
-                    }
-
-                    override fun onEnd(animation: WindowInsetsAnimationCompat) {
-                        if (animation !== imeAnimation) return
-                        finishImeMotion()
-                    }
-                }
-            )
-        }
+        installWindowInsetsHandler()
+        installImeAnimationCallback()
         ViewCompat.requestApplyInsets(binding.root)
         binding.searchInput.doOnAttach { showKeyboardIfPossible() }
         render()
+    }
+
+    private fun installWindowInsetsHandler() {
+        if (!handlesWindowInsets) return
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
+            applyViewportInsets(insets)
+            insets
+        }
+    }
+
+    private fun installImeAnimationCallback() {
+        if (!handlesWindowInsets || !keyboardFollowAnimationEnabled) return
+        ViewCompat.setWindowInsetsAnimationCallback(
+            binding.root,
+            object : WindowInsetsAnimationCompat.Callback(DISPATCH_MODE_CONTINUE_ON_SUBTREE) {
+                override fun onPrepare(animation: WindowInsetsAnimationCompat) {
+                    if (animation.typeMask and imeType != 0) {
+                        binding.root.removeCallbacks(settleImeMotion)
+                        imeAnimation = animation
+                        animatedBottomInset = null
+                    }
+                }
+
+                override fun onStart(
+                    animation: WindowInsetsAnimationCompat,
+                    bounds: WindowInsetsAnimationCompat.BoundsCompat
+                ): WindowInsetsAnimationCompat.BoundsCompat {
+                    if (animation === imeAnimation && animation.durationMillis >= 0) {
+                        // Some IMEs stop sending frames without delivering an end callback.
+                        binding.root.postDelayed(settleImeMotion, animation.durationMillis + 64L)
+                    }
+                    return bounds
+                }
+
+                override fun onProgress(
+                    insets: WindowInsetsCompat,
+                    runningAnimations: MutableList<WindowInsetsAnimationCompat>
+                ): WindowInsetsCompat {
+                    if (runningAnimations.any { it === imeAnimation }) {
+                        animatedBottomInset = insets.getInsets(safeAreaTypes).bottom
+                        applyCardMotion()
+                    }
+                    return insets
+                }
+
+                override fun onEnd(animation: WindowInsetsAnimationCompat) {
+                    if (animation !== imeAnimation) return
+                    finishImeMotion()
+                }
+            }
+        )
     }
 
     fun show() {
