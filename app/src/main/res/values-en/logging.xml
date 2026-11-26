@@ -34,8 +34,21 @@
     <string name="log_capture_complete">Capture complete · Related events: %1$d. No matches does not confirm success.</string>
     <string name="log_capture_stopped">Capture stopped · Related events: %1$d</string>
     <string name="log_capture_unavailable">Capture unavailable or interrupted · Events: %1$d. Check Shizuku authorization and system log access.</string>
-    <string-array name="log_modules"><item>Application</item><item>Actions</item><item>Services</item><item>Overlays</item><item>Shizuku</item><item>Backup / restore</item><item>OCR</item><item>System</item></string-array>
-    <string-array name="log_time_ranges"><item>All time</item><item>Last hour</item><item>Last 24 hours</item></string-array>
+    <string-array name="log_modules">
+        <item>Application</item>
+        <item>Actions</item>
+        <item>Services</item>
+        <item>Overlays</item>
+        <item>Shizuku</item>
+        <item>Backup / restore</item>
+        <item>OCR</item>
+        <item>System</item>
+    </string-array>
+    <string-array name="log_time_ranges">
+        <item>All time</item>
+        <item>Last hour</item>
+        <item>Last 24 hours</item>
+    </string-array>
 
     <string name="log_health">This process: queued %1$d · dropped %2$d · write failures %3$d\nLatest issue: %4$s</string>
     <string name="log_reason_queue">Write queue full</string>
