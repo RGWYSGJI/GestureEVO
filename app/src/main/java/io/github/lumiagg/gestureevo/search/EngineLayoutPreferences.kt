@@ -56,19 +56,22 @@ object EngineLayoutPreferences {
     const val LEGACY_COLUMN_COUNT = "engine_column_count"
     const val LEGACY_SHOW_LABEL = "engine_show_label"
 
-    fun read(preferences: Preferences, scope: EngineLayoutScope): EngineLayoutPreference {
-        val legacyRows = preferences.readKey(LEGACY_ROW_COUNT, scope.defaultRows)
-        val legacyColumns = preferences.readKey(LEGACY_COLUMN_COUNT, scope.defaultColumns)
-        val legacyShowLabel = preferences.readKey(LEGACY_SHOW_LABEL, true)
-        return EngineLayoutPreference(
-            rowCount = preferences.readKey(scope.rowCountKey, legacyRows)
-                .coerceIn(MIN_ROW_COUNT, MAX_ROW_COUNT),
-            columnCount = preferences.readKey(scope.columnCountKey, legacyColumns)
-                .coerceIn(MIN_COLUMN_COUNT, MAX_COLUMN_COUNT),
-            showLabel = preferences.readKey(scope.showLabelKey, legacyShowLabel),
-        )
-    }
+    fun read(preferences: Preferences, scope: EngineLayoutScope): EngineLayoutPreference =
+        preferences.readLayout(scope)
 
     suspend fun read(store: DataStore<Preferences>, scope: EngineLayoutScope): EngineLayoutPreference =
         read(store.data.first(), scope)
+
+    private fun Preferences.readLayout(scope: EngineLayoutScope): EngineLayoutPreference {
+        val legacyRows = readKey(LEGACY_ROW_COUNT, scope.defaultRows)
+        val legacyColumns = readKey(LEGACY_COLUMN_COUNT, scope.defaultColumns)
+        val legacyShowLabel = readKey(LEGACY_SHOW_LABEL, true)
+        return EngineLayoutPreference(
+            rowCount = readKey(scope.rowCountKey, legacyRows)
+                .coerceIn(MIN_ROW_COUNT, MAX_ROW_COUNT),
+            columnCount = readKey(scope.columnCountKey, legacyColumns)
+                .coerceIn(MIN_COLUMN_COUNT, MAX_COLUMN_COUNT),
+            showLabel = readKey(scope.showLabelKey, legacyShowLabel),
+        )
+    }
 }
