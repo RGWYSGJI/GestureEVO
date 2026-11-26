@@ -355,10 +355,15 @@ class SearchResultManager(
         }
     }
 
-    private fun bindAppResult(itemView: View, model: SearchResult.AppResult) {
+    private fun bindResultText(itemView: View, text: CharSequence, isUrl: Boolean = false): SearchResultItemBinding {
         val itemBinding = SearchResultItemBinding.bind(itemView)
-        itemBinding.resultText.text = model.app.name
-        applyResultTextStyle(itemBinding.resultText, isUrl = false)
+        itemBinding.resultText.text = text
+        applyResultTextStyle(itemBinding.resultText, isUrl = isUrl)
+        return itemBinding
+    }
+
+    private fun bindAppResult(itemView: View, model: SearchResult.AppResult) {
+        val itemBinding = bindResultText(itemView, model.app.name)
         itemBinding.icon.applyGlobalImageRoundPercent = true
         bindBuiltInResultIcon(itemBinding.icon, R.drawable.baseline_image_24)
         loadResultImage(itemView, { IconHelper.getIcon(activity, model.app.pkgName) }) { icon ->
@@ -367,9 +372,7 @@ class SearchResultManager(
     }
 
     private fun bindShortcutResult(itemView: View, model: SearchResult.ShortcutResult) {
-        val itemBinding = SearchResultItemBinding.bind(itemView)
-        itemBinding.resultText.text = model.title
-        applyResultTextStyle(itemBinding.resultText, isUrl = false)
+        val itemBinding = bindResultText(itemView, model.title)
         bindBuiltInResultIcon(itemBinding.icon, R.drawable.baseline_settings_24)
         val packageName = "com.android.settings"
         loadResultImage(itemView, { IconHelper.getIcon(activity, packageName) }) { icon ->
@@ -379,9 +382,10 @@ class SearchResultManager(
     }
 
     private fun bindContactResult(itemView: View, model: SearchResult.ContactResult) {
-        val itemBinding = SearchResultItemBinding.bind(itemView)
-        itemBinding.resultText.text = activity.getString(R.string.contact_result_label, model.contact.name, model.contact.phoneNumber)
-        applyResultTextStyle(itemBinding.resultText, isUrl = false)
+        val itemBinding = bindResultText(
+            itemView,
+            activity.getString(R.string.contact_result_label, model.contact.name, model.contact.phoneNumber),
+        )
         val photoUri = model.contact.photoUri
         bindBuiltInResultIcon(itemBinding.icon, R.drawable.person_24px)
         if (photoUri != null) {
@@ -509,9 +513,7 @@ class SearchResultManager(
         iconResId: Int,
         isUrl: Boolean = false,
     ) {
-        val itemBinding = SearchResultItemBinding.bind(itemView)
-        itemBinding.resultText.text = text
-        applyResultTextStyle(itemBinding.resultText, isUrl = isUrl)
+        val itemBinding = bindResultText(itemView, text, isUrl)
         bindBuiltInResultIcon(itemBinding.icon, iconResId)
     }
 
