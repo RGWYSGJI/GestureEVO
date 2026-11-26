@@ -543,6 +543,10 @@ class GestureManager(
             }
         }
 
+    private inline fun <T> Lazy<T>.ifInitialized(block: (T) -> Unit) {
+        if (isInitialized()) block(value)
+    }
+
     fun onConfigurationChanged(newConfig: Configuration) {
         val diff = lastConfig.diff(newConfig)
         val nightChanged =
@@ -573,18 +577,18 @@ class GestureManager(
     }
 
     fun refreshOverlayThemes() {
-        if (actionViewFloatingLazy.isInitialized()) actionViewFloating.refreshTheme()
-        if (notificationFloatingLazy.isInitialized()) notificationFloating.refreshTheme()
-        if (inspireFloatingLazy.isInitialized()) inspireFloating.refreshTheme()
-        if (screenSearchFloatingLazy.isInitialized()) screenSearchFloating.refreshTheme()
-        if (pointerFloatingLazy.isInitialized()) pointerFloating.refreshTheme()
-        if (gestureFeedbackFloatingLazy.isInitialized()) gestureFeedbackFloating.refreshTheme()
-        if (linkRadarFloatingLazy.isInitialized()) linkRadarFloating.refreshTheme()
+        actionViewFloatingLazy.ifInitialized { it.refreshTheme() }
+        notificationFloatingLazy.ifInitialized { it.refreshTheme() }
+        inspireFloatingLazy.ifInitialized { it.refreshTheme() }
+        screenSearchFloatingLazy.ifInitialized { it.refreshTheme() }
+        pointerFloatingLazy.ifInitialized { it.refreshTheme() }
+        gestureFeedbackFloatingLazy.ifInitialized { it.refreshTheme() }
+        linkRadarFloatingLazy.ifInitialized { it.refreshTheme() }
         PictureFloating.refreshAllThemes()
     }
 
     fun onWindowStateChanged(event: AccessibilityEvent) {
-        if (inspireFloatingLazy.isInitialized()) inspireFloating.onWindowEvent(event)
+        inspireFloatingLazy.ifInitialized { it.onWindowEvent(event) }
         if (pointerLinks.active && (
                 event.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED ||
                     (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
@@ -592,7 +596,7 @@ class GestureManager(
             )) {
             pointerLinks.invalidate()
             // Old screen coordinates must not consume a release after the page moves.
-            if (linkRadarFloatingLazy.isInitialized()) linkRadarFloating.stopSession()
+            linkRadarFloatingLazy.ifInitialized { it.stopSession() }
         }
         if (!automatePerformer.isTaskActive()) return
         val trustedWindowContext = CurrentPackageProvider.getTrustedWindowContext(event) ?: return
@@ -607,28 +611,28 @@ class GestureManager(
 
     fun onAccessibilityInterrupted() {
         cancelPointerLinkInteraction()
-        if (inspireFloatingLazy.isInitialized()) inspireFloating.cancelLinkRadar()
+        inspireFloatingLazy.ifInitialized { it.cancelLinkRadar() }
     }
 
     fun cancelPointerLinkInteraction() {
         pointerLinks.invalidate()
-        if (linkRadarFloatingLazy.isInitialized()) linkRadarFloating.stopSession()
+        linkRadarFloatingLazy.ifInitialized { it.stopSession() }
     }
 
     fun inactiveAllFloating() = lifecycleScope.launch(Dispatchers.Main) {
         Log.d(TAG, "inactiveAllFloating: ")
         freeTriggerFloating.disableAllTrigger()
-        if (actionViewFloatingLazy.isInitialized()) actionViewFloating.hide()
-        if (inspireFloatingLazy.isInitialized()) inspireFloating.hide()
-        if (pointerFloatingLazy.isInitialized()) pointerFloating.hide()
-        if (screenSearchFloatingLazy.isInitialized()) screenSearchFloating.hide()
-        if (notificationFloatingLazy.isInitialized()) notificationFloating.enable = false
-        if (linkRadarFloatingLazy.isInitialized()) linkRadarFloating.stopSession()
+        actionViewFloatingLazy.ifInitialized { it.hide() }
+        inspireFloatingLazy.ifInitialized { it.hide() }
+        pointerFloatingLazy.ifInitialized { it.hide() }
+        screenSearchFloatingLazy.ifInitialized { it.hide() }
+        notificationFloatingLazy.ifInitialized { it.enable = false }
+        linkRadarFloatingLazy.ifInitialized { it.stopSession() }
     }
 
     fun activeSomeFloating() = lifecycleScope.launch(Dispatchers.Main) {
         Log.d(TAG, "activeSomeFloating: ")
-        if (notificationFloatingLazy.isInitialized()) notificationFloating.enable = true
+        notificationFloatingLazy.ifInitialized { it.enable = true }
         freeTriggerFloating.resetAllTriggerEnable()
     }
 
@@ -641,7 +645,7 @@ class GestureManager(
     }
 
     fun setActionViewTouchEnabled(enabled: Boolean) {
-        if (actionViewFloatingLazy.isInitialized()) actionViewFloating.setTouchEnabled(enabled)
+        actionViewFloatingLazy.ifInitialized { it.setTouchEnabled(enabled) }
     }
 
     fun setInteractionMode(mode: InteractionMode) {
@@ -655,20 +659,19 @@ class GestureManager(
         pointerLinks.stop()
         interactionMode = InteractionMode.NORMAL
         freeTriggerFloating.destroy()
-        if (actionViewFloatingLazy.isInitialized()) actionViewFloating.destroy()
-        if (gestureFeedbackFloatingLazy.isInitialized()) gestureFeedbackFloating.destroy()
-        if (inspireFloatingLazy.isInitialized()) inspireFloating.destroy()
-        if (pointerFloatingLazy.isInitialized()) pointerFloating.destroy()
-        if (notificationFloatingLazy.isInitialized()) notificationFloating.destroy()
-        if (screenSearchFloatingLazy.isInitialized()) screenSearchFloating.destroy()
-        if (linkRadarFloatingLazy.isInitialized()) linkRadarFloating.destroy()
+        actionViewFloatingLazy.ifInitialized { it.destroy() }
+        gestureFeedbackFloatingLazy.ifInitialized { it.destroy() }
+        inspireFloatingLazy.ifInitialized { it.destroy() }
+        pointerFloatingLazy.ifInitialized { it.destroy() }
+        notificationFloatingLazy.ifInitialized { it.destroy() }
+        screenSearchFloatingLazy.ifInitialized { it.destroy() }
+        linkRadarFloatingLazy.ifInitialized { it.destroy() }
         PictureFloating.destroyAll()
         PinPoolFloating.finishIfShowing()
     }
 
-    private fun isTriggerActionAllowed(): Boolean {
-        return interactionMode == InteractionMode.NORMAL
-    }
+    private fun isTriggerActionAllowed(): Boolean =
+        interactionMode == InteractionMode.NORMAL
 
     companion object {
         const val TAG = "GestureManager"
