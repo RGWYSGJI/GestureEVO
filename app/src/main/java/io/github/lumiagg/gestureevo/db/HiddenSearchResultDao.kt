@@ -6,8 +6,11 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 
+/** Persistence for results hidden from the search page. */
 @Dao
 interface HiddenSearchResultDao {
+    // Read operations
+
     @Query("SELECT resultKey FROM HiddenSearchResultModel ORDER BY resultKey")
     suspend fun getKeys(): List<String>
 
@@ -19,6 +22,8 @@ interface HiddenSearchResultDao {
 
     @Query("SELECT * FROM HiddenSearchResultModel ORDER BY hiddenAt DESC, resultKey ASC")
     suspend fun getAll(): List<HiddenSearchResultModel>
+
+    // Write operations
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(model: HiddenSearchResultModel)
