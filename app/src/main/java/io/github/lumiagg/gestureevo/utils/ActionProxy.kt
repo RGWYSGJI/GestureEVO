@@ -176,30 +176,7 @@ class ActionProxy(private val context: Context, linkString: String) {
                 launchUri(otherLink ?: return, pkg ?: "")
             }
 
-            GestureActionType.OPEN_ACTIVITY -> {
-                val isExported: Boolean = link.getBooleanQueryParameter("isExported", false)
-                val activityName: String? = link.getQueryParameter("activityName")
-                if (pkg != null && activityName != null && !isExported) {
-                    if (freeform) {
-                        launcherAPP(pkg, countOpen = false)
-                    }
-                    if (!ensureAppEnabledIfFrozen(pkg, context)) {
-                        AppLogger.event(LogModule.ACTION, "unfreeze_failed", LogLevel.WARN, trace,
-                            mapOf("package" to pkg))
-                        return
-                    }
-                    val launched = if (!launchTemporaryAssistant(context, pkg, activityName)) {
-                        launchUri(otherLink ?: return, pkg)
-                    } else {
-                        true
-                    }
-                    if (launched) {
-                        recordOpenCount(pkg)
-                    }
-                } else {
-                    launchUri(otherLink ?: return, pkg ?: "")
-                }
-            }
+            GestureActionType.OPEN_ACTIVITY -> openActivity()
 
             GestureActionType.OPEN_SHELL -> {
                 launchShell(shell ?: return)
@@ -269,39 +246,65 @@ class ActionProxy(private val context: Context, linkString: String) {
                 TempDndManager.enableTempDnd(context, minutes)
             }
 
-            GestureActionType.SHOW_ACTION_VIEW -> {
-                val selectedActionItemsTag = link.getQueryParameter("actionItemsTag") ?: return
-                val selectedTriggerTag = link.getQueryParameter("triggerTag")
-                    ?.takeIf { it.isNotBlank() } ?: sourceTriggerTag
-                val triggerConfig = selectedTriggerTag?.takeIf { it.isNotBlank() }?.let {
-                    FreeTriggerDataManager.getTrigger(context, it)
-                }
-                val isMirror = link.getQueryParameter("isMirror")?.toBooleanStrictOrNull() == true &&
-                        triggerConfig?.getState(FreeTriggerConfig.FLAG_MIRROR) == true
-                produceActionViewEvent(
-                    ActionViewEvent(
-                        show = true,
-                        workMode = ActionView.WorkMode.ACTIVE,
-                        mainItemListTag = selectedActionItemsTag,
-                        triggerConfig = triggerConfig,
-                        isMirror = isMirror
-                    )
-                )
-            }
+            GestureActionType.SHOW_ACTION_VIEW -> showActionView(sourceTriggerTag)
             GestureActionType.CLICK_THROUGH -> {}
-            GestureActionType.PAUSE_GESTURE -> {
-                val seconds = link.getQueryParameter("seconds")?.toIntOrNull()
-                    ?.coerceIn(1, GestureManager.MAX_PAUSE_GESTURE_SECONDS)
-                    ?: GestureManager.DEFAULT_PAUSE_GESTURE_SECONDS
-                FreeTriggerFloating.current()?.pauseGestureTemporarily(
-                    sourceTriggerTag,
-                    seconds * 1000L,
-                    allTriggers = link.getQueryParameter("scope") == "all"
-                )
-            }
+            GestureActionType.PAUSE_GESTURE -> pauseGesture(sourceTriggerTag)
             GestureActionType.NONE -> {}
         }
 
+    }
+
+    private suspend fun openActivity() {
+        val isExported = link.getBooleanQueryParameter("isExported", false)
+        val activityName = link.getQueryParameter("activityName")
+        if (pkg == null || activityName == null || isExported) {
+            launchUri(otherLink ?: return, pkg.orEmpty())
+            return
+        }
+        if (freeform) {
+            launcherAPP(pkg, countOpen = false)
+        }
+        if (!ensureAppEnabledIfFrozen(pkg, context)) {
+            AppLogger.event(LogModule.ACTION, "unfreeze_failed", LogLevel.WARN, trace,
+                mapOf("package" to pkg))
+            return
+        }
+        val launched = launchTemporaryAssistant(context, pkg, activityName) ||
+            launchUri(otherLink ?: return, pkg)
+        if (launched) {
+            recordOpenCount(pkg)
+        }
+    }
+
+    private suspend fun showActionView(sourceTriggerTag: String?) {
+        val selectedActionItemsTag = link.getQueryParameter("actionItemsTag") ?: return
+        val selectedTriggerTag = link.getQueryParameter("triggerTag")
+            ?.takeIf { it.isNotBlank() } ?: sourceTriggerTag
+        val triggerConfig = selectedTriggerTag?.takeIf { it.isNotBlank() }?.let {
+            FreeTriggerDataManager.getTrigger(context, it)
+        }
+        val isMirror = link.getQueryParameter("isMirror")?.toBooleanStrictOrNull() == true &&
+            triggerConfig?.getState(FreeTriggerConfig.FLAG_MIRROR) == true
+        produceActionViewEvent(
+            ActionViewEvent(
+                show = true,
+                workMode = ActionView.WorkMode.ACTIVE,
+                mainItemListTag = selectedActionItemsTag,
+                triggerConfig = triggerConfig,
+                isMirror = isMirror,
+            )
+        )
+    }
+
+    private fun pauseGesture(sourceTriggerTag: String?) {
+        val seconds = link.getQueryParameter("seconds")?.toIntOrNull()
+            ?.coerceIn(1, GestureManager.MAX_PAUSE_GESTURE_SECONDS)
+            ?: GestureManager.DEFAULT_PAUSE_GESTURE_SECONDS
+        FreeTriggerFloating.current()?.pauseGestureTemporarily(
+            sourceTriggerTag,
+            seconds * 1000L,
+            allTriggers = link.getQueryParameter("scope") == "all",
+        )
     }
 
     private suspend fun launcherAPP(pkg: String, countOpen: Boolean = true): Boolean =
