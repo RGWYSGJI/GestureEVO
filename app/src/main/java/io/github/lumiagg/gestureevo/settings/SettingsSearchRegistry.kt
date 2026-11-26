@@ -10,7 +10,6 @@ object SettingsSearchRegistry {
         entry(
             id = "root_service",
             titleResId = R.string.settings_accessibility_off,
-            pageTitleResId = R.string.settings_title,
             targetActivity = SettingsActivity::class.java,
             targetPreferenceKey = "preferenceService",
             keywords = listOf("无障碍", "accessibility", "服务", "service")
@@ -18,56 +17,48 @@ object SettingsSearchRegistry {
         entry(
             id = "root_gesture",
             titleResId = R.string.settings_gesture_title,
-            pageTitleResId = R.string.settings_title,
             targetActivity = FreeTriggerSettingsActivity::class.java,
             keywords = listOf("手势", "触发器", "gesture", "trigger")
         ),
         entry(
             id = "root_action_view",
             titleResId = R.string.action_view_settings_title,
-            pageTitleResId = R.string.settings_title,
             targetActivity = ActionViewSettingsActivity::class.java,
             keywords = listOf("轮盘", "pie", "action view")
         ),
         entry(
             id = "root_appearance",
             titleResId = R.string.appearance_settings_title,
-            pageTitleResId = R.string.settings_title,
             targetActivity = AppearanceSettingsActivity::class.java,
             keywords = listOf("外观", "主题", "颜色", "appearance")
         ),
         entry(
             id = "root_inspire",
             titleResId = R.string.inspire_settings_title,
-            pageTitleResId = R.string.settings_title,
             targetActivity = InspireSettingsActivity::class.java,
             keywords = listOf("功能", "屏幕内容", "inspire")
         ),
         entry(
             id = "root_search",
             titleResId = R.string.search_engine_settings_title,
-            pageTitleResId = R.string.settings_title,
             targetActivity = SearchEngineSettingsActivity::class.java,
             keywords = listOf("搜索", "引擎", "search")
         ),
         entry(
             id = "root_data",
             titleResId = R.string.data_backup_title,
-            pageTitleResId = R.string.settings_title,
             targetActivity = DataBackActivity::class.java,
             keywords = listOf("备份", "恢复", "数据", "backup", "restore")
         ),
         entry(
             id = "root_external_action",
             titleResId = R.string.external_action_settings_title,
-            pageTitleResId = R.string.settings_title,
             targetActivity = ExternalActionSettingsActivity::class.java,
             keywords = listOf("外部", "link", "调用", "external")
         ),
         entry(
             id = "root_background",
             titleResId = R.string.background_stability_title,
-            pageTitleResId = R.string.settings_title,
             targetActivity = BackgroundStabilityActivity::class.java,
             keywords = listOf("后台", "保活", "稳定性", "battery")
         ),
@@ -945,12 +936,12 @@ object SettingsSearchRegistry {
     private fun entry(
         id: String,
         titleResId: Int,
-        pageTitleResId: Int,
+        pageTitleResId: Int = R.string.settings_title,
         targetActivity: Class<out android.app.Activity>,
         targetViewId: Int = View.NO_ID,
         targetPreferenceKey: String? = null,
         summaryResId: Int? = null,
-        keywords: List<String> = emptyList()
+        keywords: List<String> = emptyList(),
     ): SettingsSearchEntry {
         return SettingsSearchEntry(
             id = id,
@@ -960,7 +951,7 @@ object SettingsSearchRegistry {
             targetViewId = targetViewId,
             targetPreferenceKey = targetPreferenceKey,
             summaryResId = summaryResId,
-            keywords = keywords
+            keywords = keywords,
         )
     }
 }
