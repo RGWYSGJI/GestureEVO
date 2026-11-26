@@ -3,6 +3,7 @@ package io.github.lumiagg.gestureevo.search
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.database.Cursor
 import android.provider.Telephony
 import androidx.core.content.ContextCompat
 
@@ -28,7 +29,6 @@ object SmsSearchHelper {
             Manifest.permission.READ_SMS,
         ) == PackageManager.PERMISSION_GRANTED
 
-
     fun search(
         context: Context,
         query: String,
@@ -40,13 +40,10 @@ object SmsSearchHelper {
             return emptyList()
         }
 
-        val escaped = keyword
-            .replace(ESCAPE, ESCAPE + ESCAPE)
-            .replace("%", ESCAPE + "%")
-            .replace("_", ESCAPE + "_")
-        val clauses =
+        val selection =
             "(${Telephony.Sms.BODY} LIKE ? ESCAPE '$ESCAPE' " +
                 "OR ${Telephony.Sms.ADDRESS} LIKE ? ESCAPE '$ESCAPE')"
+        val escaped = escapeLike(keyword)
         val args = arrayOf("%$escaped%", "%$escaped%")
         val projection = arrayOf(
             Telephony.Sms._ID,
@@ -58,32 +55,38 @@ object SmsSearchHelper {
         val order = "${Telephony.Sms.DATE} DESC LIMIT ${limit + 1} OFFSET $offset"
 
         return runCatching {
-            context.contentResolver.query(
-                Telephony.Sms.CONTENT_URI,
-                projection,
-                clauses,
-                args,
-                order,
-            )?.use { cursor ->
-                val idIndex = cursor.getColumnIndexOrThrow(Telephony.Sms._ID)
-                val addressIndex = cursor.getColumnIndexOrThrow(Telephony.Sms.ADDRESS)
-                val bodyIndex = cursor.getColumnIndexOrThrow(Telephony.Sms.BODY)
-                val dateIndex = cursor.getColumnIndexOrThrow(Telephony.Sms.DATE)
-                buildList {
-                    while (cursor.moveToNext()) {
-                        val body = cursor.getString(bodyIndex).orEmpty()
-                        if (body.isBlank()) continue
-                        add(
-                            SmsHit(
-                                id = cursor.getLong(idIndex),
-                                address = cursor.getString(addressIndex).orEmpty(),
-                                body = body,
-                                date = cursor.getLong(dateIndex),
-                            ),
-                        )
-                    }
-                }
-            }.orEmpty()
+            context.contentResolver
+                .query(Telephony.Sms.CONTENT_URI, projection, selection, args, order)
+                ?.use { cursor -> cursor.readHits() }
+                .orEmpty()
         }.getOrElse { emptyList() }
+    }
+
+    private fun escapeLike(value: String): String =
+        value
+            .replace(ESCAPE, ESCAPE + ESCAPE)
+            .replace("%", ESCAPE + "%")
+            .replace("_", ESCAPE + "_")
+
+    private fun Cursor.readHits(): List<SmsHit> {
+        val idIndex = getColumnIndexOrThrow(Telephony.Sms._ID)
+        val addressIndex = getColumnIndexOrThrow(Telephony.Sms.ADDRESS)
+        val bodyIndex = getColumnIndexOrThrow(Telephony.Sms.BODY)
+        val dateIndex = getColumnIndexOrThrow(Telephony.Sms.DATE)
+
+        return buildList {
+            while (moveToNext()) {
+                val body = getString(bodyIndex).orEmpty()
+                if (body.isBlank()) continue
+                add(
+                    SmsHit(
+                        id = getLong(idIndex),
+                        address = getString(addressIndex).orEmpty(),
+                        body = body,
+                        date = getLong(dateIndex),
+                    ),
+                )
+            }
+        }
     }
 }

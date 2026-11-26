@@ -24,13 +24,14 @@ internal fun quarterWheelOuterRadius(
     var ringRadius = radius
     var remaining = itemCount - 1
     var rings = 0
-    repeat(10) {
-        if (remaining <= 0) return@repeat
+
+    while (rings < MAX_RINGS && remaining > 0) {
         val ring = Ring(0f, 90f, ringRadius, rings % 2 != 0, diameter, gap)
         remaining -= ring.items.size
         rings++
-        ringRadius += diameter * 1.3f
+        ringRadius += diameter * RING_SPACING_FACTOR
     }
+
     return (ringRadius + diameter / 2f) to rings
 }
 
@@ -39,42 +40,37 @@ internal fun resolveWheelAdaptiveShape(
     verticalPercent: Int,
     cornerThresholdPercent: Float = 25f,
 ): WheelAdaptiveShape = when {
-    verticalPercent < cornerThresholdPercent -> {
-        val quadrant = if (isLeft) 3 else 2
-        val startAngle = if (isLeft) 270f else 180f
-        WheelAdaptiveShape(
-            startAngle = startAngle,
-            sweepAngle = 90f,
-            isSemicircle = false,
-            isUpper = true,
-            quadrant = quadrant,
-        )
-    }
-
-    verticalPercent > 100f - cornerThresholdPercent -> {
-        val quadrant = if (isLeft) 0 else 1
-        val startAngle = if (isLeft) 0f else 90f
-        WheelAdaptiveShape(
-            startAngle = startAngle,
-            sweepAngle = 90f,
-            isSemicircle = false,
-            isUpper = false,
-            quadrant = quadrant,
-        )
-    }
-
-    else -> {
-        val startAngle = if (isLeft) 270f else 90f
-        val quadrant = if (isLeft) 3 else 1
-        WheelAdaptiveShape(
-            startAngle = startAngle,
-            sweepAngle = 180f,
-            isSemicircle = true,
-            isUpper = verticalPercent < 50,
-            quadrant = quadrant,
-        )
-    }
+    verticalPercent < cornerThresholdPercent -> upperCornerShape(isLeft)
+    verticalPercent > 100f - cornerThresholdPercent -> lowerCornerShape(isLeft)
+    else -> semicircleShape(isLeft, verticalPercent)
 }
+
+private fun upperCornerShape(isLeft: Boolean): WheelAdaptiveShape =
+    WheelAdaptiveShape(
+        startAngle = if (isLeft) 270f else 180f,
+        sweepAngle = 90f,
+        isSemicircle = false,
+        isUpper = true,
+        quadrant = if (isLeft) 3 else 2,
+    )
+
+private fun lowerCornerShape(isLeft: Boolean): WheelAdaptiveShape =
+    WheelAdaptiveShape(
+        startAngle = if (isLeft) 0f else 90f,
+        sweepAngle = 90f,
+        isSemicircle = false,
+        isUpper = false,
+        quadrant = if (isLeft) 0 else 1,
+    )
+
+private fun semicircleShape(isLeft: Boolean, verticalPercent: Int): WheelAdaptiveShape =
+    WheelAdaptiveShape(
+        startAngle = if (isLeft) 270f else 90f,
+        sweepAngle = 180f,
+        isSemicircle = true,
+        isUpper = verticalPercent < 50,
+        quadrant = if (isLeft) 3 else 1,
+    )
 
 internal data class WheelSlot(
     val index: Int,
@@ -100,3 +96,6 @@ internal data class FittedWheelLayout(
     val maxRadius: Float,
     val scale: Float,
 )
+
+private const val MAX_RINGS = 10
+private const val RING_SPACING_FACTOR = 1.3f

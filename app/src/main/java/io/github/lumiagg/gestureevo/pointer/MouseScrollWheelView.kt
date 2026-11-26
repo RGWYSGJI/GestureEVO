@@ -15,8 +15,8 @@ import kotlin.math.abs
  * Drag it vertically: the ridges move under the finger and [onScroll] receives the raw
  * delta. [onRelease] receives the last vertical velocity (px/ms) so the owner can add
  * inertia. This view deliberately does not scroll anything by itself; the pointer overlay
- * decides how far and how fast to scroll; it currently uses short swipe steps so the step
- * size does not depend on how a target app interprets ACTION_SCROLL_*.
+ * decides how far and how fast to scroll, using short swipe steps so the step size does not
+ * depend on how a target app interprets ACTION_SCROLL_*.
  */
 class MouseScrollWheelView(
     context: Context,
@@ -51,29 +51,40 @@ class MouseScrollWheelView(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        val w = width.toFloat()
-        val h = height.toFloat()
-        if (w <= 0f || h <= 0f) return
+        val width = width.toFloat()
+        val height = height.toFloat()
+        if (width <= 0f || height <= 0f) return
 
+        drawBody(canvas, width, height)
+        drawBorder(canvas, width, height)
+        drawRidges(canvas, width, height)
+    }
+
+    private fun drawBody(canvas: Canvas, width: Float, height: Float) {
         bodyPaint.color = if (isPressed) BODY_PRESSED_COLOR else BODY_COLOR
-        val radius = 8f.dp2px
-        canvas.drawRoundRect(RectF(0f, 0f, w, h), radius, radius, bodyPaint)
-        val borderInset = 0.5f.dp2px
+        val radius = CORNER_RADIUS_DP.dp2px
+        canvas.drawRoundRect(RectF(0f, 0f, width, height), radius, radius, bodyPaint)
+    }
+
+    private fun drawBorder(canvas: Canvas, width: Float, height: Float) {
+        val inset = BORDER_INSET_DP.dp2px
+        val radius = CORNER_RADIUS_DP.dp2px
         canvas.drawRoundRect(
-            RectF(borderInset, borderInset, w - borderInset, h - borderInset),
+            RectF(inset, inset, width - inset, height - inset),
             radius,
             radius,
             borderPaint,
         )
+    }
 
-        // Horizontal ridges that travel vertically, like the surface of a wheel.
-        val spacing = 9f.dp2px
+    private fun drawRidges(canvas: Canvas, width: Float, height: Float) {
+        val spacing = RIDGE_SPACING_DP.dp2px
         val offset = ((wheelOffset % spacing) + spacing) % spacing
+        val inset = RIDGE_INSET_DP.dp2px
         var y = offset - spacing
-        val inset = 4f.dp2px
-        while (y <= h + spacing) {
-            if (y > 1f && y < h - 1f) {
-                canvas.drawLine(inset, y, w - inset, y, ridgePaint)
+        while (y <= height + spacing) {
+            if (y > 1f && y < height - 1f) {
+                canvas.drawLine(inset, y, width - inset, y, ridgePaint)
             }
             y += spacing
         }
@@ -82,46 +93,58 @@ class MouseScrollWheelView(
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                parent?.requestDisallowInterceptTouchEvent(true)
-                lastY = event.rawY
-                lastEventTime = event.eventTime
-                velocity = 0f
-                isPressed = true
-                invalidate()
+                handleDown(event)
                 return true
             }
 
             MotionEvent.ACTION_MOVE -> {
-                val now = event.eventTime
-                val dy = event.rawY - lastY
-                val dt = (now - lastEventTime).coerceAtLeast(1L)
-                if (abs(dy) >= 0.5f) {
-                    velocity = dy / dt.toFloat()
-                    wheelOffset = (wheelOffset + dy) % 10000f
-                    onScroll(dy)
-                }
-                lastY = event.rawY
-                lastEventTime = now
-                invalidate()
+                handleMove(event)
                 return true
             }
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                // A pause before lifting means the wheel was held still, not flicked. Drop the
-                // stale velocity so releasing after a pause does not produce phantom inertia.
-                if (event.eventTime - lastEventTime > 80L) {
-                    velocity = 0f
-                }
-                // Always notify, including a stationary release. The owner uses this to stop
-                // the analog scroll loop; otherwise holding the wheel still would keep scrolling.
-                onRelease(velocity)
-                velocity = 0f
-                isPressed = false
-                invalidate()
+                handleRelease(event)
                 return true
             }
         }
         return super.onTouchEvent(event)
+    }
+
+    private fun handleDown(event: MotionEvent) {
+        parent?.requestDisallowInterceptTouchEvent(true)
+        lastY = event.rawY
+        lastEventTime = event.eventTime
+        velocity = 0f
+        isPressed = true
+        invalidate()
+    }
+
+    private fun handleMove(event: MotionEvent) {
+        val now = event.eventTime
+        val dy = event.rawY - lastY
+        val dt = (now - lastEventTime).coerceAtLeast(1L)
+        if (abs(dy) >= MIN_SCROLL_DELTA_PX) {
+            velocity = dy / dt.toFloat()
+            wheelOffset = (wheelOffset + dy) % WHEEL_OFFSET_WRAP
+            onScroll(dy)
+        }
+        lastY = event.rawY
+        lastEventTime = now
+        invalidate()
+    }
+
+    private fun handleRelease(event: MotionEvent) {
+        // A pause before lifting means the wheel was held still, not flicked. Drop the
+        // stale velocity so releasing after a pause does not produce phantom inertia.
+        if (event.eventTime - lastEventTime > STALE_RELEASE_MS) {
+            velocity = 0f
+        }
+        // Always notify, including a stationary release. The owner uses this to stop
+        // the analog scroll loop; otherwise holding the wheel still would keep scrolling.
+        onRelease(velocity)
+        velocity = 0f
+        isPressed = false
+        invalidate()
     }
 
     override fun performClick(): Boolean {
@@ -130,9 +153,17 @@ class MouseScrollWheelView(
     }
 
     private companion object {
-        val BODY_COLOR = 0x26000000
-        val BODY_PRESSED_COLOR = 0x33000000
-        val BORDER_COLOR = 0x1FFFFFFF
-        val RIDGE_COLOR = 0x33FFFFFF
+        const val BODY_COLOR = 0x26000000
+        const val BODY_PRESSED_COLOR = 0x33000000
+        const val BORDER_COLOR = 0x1FFFFFFF
+        const val RIDGE_COLOR = 0x33FFFFFF
+
+        const val CORNER_RADIUS_DP = 8f
+        const val BORDER_INSET_DP = 0.5f
+        const val RIDGE_SPACING_DP = 9f
+        const val RIDGE_INSET_DP = 4f
+        const val WHEEL_OFFSET_WRAP = 10_000f
+        const val MIN_SCROLL_DELTA_PX = 0.5f
+        const val STALE_RELEASE_MS = 80L
     }
 }
