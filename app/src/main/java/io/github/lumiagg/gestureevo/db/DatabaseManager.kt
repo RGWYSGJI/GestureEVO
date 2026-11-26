@@ -12,34 +12,18 @@ object DatabaseManager {
     }
 }
 
-fun getAPPDao(): APPDao {
-    return DatabaseManager.db.appDao
-}
+fun getAPPDao(): APPDao = DatabaseManager.db.appDao
 
-fun getContactDao(): ContactDao {
-    return DatabaseManager.db.contactDao
-}
+fun getContactDao(): ContactDao = DatabaseManager.db.contactDao
 
-fun getShortcutDao(): ShortcutDao {
-    return DatabaseManager.db.shortcutDao
-}
+fun getShortcutDao(): ShortcutDao = DatabaseManager.db.shortcutDao
 
-fun getSearchHistoryDao(): SearchHistoryDao {
-    return DatabaseManager.db.searchHistoryDao
-}
+fun getSearchHistoryDao(): SearchHistoryDao = DatabaseManager.db.searchHistoryDao
 
-fun getSearchResultPinDao(): SearchResultPinDao {
-    return DatabaseManager.db.searchResultPinDao
-}
+fun getSearchResultPinDao(): SearchResultPinDao = DatabaseManager.db.searchResultPinDao
 
-fun getHiddenSearchResultDao(): HiddenSearchResultDao {
-    return DatabaseManager.db.hiddenSearchResultDao
-}
+fun getHiddenSearchResultDao(): HiddenSearchResultDao = DatabaseManager.db.hiddenSearchResultDao
 
-fun getExternalActionPermissionDao(): ExternalActionPermissionDao {
-    return DatabaseManager.db.externalActionPermissionDao
-}
+fun getExternalActionPermissionDao(): ExternalActionPermissionDao = DatabaseManager.db.externalActionPermissionDao
 
-fun getPinPoolDao(): PinPoolDao {
-    return DatabaseManager.db.pinPoolDao
-}
+fun getPinPoolDao(): PinPoolDao = DatabaseManager.db.pinPoolDao

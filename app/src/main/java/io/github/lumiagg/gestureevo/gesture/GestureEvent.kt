@@ -1,6 +1,5 @@
 package io.github.lumiagg.gestureevo.gesture
 
-
 import android.graphics.Rect
 import io.github.lumiagg.gestureevo.gesture.config.FreeTriggerConfig
 import io.github.lumiagg.gestureevo.gesture.ui.ActionView
@@ -17,7 +16,7 @@ data class FreeTriggerEvent(
     val configTrigger: FreeTriggerConfig? = null,
     val orientation: Int? = null,
     val isEnable: Boolean? = null,
-    val reloadWheelTag: String? = null
+    val reloadWheelTag: String? = null,
 )
 
 data class ActionViewEvent(
@@ -26,13 +25,13 @@ data class ActionViewEvent(
     val mainItemListTag: String? = null,
     val subItemListTag: String? = null,
     val triggerConfig: FreeTriggerConfig? = null,
-    val isMirror: Boolean = false
+    val isMirror: Boolean = false,
 )
 
 data class KeyboardEvent(
     val show: Boolean,
     val reloadKeyboard: Boolean? = null,
-    val side: String? = null
+    val side: String? = null,
 )
 
 data class InspireEvent(
@@ -43,7 +42,7 @@ data class InspireEvent(
     val skipAutoPin: Boolean = false,
     val fullscreen: Boolean = false,
     val forceImageTextSelection: Boolean = false,
-    val side: String? = null
+    val side: String? = null,
 )
 
 data class PointerEvent(
@@ -54,7 +53,7 @@ data class PointerEvent(
 )
 
 data class AccessibilityActionEvent(
-    val action: Int
+    val action: Int,
 )
 
 data class NotificationActionEvent(val isAdd: Boolean)
@@ -64,7 +63,6 @@ data class SearchEvent(val task: InjectionTask)
 data class PinPoolEvent(val show: Boolean, val side: String? = null)
 
 data class ScreenSearchEvent(val show: Boolean = true, val side: String? = null)
-
 
 object EventBusManager {
     val actionViewEventBus = MutableSharedFlow<ActionViewEvent>()
@@ -83,48 +81,39 @@ object EventBusManager {
             actionViewEventBus.emit(event)
         }
 
-    suspend fun produceActionViewEvent(event: ActionViewEvent) = withContext(Dispatchers.IO) {
-        actionViewEventBus.emit(event)
-    }
+    suspend fun produceActionViewEvent(event: ActionViewEvent) =
+        actionViewEventBus.emitOnIo(event)
 
-
-    suspend fun produceKeyboardEvent(event: KeyboardEvent) = withContext(Dispatchers.IO) {
-        keyboardEventBus.emit(event)
-    }
+    suspend fun produceKeyboardEvent(event: KeyboardEvent) =
+        keyboardEventBus.emitOnIo(event)
 
     suspend fun produceAccessibilityActionEvent(
-        action: AccessibilityActionEvent
+        action: AccessibilityActionEvent,
     ) {
         accessibilityActionEventBus.emit(action)
     }
 
-    suspend fun produceInspireEvent(event: InspireEvent) = withContext(Dispatchers.IO) {
-        inspireEventBus.emit(event)
-    }
+    suspend fun produceInspireEvent(event: InspireEvent) =
+        inspireEventBus.emitOnIo(event)
 
-    suspend fun producePointerEvent(event: PointerEvent) = withContext(Dispatchers.IO) {
-        pointerEventBus.emit(event)
-    }
+    suspend fun producePointerEvent(event: PointerEvent) =
+        pointerEventBus.emitOnIo(event)
 
     suspend fun produceNotificationActionEvent(event: NotificationActionEvent) =
-        withContext(Dispatchers.IO) {
-            notificationActionEventBus.emit(event)
-        }
+        notificationActionEventBus.emitOnIo(event)
 
-    suspend fun produceFreeTriggerEvent(event: FreeTriggerEvent) = withContext(Dispatchers.IO) {
-        freeTriggerEventBus.emit(event)
-    }
+    suspend fun produceFreeTriggerEvent(event: FreeTriggerEvent) =
+        freeTriggerEventBus.emitOnIo(event)
 
-    suspend fun produceSearchEvent(event: SearchEvent) = withContext(Dispatchers.IO) {
-        searchEventBus.emit(event)
-    }
+    suspend fun produceSearchEvent(event: SearchEvent) =
+        searchEventBus.emitOnIo(event)
 
-    suspend fun producePinPoolEvent(event: PinPoolEvent) = withContext(Dispatchers.IO) {
-        pinPoolEventBus.emit(event)
-    }
+    suspend fun producePinPoolEvent(event: PinPoolEvent) =
+        pinPoolEventBus.emitOnIo(event)
 
-    suspend fun produceScreenSearchEvent(event: ScreenSearchEvent) = withContext(Dispatchers.IO) {
-        screenSearchEventBus.emit(event)
-    }
+    suspend fun produceScreenSearchEvent(event: ScreenSearchEvent) =
+        screenSearchEventBus.emitOnIo(event)
 
+    private suspend fun <T> MutableSharedFlow<T>.emitOnIo(event: T) =
+        withContext(Dispatchers.IO) { emit(event) }
 }

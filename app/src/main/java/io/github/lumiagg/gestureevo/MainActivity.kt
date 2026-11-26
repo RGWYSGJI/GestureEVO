@@ -25,13 +25,18 @@ class MainActivity : AppCompatActivity() {
                 startupValue(Unit) { IconHelper.initIconConfig(applicationContext) }
             }
             val hideTask = startupValue(true) { settingsStore.readKey(BackgroundStabilityActivity.HIDE_TASK, true) }
-            startActivity(Intent(this@MainActivity, SettingsActivity::class.java).apply {
-                if (!hideTask) flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NEW_DOCUMENT
-            })
+            startActivity(settingsIntent(hideTask))
             EvoApplication.application.refreshSearchCatalogs()
             finish()
         }
     }
+
+    private fun settingsIntent(hideTask: Boolean): Intent =
+        Intent(this, SettingsActivity::class.java).apply {
+            if (!hideTask) {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NEW_DOCUMENT
+            }
+        }
 
     private suspend fun <T> startupValue(fallback: T, read: suspend () -> T): T = try {
         read()
