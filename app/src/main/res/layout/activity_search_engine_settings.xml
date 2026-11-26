@@ -344,6 +344,7 @@
               android:layout_width="wrap_content"
               android:layout_height="wrap_content" />
           </io.github.lumiagg.gestureevo.settings.ui.SettingsSwitchRow>
+          <!-- Fork-specific contact and SMS result sources. -->
           <io.github.lumiagg.gestureevo.settings.ui.SettingsSwitchRow
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

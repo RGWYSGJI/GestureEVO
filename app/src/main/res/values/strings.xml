@@ -324,6 +324,7 @@
     <string name="search_engine_settings_features_description">控制搜索时要额外索引哪些内容</string>
     <string name="search_engine_settings_show_clipboard_content">显示剪切板内容</string>
     <string name="search_engine_settings_search_history">搜索历史记录</string>
+    <!-- SMS search result source. -->
     <string name="search_engine_settings_search_sms">搜索短信</string>
     <string name="search_engine_settings_search_contacts">搜索联系人</string>
     <string name="search_engine_settings_search_settings">搜索系统设置</string>
@@ -561,6 +562,7 @@
     <string name="inspire_settings_pointer_touch_area_offset_dp">%1$d dp</string>
     <string name="inspire_settings_pointer_drag_mode">悬停指针后进入框选模式</string>
     <string name="inspire_settings_pointer_drag_mode_desc">进入框选模式后直接释放可以选择当前界面元素\n拖动后可以截取屏幕</string>
+    <!-- Touchpad scroll sensitivity. -->
     <string name="inspire_settings_touchpad_feel">触摸板手感</string>
     <string name="inspire_settings_mouse_arrow_speed">箭头滚动速度</string>
     <string name="inspire_settings_mouse_arrow_speed_desc">按住方向键时每次滚动的距离</string>

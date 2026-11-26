@@ -295,6 +295,7 @@
     <string name="search_engine_settings_features_title">Feature Settings</string>
     <string name="search_engine_settings_show_clipboard_content">Show Clipboard Content</string>
     <string name="search_engine_settings_search_history">Search History</string>
+    <!-- SMS search result source. -->
     <string name="search_engine_settings_search_sms">Search SMS</string>
     <string name="search_engine_settings_search_contacts">Search Contacts</string>
     <string name="search_engine_settings_search_settings">Search System Settings</string>
@@ -501,6 +502,7 @@
     <string name="inspire_settings_show_pointer_trail_desc">Show the pointer movement path for easier hover and drag tracking</string>
     <string name="inspire_settings_pointer_drag_mode">Enter frame selection mode after hovering pointer</string>
     <string name="inspire_settings_pointer_drag_mode_desc">After entering frame selection mode, directly releasing can select current interface elements\nDragging can capture screen</string>
+    <!-- Touchpad scroll sensitivity. -->
     <string name="inspire_settings_touchpad_feel">Touchpad feel</string>
     <string name="inspire_settings_mouse_arrow_speed">Arrow scroll speed</string>
     <string name="inspire_settings_mouse_arrow_speed_desc">Scroll distance per step while holding a direction button</string>
