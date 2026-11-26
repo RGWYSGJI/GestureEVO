@@ -39,13 +39,7 @@ data class TriggerViewGroup(
     /**
      * Returns a list of all active views.
      */
-    fun getAllViews(): List<TriggerView> {
-        return if (mirrorView != null) {
-            listOf(originalView, mirrorView!!)
-        } else {
-            listOf(originalView)
-        }
-    }
+    fun getAllViews(): List<TriggerView> = listOfNotNull(originalView, mirrorView)
 
     /**
      * Cleans up view resources.
@@ -379,47 +373,33 @@ class FreeTriggerFloating(
 
     suspend fun enterToConfigMode(triggerConfig: FreeTriggerConfig, isConfig: Boolean) =
         withContext(Dispatchers.Main) {
-            val viewGroup = triggerViews[triggerConfig.tag] ?: return@withContext
-
-            val transparentColor = context.getColor(R.color.transparent)
-            val originColor = DynamicColorUtils.primaryColor
-            val mirrorColor = DynamicColorUtils.inversePrimaryColor
-            // Set background color for all views in the group
-            viewGroup.getAllViews().forEach { view ->
-                if (view.isMirror) {
-                    view.setBackgroundColor(if (isConfig) mirrorColor else transparentColor)
-                } else {
-                    view.setBackgroundColor(if (isConfig) originColor else transparentColor)
-                }
-            }
+            triggerViews[triggerConfig.tag]?.let { applyConfigBackground(it, isConfig) }
         }
 
     suspend fun enterToConfigMode() =
         withContext(Dispatchers.Main) {
-            val originColor = DynamicColorUtils.primaryColor
-            val mirrorColor = DynamicColorUtils.inversePrimaryColor
-            triggerViews.forEach {
-                // Set background color for all views in the group
-                it.value.getAllViews().forEach { view ->
-                    if (view.isMirror) {
-                        view.setBackgroundColor(mirrorColor)
-                    } else {
-                        view.setBackgroundColor(originColor)
-                    }
-                }
-            }
+            triggerViews.values.forEach { applyConfigBackground(it, isConfig = true) }
         }
 
     suspend fun exitToConfigMode() =
         withContext(Dispatchers.Main) {
-            triggerViews.forEach {
-                val color = context.getColor(R.color.transparent)
-                // Set background color for all views in the group
-                it.value.getAllViews().forEach { view ->
-                    view.setBackgroundColor(color)
-                }
-            }
+            triggerViews.values.forEach { applyConfigBackground(it, isConfig = false) }
         }
+
+    private fun applyConfigBackground(group: TriggerViewGroup, isConfig: Boolean) {
+        val transparentColor = context.getColor(R.color.transparent)
+        val originColor = DynamicColorUtils.primaryColor
+        val mirrorColor = DynamicColorUtils.inversePrimaryColor
+        group.getAllViews().forEach { view ->
+            view.setBackgroundColor(
+                when {
+                    !isConfig -> transparentColor
+                    view.isMirror -> mirrorColor
+                    else -> originColor
+                }
+            )
+        }
+    }
 
     suspend fun resetAllTriggerEnable() =
         withContext(Dispatchers.Main) {
