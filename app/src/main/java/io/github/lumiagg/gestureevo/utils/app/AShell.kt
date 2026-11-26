@@ -7,10 +7,10 @@ import android.content.Context
  * callers either use the Shizuku user service or report failure to the user.
  */
 object AShell {
-    suspend fun doCmd(context: Context, command: String): Pair<Boolean, String> {
-        if (!AShizuku.checkPermission(context)) {
-            return false to "Shizuku permission not granted"
+    suspend fun doCmd(context: Context, command: String): Pair<Boolean, String> =
+        if (AShizuku.checkPermission(context)) {
+            AShizuku.doCmdWithShizuku(command)
+        } else {
+            false to "Shizuku permission not granted"
         }
-        return AShizuku.doCmdWithShizuku(command)
-    }
 }

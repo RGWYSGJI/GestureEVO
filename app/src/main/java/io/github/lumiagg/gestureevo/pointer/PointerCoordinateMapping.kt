@@ -12,7 +12,10 @@ internal data class PointerCoordinateMapping(
     val touchHeight: Int,
 ) {
     fun map(input: Point): Point = Point(
-        ((input.x - touchLeft) / touchWidth).coerceIn(0f, 1f) * screenWidth,
-        ((input.y - touchTop) / touchHeight).coerceIn(0f, 1f) * screenHeight,
+        normalize(input.x, touchLeft, touchWidth) * screenWidth,
+        normalize(input.y, touchTop, touchHeight) * screenHeight,
     )
+
+    private fun normalize(value: Float, origin: Int, size: Int): Float =
+        ((value - origin) / size).coerceIn(0f, 1f)
 }

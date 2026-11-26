@@ -10,7 +10,6 @@ import java.io.IOException
 import java.io.InputStreamReader
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
-import java.util.regex.Pattern
 
 object Rom {
     private const val TAG = "Rom"
@@ -33,12 +32,13 @@ object Rom {
     // Cached basic hardware characteristics (immutable over app lifecycle).
     private val manufacturer by lazy { Build.MANUFACTURER.orEmpty().lowercase(Locale.ROOT) }
     private val brand by lazy { Build.BRAND.orEmpty().lowercase(Locale.ROOT) }
+    private val versionPattern = Regex("\\d+")
 
     val isXiaomiDeviceCached: Boolean by lazy {
-        manufacturer.contains("xiaomi")
-                || brand.contains("xiaomi")
-                || brand.contains("redmi")
-                || brand.contains("poco")
+        manufacturer.contains("xiaomi") ||
+            brand.contains("xiaomi") ||
+            brand.contains("redmi") ||
+            brand.contains("poco")
     }
 
     val isOnePlusDeviceCached: Boolean by lazy {
@@ -50,10 +50,10 @@ object Rom {
     }
 
     val isRealmeDeviceCached: Boolean by lazy {
-        manufacturer.contains("realme")
-                || brand.contains("realme")
-                || manufacturer.contains("oppo")
-                || brand.contains("oppo")
+        manufacturer.contains("realme") ||
+            brand.contains("realme") ||
+            manufacturer.contains("oppo") ||
+            brand.contains("oppo")
     }
 
     val isOriginOSCached: Boolean by lazy {
@@ -87,7 +87,9 @@ object Rom {
         fun isMiui13Plus(): Boolean = isXiaomi() && (version >= 13 || version >= 130 || version == -1)
         fun isHuawei(): Boolean = type == RomType.HARMONY_OS || type == RomType.EMUI
         fun isOriginOS(): Boolean = isOriginOSCached
-        fun isOppoFamily(): Boolean = isOppoDeviceCached || isRealmeDeviceCached || isOnePlusDeviceCached || type == RomType.OPPO
+        fun isOppoFamily(): Boolean =
+            isOppoDeviceCached || isRealmeDeviceCached || isOnePlusDeviceCached || type == RomType.OPPO
+
         fun defaultFreeFormCode(): Int = when (type) {
             RomType.FLYME -> RomFreeFormCode.FLYME.code
             RomType.EMUI, RomType.HARMONY_OS -> RomFreeFormCode.EMUI.code
@@ -98,49 +100,54 @@ object Rom {
     }
 
     enum class RomType {
-        MIUI, EMUI, FLYME, OPPO, SMARTISAN, VIVO, QIKU, HARMONY_OS, UNKNOWN
+        MIUI, EMUI, FLYME, OPPO, SMARTISAN, VIVO, QIKU, HARMONY_OS, UNKNOWN,
     }
 
     enum class RomFreeFormCode(val code: Int) {
-        NUBIA(-2),        // Nubia / RedMagic launches freeform via Intent identifier rather than window mode code
-        DEFAULT(5),       // Other unknown ROMs
+        // Nubia / RedMagic launches freeform via Intent identifier rather than window mode code.
+        NUBIA(-2),
+
+        // Other unknown ROMs.
+        DEFAULT(5),
         FLYME(11),
         OPPO(100),
         EMUI(102),
         HARMONY_OS(102),
-        VIVO(106)
+        VIVO(106),
     }
 
     @Volatile
     private var cachedRomRet: CheckRomRet? = null
 
-    fun isPad(context: Context): Boolean {
-        return ((context.resources.configuration.screenLayout
-                and Configuration.SCREENLAYOUT_SIZE_MASK)
-                >= Configuration.SCREENLAYOUT_SIZE_LARGE)
-    }
+    fun isPad(context: Context): Boolean =
+        (context.resources.configuration.screenLayout and Configuration.SCREENLAYOUT_SIZE_MASK) >=
+            Configuration.SCREENLAYOUT_SIZE_LARGE
 
     suspend fun checkRom(context: Context): CheckRomRet {
         cachedRomRet?.let { return it }
-        val romTypeStr = context.settingsStore.readKey(ROM_NAME, "")
-        val result = if (romTypeStr.isEmpty()) {
-            val parsed = parseProp()
-            context.settingsStore.saveKey(ROM_NAME, parsed.type.name)
-            context.settingsStore.saveKey(ROM_VERSION, parsed.version)
-            parsed
+        val storedType = context.settingsStore.readKey(ROM_NAME, "")
+        val result = if (storedType.isEmpty()) {
+            parseAndPersistRom(context)
         } else {
             try {
-                CheckRomRet(RomType.valueOf(romTypeStr), context.settingsStore.readKey(ROM_VERSION, -1))
+                CheckRomRet(
+                    RomType.valueOf(storedType),
+                    context.settingsStore.readKey(ROM_VERSION, -1),
+                )
             } catch (e: Exception) {
                 e.printStackTrace()
-                val parsed = parseProp()
-                context.settingsStore.saveKey(ROM_NAME, parsed.type.name)
-                context.settingsStore.saveKey(ROM_VERSION, parsed.version)
-                parsed
+                parseAndPersistRom(context)
             }
         }
         cachedRomRet = result
         return result
+    }
+
+    private suspend fun parseAndPersistRom(context: Context): CheckRomRet {
+        val parsed = parseProp()
+        context.settingsStore.saveKey(ROM_NAME, parsed.type.name)
+        context.settingsStore.saveKey(ROM_VERSION, parsed.version)
+        return parsed
     }
 
     fun isXiaomiDevice(): Boolean = isXiaomiDeviceCached
@@ -185,10 +192,7 @@ object Rom {
 
     private fun getVersion(prop: String): Int {
         try {
-            val matcher = Pattern.compile("\\d+").matcher(prop)
-            if (matcher.find()) {
-                return matcher.group().toInt()
-            }
+            versionPattern.find(prop)?.let { return it.value.toInt() }
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -244,21 +248,22 @@ object Rom {
 
     private fun getPropByExec(name: String): String {
         var line = ""
-        var input: BufferedReader? = null
         try {
-            val p = Runtime.getRuntime().exec("getprop $name")
-            input = BufferedReader(InputStreamReader(p.inputStream), 1024)
-            line = input.readLine().orEmpty()
-        } catch (ex: IOException) {
-            Log.e(TAG, "Unable to read prop $name", ex)
-        } finally {
-            if (input != null) {
+            val reader = BufferedReader(
+                InputStreamReader(Runtime.getRuntime().exec("getprop $name").inputStream),
+                1024,
+            )
+            try {
+                line = reader.readLine().orEmpty()
+            } finally {
                 try {
-                    input.close()
+                    reader.close()
                 } catch (e: IOException) {
                     e.printStackTrace()
                 }
             }
+        } catch (ex: IOException) {
+            Log.e(TAG, "Unable to read prop $name", ex)
         }
         return line
     }
