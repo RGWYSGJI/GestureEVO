@@ -679,9 +679,7 @@ internal class ExternalDropFloating(
         enginePager.animate().cancel()
         enginePager.translationY = 0f
         enginePager.alpha = 1f
-        previewAction = null
-        previewEngine = null
-        previewPageDirection = 0
+        clearPreviewState()
         actionPreview.detach()
         detachViewSafely(targets)
         appearance.hide()
@@ -697,14 +695,7 @@ internal class ExternalDropFloating(
             if (action == Action.SEARCH) {
                 setEngineIcon(themeContext, preview, checkNotNull(engine), showImageBadge)
             } else {
-                val icon = when (action) {
-                    Action.POOL -> R.drawable.pinboard_24px
-                    Action.PIN -> R.drawable.baseline_push_pin_24
-                    Action.TOKENIZE -> R.drawable.outline_center_focus_weak_24
-                    Action.CONVERT -> R.drawable.ic_text_image_convert_24
-                    else -> if (pageDirection < 0) R.drawable.ic_chevron_up_24 else R.drawable.ic_chevron_down_24
-                }
-                preview.setImageWithBackplate(icon)
+                preview.setImageWithBackplate(previewIcon(action, pageDirection))
             }
         }
     }
@@ -714,10 +705,22 @@ internal class ExternalDropFloating(
         if (action != null && previewAction != action) return
         // Pointer moves outside targets must not keep restarting the fade-out.
         if (previewAction == null && previewEngine == null && previewPageDirection == 0) return
+        clearPreviewState()
+        actionPreview.hide()
+    }
+
+    private fun previewIcon(action: Action, pageDirection: Int): Int = when (action) {
+        Action.POOL -> R.drawable.pinboard_24px
+        Action.PIN -> R.drawable.baseline_push_pin_24
+        Action.TOKENIZE -> R.drawable.outline_center_focus_weak_24
+        Action.CONVERT -> R.drawable.ic_text_image_convert_24
+        else -> if (pageDirection < 0) R.drawable.ic_chevron_up_24 else R.drawable.ic_chevron_down_24
+    }
+
+    private fun clearPreviewState() {
         previewAction = null
         previewEngine = null
         previewPageDirection = 0
-        actionPreview.hide()
     }
 
     private fun bindTarget(id: Int, action: Action) {
