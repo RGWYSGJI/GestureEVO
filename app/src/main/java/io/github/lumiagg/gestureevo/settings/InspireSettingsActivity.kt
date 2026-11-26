@@ -23,6 +23,7 @@ import android.os.Bundle
 import android.provider.Settings
 import android.view.View
 import android.widget.SeekBar
+import android.widget.CompoundButton
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -300,50 +301,22 @@ class InspireSettingsActivity : AppCompatActivity() {
         }
 
         // Double confirmation
-        binding.doubleCheckSwitch.setOnCheckedChangeListener { _, isChecked ->
-            lifecycleScope.launch {
-                settingsStore.saveKey(KEY_INSPIRE_DOUBLE_CHECK, isChecked)
-            }
-        }
+        saveSwitchOnChange(binding.doubleCheckSwitch, KEY_INSPIRE_DOUBLE_CHECK)
 
         // Vibrate on selection enter
-        binding.selectionVibrateSwitch.setOnCheckedChangeListener { _, isChecked ->
-            lifecycleScope.launch {
-                settingsStore.saveKey(KEY_INSPIRE_SELECTION_VIBRATE, isChecked)
-            }
-        }
+        saveSwitchOnChange(binding.selectionVibrateSwitch, KEY_INSPIRE_SELECTION_VIBRATE)
 
-        binding.edgeBackSwitch.setOnCheckedChangeListener { _, isChecked ->
-            lifecycleScope.launch {
-                settingsStore.saveKey(KEY_INSPIRE_EDGE_BACK, isChecked)
-            }
-        }
+        saveSwitchOnChange(binding.edgeBackSwitch, KEY_INSPIRE_EDGE_BACK)
 
         // Delayed deletion
-        binding.delayRemoveImageSwitch.setOnCheckedChangeListener { _, isChecked ->
-            lifecycleScope.launch {
-                settingsStore.saveKey(KEY_INSPIRE_DELAY_REMOVE_IMAGE, isChecked)
-            }
-        }
+        saveSwitchOnChange(binding.delayRemoveImageSwitch, KEY_INSPIRE_DELAY_REMOVE_IMAGE)
 
         // Display search engines
-        binding.showEngineSwitch.setOnCheckedChangeListener { _, isChecked ->
-            lifecycleScope.launch {
-                settingsStore.saveKey(KEY_INSPIRE_SHOW_ENGINE, isChecked)
-            }
-        }
+        saveSwitchOnChange(binding.showEngineSwitch, KEY_INSPIRE_SHOW_ENGINE)
 
-        binding.defaultImageTextOverlaySwitch.setOnCheckedChangeListener { _, isChecked ->
-            lifecycleScope.launch {
-                settingsStore.saveKey(KEY_DEFAULT_IMAGE_TEXT_OVERLAY, isChecked)
-            }
-        }
+        saveSwitchOnChange(binding.defaultImageTextOverlaySwitch, KEY_DEFAULT_IMAGE_TEXT_OVERLAY)
 
-        binding.strongCopySwitch.setOnCheckedChangeListener { _, isChecked ->
-            lifecycleScope.launch {
-                settingsStore.saveKey(KEY_INSPIRE_STRONG_COPY, isChecked)
-            }
-        }
+        saveSwitchOnChange(binding.strongCopySwitch, KEY_INSPIRE_STRONG_COPY)
 
         binding.defaultShareBehaviorRow.setOnClickListener {
             showDefaultShareBehaviorDialog()
@@ -365,12 +338,11 @@ class InspireSettingsActivity : AppCompatActivity() {
                 }
             }
         }
-        binding.globalPressEarlyTextSwitch.setOnCheckedChangeListener { _, enabled ->
-            lifecycleScope.launch { settingsStore.saveKey(KEY_GLOBAL_PRESS_EARLY_TEXT, enabled) }
-        }
-        binding.globalPressImmediateSwitch.setOnCheckedChangeListener { _, enabled ->
-            lifecycleScope.launch { settingsStore.saveKey(io.github.lumiagg.gestureevo.drop.DropPreferences.KEY_GLOBAL_PRESS_IMMEDIATE, enabled) }
-        }
+        saveSwitchOnChange(binding.globalPressEarlyTextSwitch, KEY_GLOBAL_PRESS_EARLY_TEXT)
+        saveSwitchOnChange(
+            binding.globalPressImmediateSwitch,
+            io.github.lumiagg.gestureevo.drop.DropPreferences.KEY_GLOBAL_PRESS_IMMEDIATE,
+        )
         binding.globalPressTimeoutRow.setOnClickListener {
             lifecycleScope.launch {
                 val values = intArrayOf(300, 500, 700, 1000, 1500, 2000)
@@ -406,9 +378,7 @@ class InspireSettingsActivity : AppCompatActivity() {
             updateExternalDropSettingsEnabled()
             lifecycleScope.launch { settingsStore.saveKey(KEY_EXTERNAL_DROP_ENABLED, isChecked) }
         }
-        binding.externalDropConversionSwitch.setOnCheckedChangeListener { _, isChecked ->
-            lifecycleScope.launch { settingsStore.saveKey(KEY_EXTERNAL_DROP_CONVERSION, isChecked) }
-        }
+        saveSwitchOnChange(binding.externalDropConversionSwitch, KEY_EXTERNAL_DROP_CONVERSION)
         binding.externalDropPositionRow.setOnClickListener {
             showExternalDropPositionDialog()
         }
@@ -473,11 +443,7 @@ class InspireSettingsActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-        binding.notificationIconSwitch.setOnCheckedChangeListener { _, isChecked ->
-            lifecycleScope.launch {
-                settingsStore.saveKey(KEY_SHOW_NOTIFICATION_ICON, isChecked)
-            }
-        }
+        saveSwitchOnChange(binding.notificationIconSwitch, KEY_SHOW_NOTIFICATION_ICON)
 
         // Translation app selection
         binding.translationAppRow.setOnClickListener {
@@ -523,21 +489,13 @@ class InspireSettingsActivity : AppCompatActivity() {
         }
 
         // Pointer
-        binding.pointerTrailSwitch.setOnCheckedChangeListener { _, isChecked ->
-            lifecycleScope.launch {
-                settingsStore.saveKey(KEY_SHOW_POINTER_TRAIL, isChecked)
-            }
-        }
+        saveSwitchOnChange(binding.pointerTrailSwitch, KEY_SHOW_POINTER_TRAIL)
 
         binding.pointerTouchAreaOffsetRow.setOnClickListener {
             showPointerTouchAreaOffsetBottomSheet()
         }
 
-        binding.pointerDragModeSwitch.setOnCheckedChangeListener { _, isChecked ->
-            lifecycleScope.launch {
-                settingsStore.saveKey(KEY_ENABLE_POINTER_DRAG_MODE, isChecked)
-            }
-        }
+        saveSwitchOnChange(binding.pointerDragModeSwitch, KEY_ENABLE_POINTER_DRAG_MODE)
         bindMouseSpeedSlider(
             binding.mouseArrowSpeedSeek,
             binding.mouseArrowSpeedValue,
@@ -553,19 +511,13 @@ class InspireSettingsActivity : AppCompatActivity() {
             max = 3.0f,
         )
 
-        binding.screenContentLinkRadarSwitch.setOnCheckedChangeListener { _, isChecked ->
-            lifecycleScope.launch { settingsStore.saveKey(KEY_SCREEN_CONTENT_LINK_RADAR, isChecked) }
-        }
+        saveSwitchOnChange(binding.screenContentLinkRadarSwitch, KEY_SCREEN_CONTENT_LINK_RADAR)
 
         binding.pinPoolModeRow.setOnClickListener {
             showPinPoolModeDialog()
         }
 
-        binding.pinPoolLocalRuleExtractionSwitch.setOnCheckedChangeListener { _, isChecked ->
-            lifecycleScope.launch {
-                settingsStore.saveKey(KEY_PIN_POOL_LOCAL_RULE_EXTRACTION, isChecked)
-            }
-        }
+        saveSwitchOnChange(binding.pinPoolLocalRuleExtractionSwitch, KEY_PIN_POOL_LOCAL_RULE_EXTRACTION)
 
         binding.pinPoolSaveScreenContentSwitch.setOnCheckedChangeListener { _, isChecked ->
             updatePinPoolAutoDeleteVisibility(isChecked)
@@ -578,9 +530,13 @@ class InspireSettingsActivity : AppCompatActivity() {
             showPinPoolAutoDeleteBottomSheet()
         }
 
-        binding.pinPoolAutoCopyClipboardSwitch.setOnCheckedChangeListener { _, isChecked ->
+        saveSwitchOnChange(binding.pinPoolAutoCopyClipboardSwitch, KEY_PIN_POOL_AUTO_COPY_IMAGE_TO_CLIPBOARD)
+    }
+
+    private fun saveSwitchOnChange(switch: CompoundButton, key: String) {
+        switch.setOnCheckedChangeListener { _, isChecked ->
             lifecycleScope.launch {
-                settingsStore.saveKey(KEY_PIN_POOL_AUTO_COPY_IMAGE_TO_CLIPBOARD, isChecked)
+                settingsStore.saveKey(key, isChecked)
             }
         }
     }
