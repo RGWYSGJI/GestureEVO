@@ -130,106 +130,18 @@ class SettingsActivity : AppCompatActivity() {
                 }
             }
 
-            findPreference<Preference>("preferenceConfigTrigger")?.apply {
-                setOnPreferenceClickListener {
-                    startActivity(
-                        Intent(
-                            requireActivity(),
-                            FreeTriggerSettingsActivity::class.java
-                        )
-                    )
-                    return@setOnPreferenceClickListener true
-                }
+            bindPreference("preferenceConfigTrigger", FreeTriggerSettingsActivity::class.java)
+            bindPreference("preferenceActionView", ActionViewSettingsActivity::class.java)
+            bindPreference("preferenceAppearance", AppearanceSettingsActivity::class.java)
+            bindPreference("preferenceSearch", SearchEngineSettingsActivity::class.java)
+            bindPreference("preferenceData", DataBackActivity::class.java)
+            bindPreference("preferenceExternalAction", ExternalActionSettingsActivity::class.java)
+            bindPreference("preferenceLink", LinkRuleSettingsActivity::class.java)
+            bindPreference("preferenceInspire", InspireSettingsActivity::class.java)
+            bindPreference("preferenceBackgroundStability", BackgroundStabilityActivity::class.java)
+            bindPreference("preferenceAbout") {
+                showAboutBottomSheet(requireActivity() as AppCompatActivity)
             }
-
-            findPreference<Preference>("preferenceActionView")?.apply {
-                setOnPreferenceClickListener {
-                    startActivity(
-                        Intent(
-                            requireActivity(),
-                            ActionViewSettingsActivity::class.java
-                        )
-                    )
-                    return@setOnPreferenceClickListener true
-                }
-            }
-
-            findPreference<Preference>("preferenceAppearance")?.apply {
-                setOnPreferenceClickListener {
-                    startActivity(
-                        Intent(
-                            requireActivity(),
-                            AppearanceSettingsActivity::class.java
-                        )
-                    )
-                    return@setOnPreferenceClickListener true
-                }
-            }
-
-            findPreference<Preference>("preferenceSearch")?.apply {
-                setOnPreferenceClickListener {
-                    startActivity(
-                        Intent(
-                            requireActivity(),
-                            SearchEngineSettingsActivity::class.java
-                        )
-                    )
-                    return@setOnPreferenceClickListener true
-                }
-            }
-
-            findPreference<Preference>("preferenceAbout")?.apply {
-                setOnPreferenceClickListener {
-                    showAboutBottomSheet(requireActivity() as AppCompatActivity)
-                    return@setOnPreferenceClickListener true
-                }
-            }
-
-            findPreference<Preference>("preferenceData")?.apply {
-                setOnPreferenceClickListener {
-                    startActivity(Intent(requireActivity(), DataBackActivity::class.java))
-                    return@setOnPreferenceClickListener true
-                }
-            }
-
-            findPreference<Preference>("preferenceExternalAction")?.apply {
-                setOnPreferenceClickListener {
-                    startActivity(Intent(requireActivity(), ExternalActionSettingsActivity::class.java))
-                    return@setOnPreferenceClickListener true
-                }
-            }
-
-            findPreference<Preference>("preferenceLink")?.apply {
-                setOnPreferenceClickListener {
-                    startActivity(Intent(requireActivity(), LinkRuleSettingsActivity::class.java))
-                    return@setOnPreferenceClickListener true
-                }
-            }
-
-            findPreference<Preference>("preferenceInspire")?.apply {
-                setOnPreferenceClickListener {
-                    startActivity(
-                        Intent(
-                            requireActivity(),
-                            InspireSettingsActivity::class.java
-                        )
-                    )
-                    return@setOnPreferenceClickListener true
-                }
-            }
-
-            findPreference<Preference>("preferenceBackgroundStability")?.apply {
-                setOnPreferenceClickListener {
-                    startActivity(
-                        Intent(
-                            requireActivity(),
-                            BackgroundStabilityActivity::class.java
-                        )
-                    )
-                    return@setOnPreferenceClickListener true
-                }
-            }
-
             preferenceService = findPreference<Preference>("preferenceService")?.apply {
                 updateAccessibilityServiceStatus(this)
                 setOnPreferenceClickListener {
@@ -239,6 +151,19 @@ class SettingsActivity : AppCompatActivity() {
                     startActivity(intent)
                     return@setOnPreferenceClickListener true
                 }
+            }
+        }
+
+        private fun bindPreference(key: String, action: () -> Unit) {
+            findPreference<Preference>(key)?.setOnPreferenceClickListener {
+                action()
+                true
+            }
+        }
+
+        private fun bindPreference(key: String, target: Class<*>) {
+            bindPreference(key) {
+                startActivity(Intent(requireContext(), target))
             }
         }
 
