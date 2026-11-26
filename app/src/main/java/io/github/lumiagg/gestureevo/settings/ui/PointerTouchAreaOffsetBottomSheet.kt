@@ -4,6 +4,7 @@ import android.app.Activity
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.FrameLayout
+import com.google.android.material.R as MaterialR
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.slider.LabelFormatter
@@ -15,7 +16,7 @@ import io.github.lumiagg.gestureevo.utils.DynamicColorUtils
 class PointerTouchAreaOffsetBottomSheet(
     private val activity: Activity,
     private val initialOffsetDp: Int,
-    private val onValueChanged: (Int) -> Unit
+    private val onValueChanged: (Int) -> Unit,
 ) {
     private lateinit var bottomSheetDialog: BottomSheetDialog
     private lateinit var binding: BottomSheetPointerTouchAreaOffsetBinding
@@ -36,15 +37,20 @@ class PointerTouchAreaOffsetBottomSheet(
         bottomSheetDialog.setContentView(binding.root)
         binding.titleText.setText(R.string.inspire_settings_pointer_touch_area_offset)
 
-        binding.touchAreaOffsetSlider.setLabelFormatter(
+        configureSlider()
+    }
+
+    private fun configureSlider() {
+        val slider = binding.touchAreaOffsetSlider
+        slider.setLabelFormatter(
             LabelFormatter { value ->
                 activity.getString(
                     R.string.inspire_settings_pointer_touch_area_offset_dp,
-                    value.toInt()
+                    value.toInt(),
                 )
-            }
+            },
         )
-        binding.touchAreaOffsetSlider.addOnSliderTouchListener(object : Slider.OnSliderTouchListener {
+        slider.addOnSliderTouchListener(object : Slider.OnSliderTouchListener {
             override fun onStartTrackingTouch(slider: Slider) = Unit
 
             override fun onStopTrackingTouch(slider: Slider) {
@@ -57,7 +63,7 @@ class PointerTouchAreaOffsetBottomSheet(
         bottomSheetDialog.setOnShowListener { dialog ->
             val bottomSheet =
                 (dialog as BottomSheetDialog).findViewById<View>(
-                    com.google.android.material.R.id.design_bottom_sheet
+                    MaterialR.id.design_bottom_sheet,
                 ) as FrameLayout?
 
             bottomSheet?.let { sheet ->

@@ -1,37 +1,39 @@
 package io.github.lumiagg.gestureevo
 
-import io.github.lumiagg.gestureevo.diagnostics.AppLogger
 import android.app.Application
-import android.os.Build
 import android.content.BroadcastReceiver
+import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.ComponentCallbacks2
 import android.content.res.Configuration
+import android.os.Build
+import android.util.Log
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.core.os.LocaleListCompat
 import androidx.core.content.ContextCompat
-import io.github.lumiagg.gestureevo.settings.AppearanceSettingsActivity
-import io.github.lumiagg.gestureevo.utils.DynamicColorUtils
+import androidx.core.os.LocaleListCompat
+import io.github.lumiagg.gestureevo.diagnostics.AppLogger
 import io.github.lumiagg.gestureevo.ocr.OCR_MIN_API
 import io.github.lumiagg.gestureevo.ocr.OCR_PROCESS_SUFFIX
 import io.github.lumiagg.gestureevo.ocr.ScreenOcr
+import io.github.lumiagg.gestureevo.search.SearchShortcutPublisher
+import io.github.lumiagg.gestureevo.search.SettingsShortcutSearchHelper
+import io.github.lumiagg.gestureevo.settings.AppearanceSettingsActivity
 import io.github.lumiagg.gestureevo.utils.AppCrashHandler
+import io.github.lumiagg.gestureevo.utils.DynamicColorUtils
+import io.github.lumiagg.gestureevo.utils.app.syncAppCatalogIfNeeded
+import io.github.lumiagg.gestureevo.utils.app.syncAppCatalogPackage
+import io.github.lumiagg.gestureevo.utils.icon.IconHelper
 import io.github.lumiagg.gestureevo.utils.readKey
 import io.github.lumiagg.gestureevo.utils.settingsStore
-import io.github.lumiagg.gestureevo.utils.icon.IconHelper
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.flow.first
+import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import io.github.lumiagg.gestureevo.utils.app.syncAppCatalogIfNeeded
-import io.github.lumiagg.gestureevo.utils.app.syncAppCatalogPackage
-import io.github.lumiagg.gestureevo.search.SettingsShortcutSearchHelper
-import io.github.lumiagg.gestureevo.search.SearchShortcutPublisher
+import kotlinx.coroutines.runBlocking
 
 
 class EvoApplication : Application() {
@@ -49,7 +51,7 @@ class EvoApplication : Application() {
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    android.util.Log.w("AppCatalog", "Unable to refresh package $packageName", e)
+                    Log.w("AppCatalog", "Unable to refresh package $packageName", e)
                 } finally {
                     pendingResult.finish()
                 }
@@ -59,12 +61,25 @@ class EvoApplication : Application() {
 
     fun refreshSearchCatalogs() {
         maintenanceScope.launch {
-            try { syncAppCatalogIfNeeded(applicationContext) }
-            catch (e: CancellationException) { throw e }
-            catch (e: Exception) { android.util.Log.w("Startup", "Unable to refresh app catalog", e) }
-            try { SettingsShortcutSearchHelper.syncShortcutsToDatabase(applicationContext) }
-            catch (e: CancellationException) { throw e }
-            catch (e: Exception) { android.util.Log.w("Startup", "Unable to refresh shortcuts", e) }
+            runMaintenanceStep("Unable to refresh app catalog") {
+                syncAppCatalogIfNeeded(applicationContext)
+            }
+            runMaintenanceStep("Unable to refresh shortcuts") {
+                SettingsShortcutSearchHelper.syncShortcutsToDatabase(applicationContext)
+            }
+        }
+    }
+
+    private suspend fun runMaintenanceStep(
+        failureMessage: String,
+        block: suspend () -> Unit,
+    ) {
+        try {
+            block()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w("Startup", failureMessage, e)
         }
     }
 
@@ -77,7 +92,7 @@ class EvoApplication : Application() {
         application = this
         SearchShortcutPublisher.publish(this)
         AppLogger.initialize(this)
-        maintenanceScope.launch { java.io.File(filesDir, "ocr_models").deleteRecursively() }
+        maintenanceScope.launch { File(filesDir, "ocr_models").deleteRecursively() }
         val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler(AppCrashHandler(this, previousHandler))
         val preferences = runBlocking { settingsStore.data.first() }
@@ -103,8 +118,7 @@ class EvoApplication : Application() {
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
-        if (!isOcrProcess && (level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND ||
-                    level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL)) {
+        if (!isOcrProcess && level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL) {
             ScreenOcr.trimMemory()
         }
     }

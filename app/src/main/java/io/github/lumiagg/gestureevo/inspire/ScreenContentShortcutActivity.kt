@@ -1,7 +1,7 @@
 package io.github.lumiagg.gestureevo.inspire
 
-import androidx.activity.ComponentActivity
 import android.os.Bundle
+import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import io.github.lumiagg.gestureevo.gesture.EventBusManager
 import io.github.lumiagg.gestureevo.gesture.InspireEvent
@@ -21,7 +21,7 @@ class ScreenContentShortcutActivity : ComponentActivity() {
                 InspireEvent(
                     fullscreen = true,
                     forceImageTextSelection = true,
-                )
+                ),
             )
             finish()
             overridePendingTransition(0, 0)

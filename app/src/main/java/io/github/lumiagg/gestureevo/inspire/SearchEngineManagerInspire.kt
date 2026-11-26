@@ -2,6 +2,7 @@ package io.github.lumiagg.gestureevo.inspire
 
 import androidx.lifecycle.LifecycleCoroutineScope
 import androidx.lifecycle.lifecycleScope
+import io.github.lumiagg.gestureevo.search.EngineLayoutPreference
 import io.github.lumiagg.gestureevo.search.EngineLayoutPreferences
 import io.github.lumiagg.gestureevo.search.EngineLayoutScope
 import io.github.lumiagg.gestureevo.search.QuickSearchEnginePager
@@ -38,28 +39,34 @@ class SearchEngineManagerInspire(
         )
         val showImageBadge = activity.settingsStore.readKey(
             SearchEngineSettingsActivity.KEY_SHOW_IMAGE_BADGE,
-            true
+            true,
         )
 
         enginePager.configure(
-            QuickSearchEnginePager.Config(
-                rowCount = layout.rowCount,
-                columnCount = layout.columnCount,
-                showLabel = layout.showLabel,
-                showImageBadge = showImageBadge,
-                previewSortMode = false
-            )
+            enginePagerConfig(layout, showImageBadge),
         )
         enginePager.setCallbacks(
             onEngineClick = { engine -> clickSearchEngine(engine, false) },
             onEngineLongClick = { engine -> clickSearchEngine(engine, true) },
-            onOrderChanged = {}
+            onOrderChanged = {},
         )
         enginePager.submitList(
             SearchEngineDataManager.readSearchEngineList(activity.applicationContext)
-                .filter { it.showInSearchEngineList }
+                .filter { it.showInSearchEngineList },
         )
     }
+
+    private fun enginePagerConfig(
+        layout: EngineLayoutPreference,
+        showImageBadge: Boolean,
+    ): QuickSearchEnginePager.Config =
+        QuickSearchEnginePager.Config(
+            rowCount = layout.rowCount,
+            columnCount = layout.columnCount,
+            showLabel = layout.showLabel,
+            showImageBadge = showImageBadge,
+            previewSortMode = false,
+        )
 
     private fun clickSearchEngine(engine: SearchEngine, isPress: Boolean) {
         val query = if (engine.engineType == EngineType.SHARE_IMAGE_TO_APP) "" else queryProvider()
