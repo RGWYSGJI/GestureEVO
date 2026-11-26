@@ -11,11 +11,13 @@ class PointerSelectionContinuityTest {
     private val mapping = PointerCoordinateMapping(1000, 2000, 100, 400, 500, 1000)
     private fun selection() = PointerDragSelection(20f, 10f)
 
+    private fun dragSelection(start: Point, end: Point) = selection().apply { begin(start, end) }
+
     @Test fun menuHandoffMatchesDirectDragAtTheSameFingerPositions() {
         val start = mapping.map(Point(200f, 600f))
         val end = mapping.map(Point(350f, 900f))
         val direct = selection().apply { begin(start); update(end) }
-        val throughMenu = selection().apply { begin(start, end) }
+        val throughMenu = dragSelection(start, end)
         assertEquals(direct.start, throughMenu.start)
         assertEquals(direct.end, throughMenu.end)
         assertEquals(direct.isOverSize, throughMenu.isOverSize)
@@ -37,14 +39,14 @@ class PointerSelectionContinuityTest {
         val confirmed = mapping.map(Point(300f, 900f))
         assertEquals(preview.y, confirmed.y)
         assertNotEquals(preview.x, confirmed.x)
-        val drag = selection().apply { begin(start, confirmed) }
+        val drag = dragSelection(start, confirmed)
         assertEquals(Point(400f, 1000f), drag.end)
         assertTrue(drag.isOverSize)
     }
 
     @Test fun continuingAfterMenuUsesTheOriginalScaleWithoutRebasing() {
         val start = mapping.map(Point(200f, 600f))
-        val drag = selection().apply { begin(start, mapping.map(Point(300f, 900f))) }
+        val drag = dragSelection(start, mapping.map(Point(300f, 900f)))
         val previous = drag.end
         drag.update(mapping.map(Point(310f, 920f)))
         assertEquals(20f, drag.end.x - previous.x, 0f)
@@ -55,7 +57,7 @@ class PointerSelectionContinuityTest {
     @Test fun fingerAtBottomCanStillReachBottomOfScreen() {
         val start = mapping.map(Point(200f, 1000f))
         val end = mapping.map(Point(350f, 1400f))
-        val drag = selection().apply { begin(start, end) }
+        val drag = dragSelection(start, end)
         assertEquals(2000f, drag.end.y, 0f)
         assertEquals(800f, drag.end.y - drag.start.y, 0f)
     }
@@ -66,14 +68,14 @@ class PointerSelectionContinuityTest {
     }
 
     @Test fun reversedCornersKeepTheOriginalAnchor() {
-        val drag = selection().apply { begin(Point(400f, 700f), Point(100f, 300f)) }
+        val drag = dragSelection(Point(400f, 700f), Point(100f, 300f))
         assertEquals(Point(400f, 700f), drag.start)
         assertEquals(Point(100f, 300f), drag.end)
         assertTrue(drag.isOverSize)
     }
 
     @Test fun verticalOnlyHandoffRetainsOriginalThinSelectionRules() {
-        val drag = selection().apply { begin(Point(100f, 200f), Point(100f, 500f)) }
+        val drag = dragSelection(Point(100f, 200f), Point(100f, 500f))
         assertFalse(drag.isOverSize)
         assertFalse(drag.shouldUseDragSelection(drag.end))
         drag.update(Point(150f, 500f))
@@ -81,7 +83,7 @@ class PointerSelectionContinuityTest {
     }
 
     @Test fun returnToOriginWorksAfterAnAlreadyPopulatedHandoff() {
-        val drag = selection().apply { begin(Point(100f, 200f), Point(300f, 500f)) }
+        val drag = dragSelection(Point(100f, 200f), Point(300f, 500f))
         drag.update(Point(104f, 203f))
         assertTrue(drag.isBackToOrigin)
         drag.begin(Point(600f, 700f))
