@@ -31,6 +31,4 @@
         android:layout_marginTop="8dp"
         app:settingsRowTitle="@string/shortcut_source_select_online"
         app:settingsRowSummary="@string/shortcut_source_templates_summary" />
-
-
 </LinearLayout>
