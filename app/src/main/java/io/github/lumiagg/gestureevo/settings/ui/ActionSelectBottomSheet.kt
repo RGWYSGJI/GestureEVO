@@ -68,8 +68,7 @@ internal fun showActionSelectBottomSheet(
             })
             visible.forEach { choice ->
                 count++
-                val selected = current.actionType == choice.type &&
-                    (choice.parameters?.all { (key, value) -> current.queryList.any { it.first == key && it.second == value } } ?: true)
+                val selected = choice.matches(current)
                 val row = LinearLayout(context).apply {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER_VERTICAL
@@ -82,26 +81,7 @@ internal fun showActionSelectBottomSheet(
                     setOnClickListener { dialog.dismiss(); onSelected(choice) }
                 }
                 row.addView(ImageView(context).apply {
-                    setImageResource(when (choice.type) {
-                        GestureActionType.ACC_ACTION -> when (choice.parameters?.get("accAction")) {
-                            "1" -> R.drawable.baseline_arrow_back_24
-                            "2" -> R.drawable.baseline_home_24
-                            "4" -> R.drawable.baseline_circle_notifications_24
-                            "8" -> R.drawable.icon_lock
-                            "9" -> R.drawable.baseline_screenshot_24
-                            else -> R.drawable.baseline_menu_24
-                        }
-                        GestureActionType.OPEN_APP, GestureActionType.OPEN_ACTIVITY, GestureActionType.OTHER_SHORTCUT -> R.drawable.baseline_image_24
-                        GestureActionType.SEARCH, GestureActionType.SCREEN_SEARCH -> R.drawable.search_24px
-                        GestureActionType.SCREEN_CONTENT, GestureActionType.SCREEN_CONTENT_FULLSCREEN -> R.drawable.ic_screen_content_fullscreen_text_24
-                        GestureActionType.KEYBOARD -> R.drawable.baseline_keyboard_24
-                        GestureActionType.PIN_POOL -> R.drawable.baseline_push_pin_24
-                        GestureActionType.TOUCHPAD -> R.drawable.baseline_keyboard_24
-                        GestureActionType.OTHER_LINK -> R.drawable.ic_baseline_insert_link_24
-                        GestureActionType.CLIPBOARD_ACTION -> R.drawable.ic_baseline_content_copy_24
-                        GestureActionType.SHOW_ACTION_VIEW -> R.drawable.baseline_menu_24
-                        else -> R.drawable.baseline_gesture_24
-                    })
+                    setImageResource(choice.iconRes())
                     imageTintList = ColorStateList.valueOf(DynamicColorUtils.primaryColor)
                     importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                 }, LinearLayout.LayoutParams(dp(24), dp(24)).apply { marginEnd = dp(16) })
@@ -143,6 +123,39 @@ internal fun showActionSelectBottomSheet(
 }
 
 private fun dp(value: Int): Int = (value.toFloat().dp2px).toInt()
+
+private fun ActionChoice.matches(current: GestureActionLink): Boolean {
+    if (current.actionType != type) return false
+    val required = parameters ?: return true
+    return required.all { (key, value) ->
+        current.queryList.any { it.first == key && it.second == value }
+    }
+}
+
+private fun ActionChoice.iconRes(): Int = when (type) {
+    GestureActionType.ACC_ACTION -> when (parameters?.get("accAction")) {
+        "1" -> R.drawable.baseline_arrow_back_24
+        "2" -> R.drawable.baseline_home_24
+        "4" -> R.drawable.baseline_circle_notifications_24
+        "8" -> R.drawable.icon_lock
+        "9" -> R.drawable.baseline_screenshot_24
+        else -> R.drawable.baseline_menu_24
+    }
+    GestureActionType.OPEN_APP,
+    GestureActionType.OPEN_ACTIVITY,
+    GestureActionType.OTHER_SHORTCUT -> R.drawable.baseline_image_24
+    GestureActionType.SEARCH,
+    GestureActionType.SCREEN_SEARCH -> R.drawable.search_24px
+    GestureActionType.SCREEN_CONTENT,
+    GestureActionType.SCREEN_CONTENT_FULLSCREEN -> R.drawable.ic_screen_content_fullscreen_text_24
+    GestureActionType.KEYBOARD,
+    GestureActionType.TOUCHPAD -> R.drawable.baseline_keyboard_24
+    GestureActionType.PIN_POOL -> R.drawable.baseline_push_pin_24
+    GestureActionType.OTHER_LINK -> R.drawable.ic_baseline_insert_link_24
+    GestureActionType.CLIPBOARD_ACTION -> R.drawable.ic_baseline_content_copy_24
+    GestureActionType.SHOW_ACTION_VIEW -> R.drawable.baseline_menu_24
+    else -> R.drawable.baseline_gesture_24
+}
 
 /** SDK and entry-point restrictions are applied before search, so hidden actions cannot leak into results. */
 internal fun actionCategories(
