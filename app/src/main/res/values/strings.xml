@@ -1087,7 +1087,7 @@
     <string name="link_open_action_delete">删除</string>
     <string name="default_trigger_name">默认触发器</string>
     <string name="default_action_tag_name">默认</string>
-    <string name="root_shizuku_permission_failed">Shizuku 权限获取失败</string>
+    <string name="shizuku_permission_failed">Shizuku 权限获取失败</string>
     <string name="shizuku_call_failed">Shizuku 调用失败</string>
     <string name="shizuku_request_permission">请求 Shizuku 权限</string>
     <string name="share_open_app_failed">应用启动失败</string>

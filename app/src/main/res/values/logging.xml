@@ -33,8 +33,8 @@
     <string name="log_capture_running">正在采集，请复现问题 · 已记录 %1$d 条相关事件</string>
     <string name="log_capture_complete">采集完成 · %1$d 条相关事件；未匹配到事件不能证明启动成功</string>
     <string name="log_capture_stopped">采集已停止 · %1$d 条相关事件</string>
-    <string name="log_capture_unavailable">采集不可用或已中断 · %1$d 条事件。请检查 Root/Shizuku 授权及系统日志访问能力。</string>
-    <string-array name="log_modules"><item>应用</item><item>动作</item><item>服务</item><item>浮层</item><item>Shizuku / Root</item><item>备份恢复</item><item>OCR</item><item>系统</item></string-array>
+    <string name="log_capture_unavailable">采集不可用或已中断 · %1$d 条事件。请检查 Shizuku 授权及系统日志访问能力。</string>
+    <string-array name="log_modules"><item>应用</item><item>动作</item><item>服务</item><item>浮层</item><item>Shizuku</item><item>备份恢复</item><item>OCR</item><item>系统</item></string-array>
     <string-array name="log_time_ranges"><item>全部时间</item><item>最近 1 小时</item><item>最近 24 小时</item></string-array>
 
     <string name="log_health">本进程：排队 %1$d · 丢弃 %2$d · 写入失败 %3$d\n最近异常：%4$s</string>

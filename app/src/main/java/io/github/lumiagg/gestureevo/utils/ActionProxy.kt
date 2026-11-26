@@ -462,7 +462,7 @@ class ActionProxy(private val context: Context, linkString: String) {
         if (!AShell.doCmd(context, shell.removePrefix("adb ").removePrefix("shell ")).first) {
             ToastHelper.showInUIThread(
                 context,
-                context.getString(R.string.root_shizuku_permission_failed)
+                context.getString(R.string.shizuku_permission_failed)
             )
         }
     }
