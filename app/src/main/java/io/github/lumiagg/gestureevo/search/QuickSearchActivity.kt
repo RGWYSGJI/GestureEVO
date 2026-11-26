@@ -916,11 +916,7 @@ class QuickSearchActivity : AppCompatActivity() {
                 val clipboardImage = ClipboardUtils.getImage(applicationContext)
                 if (clipboardImage != null) {
                     lifecycleScope.launch(uiDispatcher) {
-                        addAttachedImages(listOf(clipboardImage))
-                        ToastHelper.showInUIThread(applicationContext, R.string.quick_search_image_added)
-                        if (::resultManager.isInitialized) {
-                            resultManager.updateSearchResults(binding.searchInput.text?.toString().orEmpty())
-                        }
+                        addImagesAndRefresh(listOf(clipboardImage))
                     }
                     val clipboardText = ClipboardUtils.getText(applicationContext)
                     if (clipboardText.isNotEmpty()) {
