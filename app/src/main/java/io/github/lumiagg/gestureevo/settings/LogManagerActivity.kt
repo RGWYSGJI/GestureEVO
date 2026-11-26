@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
@@ -33,8 +34,18 @@ import io.github.lumiagg.gestureevo.databinding.LogManagerHeaderBinding
 import io.github.lumiagg.gestureevo.databinding.LogManagerFooterBinding
 import io.github.lumiagg.gestureevo.databinding.LogRecordItemBinding
 import io.github.lumiagg.gestureevo.databinding.LogSettingsSheetBinding
-import io.github.lumiagg.gestureevo.diagnostics.*
-import kotlinx.coroutines.*
+import io.github.lumiagg.gestureevo.diagnostics.AppLogger
+import io.github.lumiagg.gestureevo.diagnostics.LogArchive
+import io.github.lumiagg.gestureevo.diagnostics.LogRecord
+import io.github.lumiagg.gestureevo.diagnostics.ProblemSession
+import io.github.lumiagg.gestureevo.diagnostics.ProblemSessions
+import io.github.lumiagg.gestureevo.diagnostics.SystemLogCapture
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runInterruptible
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.text.DateFormat
 import java.util.Date
@@ -63,29 +74,18 @@ class LogManagerActivity : AppCompatActivity() {
         pendingArchive = null
         if (uri != null && file != null) lifecycleScope.launch {
             try {
-                withContext(Dispatchers.IO) {
-                    file.inputStream().use { input -> requireNotNull(contentResolver.openOutputStream(uri)).use { input.copyTo(it) } }
-                }
+                withContext(Dispatchers.IO) { copyArchive(uri, file) }
                 toast(R.string.log_saved)
-            } catch (e: Exception) { showFailure(e) }
+            } catch (e: Exception) {
+                showFailure(e)
+            }
         }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        binding = ActivityLogManagerBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-        binding.logList.layoutManager = LinearLayoutManager(this)
-        header = LogManagerHeaderBinding.inflate(layoutInflater, binding.logList, false)
-        footer = LogManagerFooterBinding.inflate(layoutInflater, binding.logList, false)
-        levelIndex = savedInstanceState?.getInt("level") ?: 0
-        moduleIndex = savedInstanceState?.getInt("module") ?: 0
-        timeIndex = savedInstanceState?.getInt("time") ?: 0
-        pendingArchive = savedInstanceState?.getString("archive")?.let(::File)
-        selectedSession = ProblemSessions.history.value.firstOrNull { it.id == savedInstanceState?.getString("session") }
+
+    private fun setupToolbar() {
         binding.toolbar.setNavigationIcon(androidx.appcompat.R.drawable.abc_ic_ab_back_material)
         binding.toolbar.setNavigationOnClickListener { onBackPressedDispatcher.onBackPressed() }
-        binding.logList.adapter = ConcatAdapter(FixedViewAdapter(header.root), adapter, FixedViewAdapter(footer.root))
         binding.toolbar.menu.add(0, MENU_EXPORT, 0, R.string.log_export).apply {
             setIcon(R.drawable.ic_baseline_share_24)
             icon?.setTint(MaterialColors.getColor(binding.toolbar, com.google.android.material.R.attr.colorOnSurface))
@@ -104,6 +104,27 @@ class LogManagerActivity : AppCompatActivity() {
             }
             true
         }
+    }
+
+    private fun copyArchive(uri: Uri, file: File) {
+        val output = requireNotNull(contentResolver.openOutputStream(uri))
+        file.inputStream().use { input -> output.use { input.copyTo(it) } }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityLogManagerBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        binding.logList.layoutManager = LinearLayoutManager(this)
+        header = LogManagerHeaderBinding.inflate(layoutInflater, binding.logList, false)
+        footer = LogManagerFooterBinding.inflate(layoutInflater, binding.logList, false)
+        levelIndex = savedInstanceState?.getInt("level") ?: 0
+        moduleIndex = savedInstanceState?.getInt("module") ?: 0
+        timeIndex = savedInstanceState?.getInt("time") ?: 0
+        pendingArchive = savedInstanceState?.getString("archive")?.let(::File)
+        selectedSession = ProblemSessions.history.value.firstOrNull { it.id == savedInstanceState?.getString("session") }
+        setupToolbar()
+        binding.logList.adapter = ConcatAdapter(FixedViewAdapter(header.root), adapter, FixedViewAdapter(footer.root))
         header.loggingStatus.setOnClickListener { showSettings() }
         header.healthEntry.setOnClickListener { showStatus() }
         syncToggles()
