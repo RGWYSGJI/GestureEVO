@@ -357,7 +357,7 @@ class GestureMainFloating(private val context: GestureService) :
         if (triggerConfig.quadrantValue == 0) {
             relayoutActionViewQuadrant(x, y)
         } else {
-            relayoutActionViewQuadrantByTrigger(triggerConfig, x, y, isMirror)
+            relayoutActionViewQuadrantByTrigger(triggerConfig, x, y, isMirror = isMirror)
         }
     }
 

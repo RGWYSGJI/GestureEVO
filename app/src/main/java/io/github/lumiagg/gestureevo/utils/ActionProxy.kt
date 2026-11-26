@@ -296,7 +296,7 @@ class ActionProxy(private val context: Context, linkString: String) {
         )
     }
 
-    private fun pauseGesture(sourceTriggerTag: String?) {
+    private suspend fun pauseGesture(sourceTriggerTag: String?) {
         val seconds = link.getQueryParameter("seconds")?.toIntOrNull()
             ?.coerceIn(1, GestureManager.MAX_PAUSE_GESTURE_SECONDS)
             ?: GestureManager.DEFAULT_PAUSE_GESTURE_SECONDS

@@ -709,7 +709,7 @@ internal class ExternalDropFloating(
         actionPreview.hide()
     }
 
-    private fun previewIcon(action: Action, pageDirection: Int): Int = when (action) {
+    private fun previewIcon(action: Action?, pageDirection: Int): Int = when (action) {
         Action.POOL -> R.drawable.pinboard_24px
         Action.PIN -> R.drawable.baseline_push_pin_24
         Action.TOKENIZE -> R.drawable.outline_center_focus_weak_24
