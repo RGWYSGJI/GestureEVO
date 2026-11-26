@@ -15,9 +15,21 @@ import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.resumeWithException
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeout
 import rikka.shizuku.Shizuku
 
 data class CaptureStatus(
@@ -34,8 +46,12 @@ object SystemLogCapture {
     private val mutableStatus = MutableStateFlow(CaptureStatus())
     val status = mutableStatus.asStateFlow()
     private var job: Job? = null
-    @Volatile private var activeToken: String? = null
+
+    @Volatile
+    private var activeToken: String? = null
+
     private val targets = RecentTargets()
+    private val terminalReasons = setOf("output_limit", "stream_closed", "command_failed")
     private fun newExecutor(name: String): ThreadPoolExecutor =
         ThreadPoolExecutor(2, 2, 0, TimeUnit.MILLISECONDS, ArrayBlockingQueue(2)) { runnable ->
             Thread(runnable, name).apply { isDaemon = true }
@@ -94,7 +110,7 @@ object SystemLogCapture {
             val startWall = System.currentTimeMillis()
             var expired = false
             val deadline = launch {
-                delay(60_000)
+                delay(CAPTURE_DURATION_MS)
                 expired = true
                 owner.cancel()
             }
@@ -104,9 +120,9 @@ object SystemLogCapture {
                 if (!shizukuAvailable()) {
                     result = "permission_missing"
                 } else {
-                    service = withTimeout(5000) { ShizukuServiceHelper.awaitService() }
+                    service = withTimeout(SERVICE_TIMEOUT_MS) { ShizukuServiceHelper.awaitService() }
                     val connected = requireNotNull(service)
-                    val descriptor = withTimeout(5000) {
+                    val descriptor = withTimeout(SERVICE_TIMEOUT_MS) {
                         awaitWorker(binder, late = { fd: ParcelFileDescriptor ->
                             runCatching { fd.close() }
                             closeRemote(connected, token)
@@ -122,7 +138,9 @@ object SystemLogCapture {
                             if (!owner.isActive) false
                             else if (line.startsWith("GEVO_END ")) {
                                 val parts = line.split(' ')
-                                terminalReason = parts.getOrNull(1)?.takeIf { it in setOf("output_limit", "stream_closed", "command_failed") } ?: "stream_closed"
+                                terminalReason = parts.getOrNull(1)
+                                    ?.takeIf { it in terminalReasons }
+                                    ?: "stream_closed"
                                 terminalCode = parts.getOrNull(2)?.toIntOrNull()
                                 false
                             } else {
@@ -136,7 +154,12 @@ object SystemLogCapture {
                                         if (activeToken == token) mutableStatus.value = CaptureStatus(true, "running", count.get(), discardedLines = discarded.get())
                                     }
                                 }
-                                if (count.get() >= 1000) { terminalReason = "event_limit"; false } else true
+                                if (count.get() >= MAX_EVENTS) {
+                                    terminalReason = "event_limit"
+                                    false
+                                } else {
+                                    true
+                                }
                             }
                         }
                         terminalReason to terminalCode
@@ -169,11 +192,18 @@ object SystemLogCapture {
         captureJob.start()
     }
 
-    fun stop() { job?.cancel() }
-    suspend fun stopAndJoin() { job?.cancelAndJoin() }
+    fun stop() {
+        job?.cancel()
+    }
+
+    suspend fun stopAndJoin() {
+        job?.cancelAndJoin()
+    }
 
     internal fun classify(line: String, packages: List<String>): Map<String, Any?>? {
-        val pkg = packages.firstOrNull { Regex("(?<![A-Za-z0-9_.])${Regex.escape(it)}(?![A-Za-z0-9_.])").containsMatchIn(line) } ?: return null
+        val pkg = packages.firstOrNull {
+            Regex("(?<![A-Za-z0-9_.])${Regex.escape(it)}(?![A-Za-z0-9_.])").containsMatchIn(line)
+        } ?: return null
         val message = line.substringBefore("Intent {").substringBefore("intent {")
         val reason = when {
             message.contains("Background activity start [", true) ||
@@ -185,4 +215,8 @@ object SystemLogCapture {
         }
         return mapOf("package" to pkg, "reason" to reason, "source" to "logcat")
     }
+
+    private const val CAPTURE_DURATION_MS = 60_000L
+    private const val SERVICE_TIMEOUT_MS = 5_000L
+    private const val MAX_EVENTS = 1_000
 }

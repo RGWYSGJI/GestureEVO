@@ -1,9 +1,10 @@
 package io.github.lumiagg.gestureevo.diagnostics
 
+import io.github.lumiagg.gestureevo.utils.process.ProcessOutputLines
+import io.github.lumiagg.gestureevo.utils.process.ProcessStreamRelay
 import java.io.Closeable
 import java.io.InputStream
 import java.io.OutputStream
-import io.github.lumiagg.gestureevo.utils.process.ProcessStreamRelay
 
 /** Bounded log transport. Diagnostic framing and logcat policy stay in this module. */
 class DiagnosticRelay(
@@ -25,13 +26,24 @@ class DiagnosticRelay(
     override fun close() = transport.close()
 
     companion object {
-        val arguments = listOf("/system/bin/logcat", "-v", "epoch", "-T", "1",
-            "ActivityTaskManager:I", "ActivityManager:I", "VivoPermissionManager:I", "VivoFirewall:I", "*:S")
-
+        val arguments = listOf(
+            "/system/bin/logcat",
+            "-v", "epoch",
+            "-T", "1",
+            "ActivityTaskManager:I",
+            "ActivityManager:I",
+            "VivoPermissionManager:I",
+            "VivoFirewall:I",
+            "*:S",
+        )
     }
 }
 
 object DiagnosticLines {
-    fun read(input: InputStream, maxLength: Int = 8192, onDiscard: () -> Unit = {}, onLine: (String) -> Boolean) =
-        io.github.lumiagg.gestureevo.utils.process.ProcessOutputLines.read(input, maxLength, onDiscard, onLine)
+    fun read(
+        input: InputStream,
+        maxLength: Int = 8192,
+        onDiscard: () -> Unit = {},
+        onLine: (String) -> Boolean,
+    ) = ProcessOutputLines.read(input, maxLength, onDiscard, onLine)
 }
