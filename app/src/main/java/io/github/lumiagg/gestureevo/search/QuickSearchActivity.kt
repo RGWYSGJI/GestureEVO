@@ -991,22 +991,23 @@ class QuickSearchActivity : AppCompatActivity() {
         }.getOrNull()
     }
 
+    private fun isCacheFileUri(uri: Uri): Boolean =
+        uri.authority == "${packageName}.fileprovider"
+
+    private fun cacheFileName(uri: Uri): String? =
+        uri.takeIf(::isCacheFileUri)?.lastPathSegment
+
     private fun deleteCachedImage(uri: Uri) {
-        if (uri.authority != "${packageName}.fileprovider") return
-        val name = uri.lastPathSegment ?: return
+        val name = cacheFileName(uri) ?: return
         runCatching { File(File(cacheDir, "images"), name).delete() }
     }
 
     private fun pruneImageCache() {
         val imageDir = File(cacheDir, "images")
         val files = imageDir.listFiles()?.filter { it.isFile } ?: return
-        val protectedNames = attachedImageUris.mapNotNull { uri ->
-            if (uri.authority == "${packageName}.fileprovider") uri.lastPathSegment else null
-        }.toMutableSet()
+        val protectedNames = attachedImageUris.mapNotNull(::cacheFileName).toMutableSet()
         pendingCameraImageUri?.let { pending ->
-            if (pending.authority == "${packageName}.fileprovider") {
-                pending.lastPathSegment?.let(protectedNames::add)
-            }
+            cacheFileName(pending)?.let(protectedNames::add)
         }
         var total = files.sumOf { it.length() }
         if (total <= MAX_IMAGE_CACHE_BYTES) return
@@ -1019,7 +1020,7 @@ class QuickSearchActivity : AppCompatActivity() {
     }
 
     private fun persistImageUri(uri: Uri, index: Int): Uri? {
-        if (uri.authority == "${packageName}.fileprovider") {
+        if (isCacheFileUri(uri)) {
             return uri
         }
         // Copy first: the temporary grant from the picker is enough. Taking a
