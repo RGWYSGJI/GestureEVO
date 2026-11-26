@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.View
+import android.widget.CompoundButton
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -105,29 +106,9 @@ class SearchEngineSettingsActivity : AppCompatActivity() {
     private fun setupDisplayControls() = lifecycleScope.launch {
         binding.previewSortCard.setOnClickListener { openPreviewSortMode() }
 
-        binding.searchBottomLayoutSwitch.isChecked =
-            settingsStore.readKey(KEY_BOTTOM_INPUT_LAYOUT, false)
-        binding.searchBottomLayoutSwitch.setOnCheckedChangeListener { _, isChecked ->
-            lifecycleScope.launch {
-                settingsStore.saveKey(KEY_BOTTOM_INPUT_LAYOUT, isChecked)
-            }
-        }
-
-        binding.resultDoubleColumnSwitch.isChecked =
-            settingsStore.readKey(KEY_RESULT_DOUBLE_COLUMN, false)
-        binding.resultDoubleColumnSwitch.setOnCheckedChangeListener { _, isChecked ->
-            lifecycleScope.launch {
-                settingsStore.saveKey(KEY_RESULT_DOUBLE_COLUMN, isChecked)
-            }
-        }
-
-        binding.keyboardFollowAnimationSwitch.isChecked =
-            settingsStore.readKey(KEY_KEYBOARD_FOLLOW_ANIMATION, false)
-        binding.keyboardFollowAnimationSwitch.setOnCheckedChangeListener { _, isChecked ->
-            lifecycleScope.launch {
-                settingsStore.saveKey(KEY_KEYBOARD_FOLLOW_ANIMATION, isChecked)
-            }
-        }
+        bindBooleanSwitch(binding.searchBottomLayoutSwitch, KEY_BOTTOM_INPUT_LAYOUT, false)
+        bindBooleanSwitch(binding.resultDoubleColumnSwitch, KEY_RESULT_DOUBLE_COLUMN, false)
+        bindBooleanSwitch(binding.keyboardFollowAnimationSwitch, KEY_KEYBOARD_FOLLOW_ANIMATION, false)
 
         showImageBadge = settingsStore.readKey(KEY_SHOW_IMAGE_BADGE, true)
         binding.imageEngineBadgeSwitch.isChecked = showImageBadge
@@ -222,21 +203,8 @@ class SearchEngineSettingsActivity : AppCompatActivity() {
     }
 
     private fun setupFunctionControls() = lifecycleScope.launch {
-        binding.searchClipboardContentSwitch.isChecked =
-            settingsStore.readKey(KEY_SHOW_CLIPBOARD_CONTENT, true)
-        binding.searchClipboardContentSwitch.setOnCheckedChangeListener { _, isChecked ->
-            lifecycleScope.launch {
-                settingsStore.saveKey(KEY_SHOW_CLIPBOARD_CONTENT, isChecked)
-            }
-        }
-
-        binding.searchHistorySwitch.isChecked =
-            settingsStore.readKey(KEY_SEARCH_HISTORY, true)
-        binding.searchHistorySwitch.setOnCheckedChangeListener { _, isChecked ->
-            lifecycleScope.launch {
-                settingsStore.saveKey(KEY_SEARCH_HISTORY, isChecked)
-            }
-        }
+        bindBooleanSwitch(binding.searchClipboardContentSwitch, KEY_SHOW_CLIPBOARD_CONTENT, true)
+        bindBooleanSwitch(binding.searchHistorySwitch, KEY_SEARCH_HISTORY, true)
 
         binding.searchContactSwitch.isChecked = (settingsStore.readKey(KEY_SEARCH_CONTACT, false) &&
                 ContactSearchHelper.hasContactPermission(applicationContext))
@@ -269,27 +237,20 @@ class SearchEngineSettingsActivity : AppCompatActivity() {
             }
         }
 
-        binding.searchSettingsShortcutsSwitch.isChecked =
-            settingsStore.readKey(KEY_SEARCH_SETTINGS_SHORTCUTS, false)
-        binding.searchSettingsShortcutsSwitch.setOnCheckedChangeListener { _, isChecked ->
-            lifecycleScope.launch {
-                settingsStore.saveKey(KEY_SEARCH_SETTINGS_SHORTCUTS, isChecked)
-            }
-        }
+        bindBooleanSwitch(binding.searchSettingsShortcutsSwitch, KEY_SEARCH_SETTINGS_SHORTCUTS, false)
+        bindBooleanSwitch(binding.searchEnterFirstResultSwitch, KEY_ENTER_FIRST_RESULT, false)
+        bindBooleanSwitch(binding.searchKeepLastResultSwitch, KEY_KEEP_LAST_SEARCH_RESULT, true)
+    }
 
-        binding.searchEnterFirstResultSwitch.isChecked =
-            settingsStore.readKey(KEY_ENTER_FIRST_RESULT, false)
-        binding.searchEnterFirstResultSwitch.setOnCheckedChangeListener { _, isChecked ->
+    private suspend fun bindBooleanSwitch(
+        switch: CompoundButton,
+        key: String,
+        defaultValue: Boolean,
+    ) {
+        switch.isChecked = settingsStore.readKey(key, defaultValue)
+        switch.setOnCheckedChangeListener { _, isChecked ->
             lifecycleScope.launch {
-                settingsStore.saveKey(KEY_ENTER_FIRST_RESULT, isChecked)
-            }
-        }
-
-        binding.searchKeepLastResultSwitch.isChecked =
-            settingsStore.readKey(KEY_KEEP_LAST_SEARCH_RESULT, true)
-        binding.searchKeepLastResultSwitch.setOnCheckedChangeListener { _, isChecked ->
-            lifecycleScope.launch {
-                settingsStore.saveKey(KEY_KEEP_LAST_SEARCH_RESULT, isChecked)
+                settingsStore.saveKey(key, isChecked)
             }
         }
     }
@@ -312,7 +273,6 @@ class SearchEngineSettingsActivity : AppCompatActivity() {
         binding.tvColumnCount.text = getString(R.string.display_integer, engineColumnCount)
 
         // Update button enabled states
-        binding.btnDecreaseRows.isEnabled = engineRowCount > MIN_ROW_COUNT
         binding.btnDecreaseRows.isEnabled = engineRowCount > MIN_ROW_COUNT
         binding.btnIncreaseRows.isEnabled = engineRowCount < MAX_ROW_COUNT
         binding.btnDecreaseColumns.isEnabled = engineColumnCount > MIN_COLUMN_COUNT
