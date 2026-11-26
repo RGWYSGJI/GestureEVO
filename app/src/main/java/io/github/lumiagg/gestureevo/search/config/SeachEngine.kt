@@ -15,7 +15,6 @@ enum class EngineType {
     SHARE_IMAGE_TO_APP,
     JUMP_TO_ACTIVITY,
     EXTERN_JUMP_LINK,
-
 }
 
 enum class SearchContentMode {
@@ -96,21 +95,12 @@ class SearchEngine {
     }
 
     private fun toExportPayload(): ExportPayload {
-        val normalizedIconType = when {
-            !targetPackage.isNullOrBlank() -> IconType.OTHER
-            iconType == IconType.URI -> IconType.TEXT
-            else -> iconType
-        }
-        val normalizedTextIcon = when {
-            normalizedIconType == IconType.TEXT && !textIcon.isNullOrBlank() -> textIcon
-            normalizedIconType == IconType.TEXT -> name?.trim()?.firstOrNull()?.toString() ?: ""
-            else -> textIcon
-        }
+        val exportIconType = normalizedExportIconType()
         return ExportPayload(
             name = name,
             engineType = engineType,
-            iconType = normalizedIconType,
-            textIcon = normalizedTextIcon,
+            iconType = exportIconType,
+            textIcon = normalizedExportTextIcon(exportIconType),
             searchLink = searchLink,
             externJumpLink = externJumpLink,
             externJumpPackage = externJumpPackage,
@@ -121,8 +111,20 @@ class SearchEngine {
             imageShareEnabled = imageShareEnabled,
             imageTargetPackage = imageTargetPackage,
             imageTargetActivity = imageTargetActivity,
-            mixedContentMode = mixedContentMode
+            mixedContentMode = mixedContentMode,
         )
+    }
+
+    private fun normalizedExportIconType(): IconType = when {
+        !targetPackage.isNullOrBlank() -> IconType.OTHER
+        iconType == IconType.URI -> IconType.TEXT
+        else -> iconType
+    }
+
+    private fun normalizedExportTextIcon(iconType: IconType): String? = when {
+        iconType == IconType.TEXT && !textIcon.isNullOrBlank() -> textIcon
+        iconType == IconType.TEXT -> name?.trim()?.firstOrNull()?.toString() ?: ""
+        else -> textIcon
     }
 
     @JsonClass(generateAdapter = true)
@@ -141,7 +143,7 @@ class SearchEngine {
         val imageShareEnabled: Boolean = false,
         val imageTargetPackage: String? = null,
         val imageTargetActivity: String? = null,
-        val mixedContentMode: SearchContentMode = SearchContentMode.TEXT
+        val mixedContentMode: SearchContentMode = SearchContentMode.TEXT,
     )
 }
 

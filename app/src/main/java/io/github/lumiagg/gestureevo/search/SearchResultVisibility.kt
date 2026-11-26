@@ -26,26 +26,18 @@ internal fun SearchResult.hiddenRecord(context: Context): HiddenSearchResultMode
 
 internal fun filterHiddenResults(
     results: List<SearchResult>,
-    hiddenKeys: Set<String>
+    hiddenKeys: Set<String>,
 ): List<SearchResult> {
     if (hiddenKeys.isEmpty()) return results
-    var filtered: ArrayList<SearchResult>? = null
-    results.forEachIndexed { index, result ->
-        if (result.pinKey() in hiddenKeys) {
-            if (filtered == null) {
-                filtered = ArrayList<SearchResult>(results.size).apply {
-                    addAll(results.subList(0, index))
-                }
-            }
-        } else {
-            filtered?.add(result)
-        }
+
+    val visible = results.filterNot { it.pinKey() in hiddenKeys }
+    if (visible.size == results.size) return results
+
+    val filtered = visible.toMutableList()
+    if (filtered.none { it is SearchResult.HistoryResult }) {
+        filtered.removeAll { it is SearchResult.ClearHistoryAction }
     }
-    val visible = filtered ?: return results
-    if (visible.none { it is SearchResult.HistoryResult }) {
-        visible.removeAll { it is SearchResult.ClearHistoryAction }
-    }
-    return visible
+    return filtered
 }
 
 internal fun HiddenSearchResultModel.typeLabelRes(): Int = when (resultKey.substringBefore(':')) {
