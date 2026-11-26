@@ -394,45 +394,31 @@ class SearchResultManager(
     }
 
     private fun bindSmsResult(itemView: View, model: SearchResult.SmsResult) {
-        val itemBinding = SearchResultItemBinding.bind(itemView)
-        itemBinding.resultText.text = model.body
-        applyResultTextStyle(itemBinding.resultText, isUrl = false)
-        bindBuiltInResultIcon(itemBinding.icon, R.drawable.ic_sms_24)
+        bindBuiltInTextResult(itemView, model.body, R.drawable.ic_sms_24)
     }
 
     private fun bindHistoryResult(itemView: View, model: SearchResult.HistoryResult) {
-        val itemBinding = SearchResultItemBinding.bind(itemView)
-        itemBinding.resultText.text = model.text
-        applyResultTextStyle(itemBinding.resultText, isUrl = false)
-        bindBuiltInResultIcon(itemBinding.icon, R.drawable.history_24px)
+        bindBuiltInTextResult(itemView, model.text, R.drawable.history_24px)
     }
 
     private fun bindClearHistoryAction(itemView: View) {
-        val itemBinding = SearchResultItemBinding.bind(itemView)
-        itemBinding.resultText.text = activity.getString(R.string.quick_search_clear_all_history)
-        applyResultTextStyle(itemBinding.resultText, isUrl = false)
-        bindBuiltInResultIcon(itemBinding.icon, R.drawable.clear_all_24px)
+        bindBuiltInTextResult(
+            itemView,
+            activity.getString(R.string.quick_search_clear_all_history),
+            R.drawable.clear_all_24px,
+        )
     }
 
     private fun bindUrlResult(itemView: View, model: SearchResult.UrlResult) {
-        val itemBinding = SearchResultItemBinding.bind(itemView)
-        itemBinding.resultText.text = model.url
-        applyResultTextStyle(itemBinding.resultText, isUrl = true)
-        bindBuiltInResultIcon(itemBinding.icon, R.drawable.link_20px)
+        bindBuiltInTextResult(itemView, model.url, R.drawable.link_20px, isUrl = true)
     }
 
     private fun bindPhoneResult(itemView: View, model: SearchResult.PhoneResult) {
-        val itemBinding = SearchResultItemBinding.bind(itemView)
-        itemBinding.resultText.text = model.phone
-        applyResultTextStyle(itemBinding.resultText, isUrl = false)
-        bindBuiltInResultIcon(itemBinding.icon, R.drawable.call_20px)
+        bindBuiltInTextResult(itemView, model.phone, R.drawable.call_20px)
     }
 
     private fun bindPasteResult(itemView: View, model: SearchResult.PasteResult) {
-        val itemBinding = SearchResultItemBinding.bind(itemView)
-        itemBinding.resultText.text = model.text
-        applyResultTextStyle(itemBinding.resultText, isUrl = false)
-        bindBuiltInResultIcon(itemBinding.icon, R.drawable.content_paste_go_20px)
+        bindBuiltInTextResult(itemView, model.text, R.drawable.content_paste_go_20px)
     }
 
     private fun bindPasteImageResult(itemView: View, model: SearchResult.PasteImageResult) {
@@ -502,17 +488,31 @@ class SearchResultManager(
         itemView: View,
         model: SearchResult.GestureActionResult
     ) {
-        val itemBinding = SearchResultItemBinding.bind(itemView)
-        itemBinding.resultText.text = model.actionType.showName(activity)
-        applyResultTextStyle(itemBinding.resultText, isUrl = false)
-        bindBuiltInResultIcon(itemBinding.icon, actionIconRes(model.actionType))
+        bindBuiltInTextResult(
+            itemView,
+            model.actionType.showName(activity),
+            actionIconRes(model.actionType),
+        )
     }
 
     private fun bindAppSettingsResult(itemView: View) {
+        bindBuiltInTextResult(
+            itemView,
+            activity.getString(R.string.quick_search_app_settings),
+            R.drawable.baseline_settings_24,
+        )
+    }
+
+    private fun bindBuiltInTextResult(
+        itemView: View,
+        text: CharSequence,
+        iconResId: Int,
+        isUrl: Boolean = false,
+    ) {
         val itemBinding = SearchResultItemBinding.bind(itemView)
-        itemBinding.resultText.text = activity.getString(R.string.quick_search_app_settings)
-        applyResultTextStyle(itemBinding.resultText, isUrl = false)
-        bindBuiltInResultIcon(itemBinding.icon, R.drawable.baseline_settings_24)
+        itemBinding.resultText.text = text
+        applyResultTextStyle(itemBinding.resultText, isUrl = isUrl)
+        bindBuiltInResultIcon(itemBinding.icon, iconResId)
     }
 
     private fun bindBuiltInResultIcon(icon: RoundImageTextView, resId: Int) {
