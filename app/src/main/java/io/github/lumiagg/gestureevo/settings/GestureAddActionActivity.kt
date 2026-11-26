@@ -207,10 +207,7 @@ class GestureAddActionActivity : AppCompatActivity() {
                 parseValidLink(it.toString())?.let { link ->
                     configBinding.getButtonsState().enable = false
                     configBinding.getActionLink().parseLink(link.buildLink())
-                    configBinding.actionFreeform.isChecked = link.isFreeform
-                    configBinding.actionNewWindow.isChecked = link.isNewWindow
-                    configBinding.actionDualOpen.isChecked = link.isDualOpen
-                    configBinding.actionTimeout.isChecked = link.isTimeout
+                    applyLinkFlags(configBinding, link)
                     configBinding.getButtonsState().enable = true
                 }
             }
@@ -294,16 +291,23 @@ class GestureAddActionActivity : AppCompatActivity() {
         if (configBinding == binding.shortAction) actionItem.firstStageLink = link
         else actionItem.secondStageLink = link
         configBinding.actionSelect.text = actionLink.actionType.showName(this)
-        configBinding.actionFreeform.isChecked = actionLink.isFreeform
-        configBinding.actionNewWindow.isChecked = actionLink.isNewWindow
-        configBinding.actionDualOpen.isChecked = actionLink.isDualOpen
-        configBinding.actionTimeout.isChecked = actionLink.isTimeout
+        applyLinkFlags(configBinding, actionLink)
         configBinding.getButtonsState().enable = true
         if (configBinding == binding.shortAction && actionItem.iconType == IconType.OTHER) {
             binding.actionIcon.setImage(R.drawable.baseline_gesture_24)
             gestureActionIcon(this, binding.actionIcon, actionItem)
         }
         applyLink(configBinding)
+    }
+
+    private fun applyLinkFlags(
+        configBinding: ActivityGestureAddActionConfigBinding,
+        link: GestureActionLink,
+    ) {
+        configBinding.actionFreeform.isChecked = link.isFreeform
+        configBinding.actionNewWindow.isChecked = link.isNewWindow
+        configBinding.actionDualOpen.isChecked = link.isDualOpen
+        configBinding.actionTimeout.isChecked = link.isTimeout
     }
 
     private fun showActionPicker(configBinding: ActivityGestureAddActionConfigBinding) {
